@@ -57,6 +57,23 @@ export function workspaceRepositoryContract(
       expect(expectSuccess(await repository.read("notes/collision.md"))).toEqual(original);
     });
 
+    it("allows only one concurrent create for the same path", async () => {
+      const repository = createRepository();
+
+      const results = await Promise.all([
+        repository.create({ path: "notes/concurrent.md", markdown: "first" }),
+        repository.create({ path: "notes/concurrent.md", markdown: "second" }),
+      ]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(results.filter((result) => !result.ok)).toEqual([
+        {
+          ok: false,
+          error: { code: "ALREADY_EXISTS", path: "notes/concurrent.md" },
+        },
+      ]);
+    });
+
     it("requires the expected base hash and returns a verified new hash", async () => {
       const repository = createRepository();
       const created = expectSuccess(
@@ -83,6 +100,34 @@ export function workspaceRepositoryContract(
         error: { code: "EXTERNAL_MODIFICATION", path: "notes/write.md" },
       });
       expect(expectSuccess(await repository.read("notes/write.md"))).toEqual(written);
+    });
+
+    it("allows only one concurrent write for the same base hash", async () => {
+      const repository = createRepository();
+      const created = expectSuccess(
+        await repository.create({ path: "notes/concurrent-write.md", markdown: "base" }),
+      );
+
+      const results = await Promise.all([
+        repository.writeVerified({
+          path: "notes/concurrent-write.md",
+          expectedBaseHash: created.contentHash,
+          markdown: "first",
+        }),
+        repository.writeVerified({
+          path: "notes/concurrent-write.md",
+          expectedBaseHash: created.contentHash,
+          markdown: "second",
+        }),
+      ]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(results.filter((result) => !result.ok)).toEqual([
+        {
+          ok: false,
+          error: { code: "EXTERNAL_MODIFICATION", path: "notes/concurrent-write.md" },
+        },
+      ]);
     });
 
     it("preserves document identity across rename and rejects target collisions", async () => {

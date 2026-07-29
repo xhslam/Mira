@@ -101,6 +101,10 @@ export function createMemoryWorkspaceRepository(
         return contentHash;
       }
 
+      if (documents.has(validatedPath.value)) {
+        return repositoryFailure("ALREADY_EXISTS", request.path);
+      }
+
       let documentId: DocumentId;
       try {
         const parsedId = parseDocumentId(options.createId());
@@ -145,9 +149,17 @@ export function createMemoryWorkspaceRepository(
         return contentHash;
       }
 
+      const latest = documents.get(validatedPath.value);
+      if (!latest) {
+        return repositoryFailure("NOT_FOUND", request.path);
+      }
+      if (latest.contentHash !== request.expectedBaseHash) {
+        return repositoryFailure("EXTERNAL_MODIFICATION", request.path);
+      }
+
       const updated: StoredWorkspaceDocument = Object.freeze({
-        documentId: current.documentId,
-        path: current.path,
+        documentId: latest.documentId,
+        path: latest.path,
         markdown: request.markdown,
         contentHash: contentHash.value,
       });
