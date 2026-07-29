@@ -1,15 +1,18 @@
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { EditorWorkspaceScreen } from "./src/app/editor-workspace-screen";
 import { theme } from "./src/app/theme";
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <EditorWorkspaceScreen />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <EditorWorkspaceScreen />
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

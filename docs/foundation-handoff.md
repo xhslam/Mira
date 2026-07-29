@@ -9,8 +9,8 @@ Status: 源码已更新，预览服务已启动，未打包。
 - Expo package: `57.0.9`; Expo CLI: `57.0.11`; React Native: `0.86.2`.
 - Toolchain: Node `v22.21.1`, npm `10.9.4`, Java `17.0.18`.
 - Quality gates: Prettier, Expo ESLint, strict TypeScript, Vitest, and Android Expo export pass locally.
-- Tests: 55 tests in 5 files cover paths/IDs, sessions, bridge parsing, repository behavior, and source-byte preservation.
-- Android source bundle: `dist/_expo/static/js/android/index-36244e1ee4eed043bfd8252fba7fb55a.hbc` (1,428,554 bytes).
+- Tests: 57 tests in 5 files cover paths/IDs, sessions, bridge parsing, repository behavior, and source-byte preservation.
+- Android source bundle: `dist/_expo/static/js/android/index-144b7093774f19b32e593390054a1761.hbc` (1,437,457 bytes).
 - Metro preview: `http://localhost:8081`.
 - Runtime source search: no `fetch`, Axios, HTTP URL, analytics, account, or backend integration.
 
