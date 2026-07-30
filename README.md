@@ -1,6 +1,6 @@
 # VMark Mobile Foundation
 
-This directory contains the Expo 57 foundation for an Android-first, local-only Markdown notes app. The current screen is a non-interactive editor workspace shell. The domain layer already defines validated workspace paths, immutable document sessions, a strict editor bridge envelope, a provider-neutral repository contract, and lossless source bytes.
+This standalone repository contains the Expo 57 foundation for an Android-first, local-only Markdown notes app. It is independent from the Auris desktop application and has no shared runtime, package, or Git remote. The current screen is a non-interactive editor workspace shell. The domain layer already defines validated workspace paths, immutable document sessions, a strict editor bridge envelope, a provider-neutral repository contract, and lossless source bytes.
 
 ## Requirements
 
@@ -10,7 +10,7 @@ This directory contains the Expo 57 foundation for an Android-first, local-only 
 
 ## Setup And Checks
 
-Run from `vmark-mobile/`:
+Run from the repository root:
 
 ```powershell
 npm ci
