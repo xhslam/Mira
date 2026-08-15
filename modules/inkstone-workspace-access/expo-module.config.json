@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["InkstoneWorkspaceAccessModule"]
+  },
+  "android": {
+    "modules": ["app.inkstone.workspace.InkstoneWorkspaceAccessModule"]
+  }
+}

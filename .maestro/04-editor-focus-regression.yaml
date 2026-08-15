@@ -1,0 +1,33 @@
+appId: app.inkstone.markdown
+name: Editor focus and content through drawer open-close
+---
+# Starts from the editor screen. No hideKeyboard: on Android Maestro
+# hideKeyboard issues a BACK key which would quit the app under test.
+# Assumes the device locale resolves to English; the shell is fully localized,
+# so these labels change when the language preference is Chinese.
+- extendedWaitUntil:
+    visible: "Markdown editor"
+    timeout: 15000
+- tapOn: "Markdown editor"
+- inputText: "before drawer content"
+- takeScreenshot: focus_0_after_first_input
+- extendedWaitUntil:
+    visible: "Saved"
+    timeout: 15000
+- takeScreenshot: focus_1_before_drawer
+- tapOn: "Open workspace"
+- extendedWaitUntil:
+    visible: "History"
+    timeout: 8000
+- tapOn: "Close file browser"
+- extendedWaitUntil:
+    visible: "Markdown editor"
+    timeout: 8000
+- takeScreenshot: focus_2_after_drawer
+- tapOn: "Markdown editor"
+- inputText: " after drawer"
+- takeScreenshot: focus_2b_after_second_input
+- extendedWaitUntil:
+    visible: "Saved"
+    timeout: 15000
+- takeScreenshot: focus_3_after_second_input

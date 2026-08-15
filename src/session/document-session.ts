@@ -1,7 +1,13 @@
 import type { DocumentId, SessionId } from "../domain/identifiers";
 import { failure, type Result, success } from "../domain/result";
 
-export const EDITOR_MODES = Object.freeze(["wysiwyg", "source-peek", "source"] as const);
+export const EDITOR_MODES = Object.freeze([
+  "wysiwyg",
+  "source",
+  "reading",
+  "tree",
+  "table",
+] as const);
 
 export type EditorMode = (typeof EDITOR_MODES)[number];
 

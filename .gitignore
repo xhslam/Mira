@@ -39,3 +39,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+modules/*/android/build/
+
+# Local Android release signing
+android/keystore.properties
+
+# Local tooling, verification artifacts, and generated release output
+.playwright-cli/
+.superpowers/
+.workbuddy/
+artifacts/
+output/

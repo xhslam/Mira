@@ -226,21 +226,21 @@ Every immutable action contract declares its allowed scope, output mode (`commen
 
 The following 13 VMark Genies are mandatory first-release assets, not examples or optional backlog. Mira vendors their English prompt templates and frontmatter semantics from VMark commit `7e248a557fed26830e6496ced266ee4e967d549d`, with localized display labels and descriptions but without changing the prompt behavior:
 
-| Category  | Genie                 | VMark scope | VMark action          | Required behavior                                               |
-| --------- | --------------------- | ----------- | --------------------- | --------------------------------------------------------------- |
-| Editing   | Polish                | selection   | replace               | Improve clarity, flow, and concision while preserving voice.    |
-| Editing   | Condense              | selection   | replace               | Shorten while preserving key information.                       |
-| Editing   | Fix Grammar           | selection   | replace               | Fix grammar, spelling, and punctuation without changing tone.   |
-| Editing   | Simplify              | selection   | replace               | Use simpler language while preserving meaning.                  |
-| Creative  | Expand                | selection   | replace               | Develop the selection with supporting detail.                   |
-| Creative  | Rephrase              | selection   | replace               | Change wording and sentence structure while preserving meaning. |
-| Creative  | Vivid                 | selection   | replace               | Add sensory detail, imagery, and stronger word choice.           |
-| Creative  | Continue              | block       | insert after the block | Continue naturally for two to three paragraphs.                  |
-| Structure | Summarize             | document    | replace               | Replace with a concise summary of main points and conclusions.   |
-| Structure | Outline               | document    | replace               | Replace with a hierarchical Markdown outline.                   |
-| Structure | Headline              | document    | replace               | Replace with five numbered title options.                        |
-| Tools     | Translate             | selection   | replace               | Translate into English while preserving tone and formatting.    |
-| Tools     | Rewrite in English    | selection   | replace               | Rewrite fluently in English while preserving meaning.           |
+| Category  | Genie              | VMark scope | VMark action           | Required behavior                                               |
+| --------- | ------------------ | ----------- | ---------------------- | --------------------------------------------------------------- |
+| Editing   | Polish             | selection   | replace                | Improve clarity, flow, and concision while preserving voice.    |
+| Editing   | Condense           | selection   | replace                | Shorten while preserving key information.                       |
+| Editing   | Fix Grammar        | selection   | replace                | Fix grammar, spelling, and punctuation without changing tone.   |
+| Editing   | Simplify           | selection   | replace                | Use simpler language while preserving meaning.                  |
+| Creative  | Expand             | selection   | replace                | Develop the selection with supporting detail.                   |
+| Creative  | Rephrase           | selection   | replace                | Change wording and sentence structure while preserving meaning. |
+| Creative  | Vivid              | selection   | replace                | Add sensory detail, imagery, and stronger word choice.          |
+| Creative  | Continue           | block       | insert after the block | Continue naturally for two to three paragraphs.                 |
+| Structure | Summarize          | document    | replace                | Replace with a concise summary of main points and conclusions.  |
+| Structure | Outline            | document    | replace                | Replace with a hierarchical Markdown outline.                   |
+| Structure | Headline           | document    | replace                | Replace with five numbered title options.                       |
+| Tools     | Translate          | selection   | replace                | Translate into English while preserving tone and formatting.    |
+| Tools     | Rewrite in English | selection   | replace                | Rewrite fluently in English while preserving meaning.           |
 
 All 13 preserve VMark's default `context: 0` behavior: they receive only their captured selection, block, or document, with no neighboring blocks. An empty `selection` scope falls back to the current compound block exactly as described above. Freeform prompts remain a separate Mira/VMark-compatible path and include at most one neighboring atomic block before and after as read-only context.
 

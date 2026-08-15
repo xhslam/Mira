@@ -1,0 +1,17 @@
+appId: app.inkstone.markdown
+name: Workspace editor save and reopen
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: "App-managed workspace"
+    commands:
+      - tapOn: "App-managed workspace"
+- assertVisible: "Files"
+- tapOn: "Open workspace"
+- assertVisible: "History"
+- back
+- stopApp
+- launchApp
+- assertVisible: "Files"

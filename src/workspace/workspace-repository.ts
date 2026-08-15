@@ -41,7 +41,8 @@ export type WorkspaceRepositoryErrorCode =
   | "ALREADY_EXISTS"
   | "EXTERNAL_MODIFICATION"
   | "HASH_FAILED"
-  | "ID_GENERATION_FAILED";
+  | "ID_GENERATION_FAILED"
+  | "IO_FAILURE";
 
 export type WorkspaceRepositoryError = Readonly<{
   code: WorkspaceRepositoryErrorCode;

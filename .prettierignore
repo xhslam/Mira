@@ -1,2 +1,12 @@
 dist/
 tests/fixtures/markdown/
+.superpowers/
+.playwright-cli/
+.workbuddy/
+artifacts/
+output/
+modules/*/android/build/
+docs/VMark-Mobile-实现文档.md
+docs/VMark-Mobile-升级对比报告.md
+VMark-Mobile-实现文档.md
+VMark-Mobile-升级对比报告.md
