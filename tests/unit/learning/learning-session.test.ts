@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createInitialLearningSnapshot } from "../../../src/learning/learning-types";
+import {
+  createInitialLearningSnapshot,
+  normalizeLearningSnapshot,
+} from "../../../src/learning/learning-types";
 import { seedLearningSnapshot } from "../../../src/learning/learning-seed";
 import {
   addPracticeMinutes,
@@ -44,6 +47,36 @@ describe("learning session persistence", () => {
     const twice = saveLearningItem(once, input);
     expect(once.goal.practiceMinutesToday).toBeCloseTo(1.5);
     expect(twice.savedItems).toHaveLength(1);
+  });
+
+  it("keeps legacy phrase data and initializes separate memories without destructive migration", () => {
+    const legacy = {
+      ...createInitialLearningSnapshot(),
+      version: 4,
+      vocabulary: Object.freeze([
+        Object.freeze({
+          id: "legacy-phrase",
+          term: "daily practice",
+          definition: "旧数据",
+          context: "Small daily practice helps.",
+          translation: null,
+          sourceResourceId: null,
+          repetitions: 0,
+          intervalDays: 0,
+          ease: 2.5,
+          dueAt: "2026-08-14T00:00:00.000Z",
+          lastReviewedAt: null,
+          createdAt: "2026-08-14T00:00:00.000Z",
+        }),
+      ]),
+    };
+
+    const migrated = normalizeLearningSnapshot(legacy);
+
+    expect(migrated.version).toBe(5);
+    expect(migrated.vocabulary).toHaveLength(1);
+    expect(migrated.vocabulary[0]?.id).toBe("legacy-phrase");
+    expect(migrated.memories).toEqual([]);
   });
 
   it("deletes a resource together with every dependent learning record", () => {

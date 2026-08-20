@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ChevronRight, FileText, FolderOpen, Mic, Play, Video } from "lucide-react-native";
+import {
+  ChevronRight,
+  FileText,
+  FolderOpen,
+  Mic,
+  Play,
+  Subtitles,
+  Video,
+} from "lucide-react-native";
 import type { Theme } from "../app/theme";
 import { resourceProgress } from "./learning-session";
 import type { LearningImportIntent, LearningResource, LearningSnapshot } from "./learning-types";
@@ -196,8 +204,14 @@ export function LearningImportSheet(props: ImportSheetProps) {
     Object.freeze({
       intent: "url",
       title: "通过 URL 导入",
-      description: "导入网页、YouTube、播客等内容",
+      description: "导入网页、哔哩哔哩公开链接或播客内容",
       icon: ChevronRight,
+    }),
+    Object.freeze({
+      intent: "subtitle",
+      title: "导入 SRT / VTT 字幕",
+      description: "为资料库中已选视频绑定本地时间轴",
+      icon: Subtitles,
     }),
     Object.freeze({
       intent: "local",

@@ -1,4 +1,5 @@
 import { tokenizeWords, type VocabularyCard } from "./enjoy-player-domain";
+import { extractPhraseCandidates, shouldAutoSavePhrase } from "./phrase-recognition";
 
 const STOP_WORDS = new Set([
   "a",
@@ -83,26 +84,22 @@ export function extractImportantPhrases(
 ): readonly SuggestedPhrase[] {
   const candidates = new Map<string, SuggestedPhrase>();
   for (const sentence of sentences) {
-    const words = tokenizeWords(sentence).map((word) => word.toLowerCase());
-    for (const size of [3, 2]) {
-      for (let index = 0; index <= words.length - size; index += 1) {
-        const chunk = words.slice(index, index + size);
-        if (chunk.some((word) => STOP_WORDS.has(word)) || chunk.some((word) => word.length < 3)) {
-          continue;
-        }
-        const phrase = chunk.join(" ");
-        const existing = candidates.get(phrase);
-        const score = (existing?.score ?? 0) + 1 + (size === 3 ? 0.25 : 0);
-        candidates.set(
-          phrase,
-          Object.freeze({ phrase, context: existing?.context ?? sentence, score }),
-        );
-      }
+    for (const candidate of extractPhraseCandidates(sentence, limit)) {
+      if (!shouldAutoSavePhrase(candidate)) continue;
+      const existing = candidates.get(candidate.canonicalText);
+      candidates.set(
+        candidate.canonicalText,
+        Object.freeze({
+          phrase: existing?.phrase ?? candidate.displayText,
+          context: existing?.context ?? candidate.context,
+          score: (existing?.score ?? 0) + candidate.confidence,
+        }),
+      );
     }
   }
   return Object.freeze(
     [...candidates.values()]
-      .sort((left, right) => right.score - left.score || right.phrase.length - left.phrase.length)
+      .sort((left, right) => right.score - left.score || left.phrase.localeCompare(right.phrase))
       .slice(0, limit),
   );
 }

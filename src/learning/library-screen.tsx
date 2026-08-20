@@ -28,12 +28,13 @@ import type { AppServices } from "../app/app-services";
 import type { AiProviderProfileId } from "../ai/provider-profile";
 import type { Theme } from "../app/theme";
 import { collectLearningResponse } from "./learning-ai";
-import { fingerprintText, splitLearningSentences } from "./enjoy-player-domain";
+import { fingerprintText, parseSrtOrVtt, splitLearningSentences } from "./enjoy-player-domain";
 import { cleanMarkdownForLearning } from "./learning-enrichment";
 import { transcribeOpenAiCompatibleMedia } from "./learning-stt";
 import { isLocalAudioAsset, isLocalVideoAsset, persistLearningMedia } from "./learning-media-files";
-import { fetchYoutubeCaptions, youtubeVideoId } from "./youtube-learning";
+import { bilibiliVideoReference } from "./bilibili-learning";
 import type { LearningResource, LearningSnapshot } from "./learning-types";
+import { syncResourcePhrases } from "./resource-phrase-sync";
 
 type Composer = "closed" | "text" | "url";
 type LibraryFilter = "all" | "audio" | "video" | "text";
@@ -62,7 +63,8 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
     (resource) =>
       filter === "all" ||
       resource.mediaKind === filter ||
-      (filter === "video" && resource.mediaKind === "youtube"),
+      (filter === "video" && resource.mediaKind === "youtube") ||
+      resource.mediaKind === "bilibili",
   );
   const selected =
     filteredResources.find((item) => item.id === snapshot.ui.selectedResourceId) ??
@@ -83,6 +85,7 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
       );
       if (intent === "text") setComposer("text");
       else if (intent === "url") setComposer("url");
+      else if (intent === "subtitle") void importSubtitleForSelected();
       else if (intent === "recording") void toggleAudioCapture();
       else if (intent === "photo") void importFromPhotoLibrary();
       else void importFromFileProvider();
@@ -140,10 +143,12 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
   }
 
   function save(resource: LearningResource, success: string) {
+    const phraseSync = syncResourcePhrases(snapshot.vocabulary, resource, new Date().toISOString());
     persist(
       Object.freeze({
         ...snapshot,
         resources: Object.freeze([resource, ...snapshot.resources]),
+        vocabulary: phraseSync.cards,
         ui: Object.freeze({
           ...snapshot.ui,
           selectedResourceId: resource.id,
@@ -151,7 +156,11 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
         }),
       }),
     );
-    setMessage(success);
+    setMessage(
+      phraseSync.createdCount > 0
+        ? `${success} · 已识别 ${phraseSync.createdCount} 个可复用短语`
+        : success,
+    );
   }
 
   function updateResource(resource: LearningResource, notice: string) {
@@ -395,27 +404,46 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
       setWorking(null);
     }
   }
-
-  async function startSelectedLearning() {
+  async function importSubtitleForSelected() {
     if (!selected) {
-      setMessage("请先选择一个视频，再开始学习。");
+      setMessage("请先在资料库选择一个视频或音频，再导入对应的 SRT/VTT 字幕。 ");
+      return;
+    }
+    try {
+      setWorking("subtitle");
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/vtt", "application/x-subrip", "text/plain"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      const asset = result.canceled ? null : result.assets[0];
+      if (!asset) return;
+      const extensionIsSubtitle = /\.(srt|vtt)$/iu.test(asset.name);
+      const mimeIsSubtitle =
+        asset.mimeType === "text/vtt" || asset.mimeType === "application/x-subrip";
+      if (!extensionIsSubtitle && !mimeIsSubtitle) {
+        throw new Error("请选择 SRT 或 VTT 字幕文件。 ");
+      }
+      const cues = parseSrtOrVtt(await new File(asset.uri).text());
+      if (!cues.length) throw new Error("字幕文件中没有可用的时间轴句子。 ");
+      applySubtitleCues(selected, cues, `已导入 ${asset.name} 并绑定本地时间轴。`);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "无法导入这个字幕文件。 ");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  function startSelectedLearning() {
+    if (!selected) {
+      setMessage("请先选择一个视频，再开始学习。 ");
       return;
     }
     if (selected.sentences.length > 0) {
       onOpenPractice(selected);
       return;
     }
-    try {
-      setWorking("subtitle");
-      setMessage("正在自动获取字幕，完成后将打开逐句学习。");
-      const cues = await requestSubtitleCues(selected);
-      const next = createSubtitledResource(selected, cues);
-      onOpenPractice(next, snapshotWithUpdatedResource(next));
-    } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "自动获取字幕暂时失败。");
-    } finally {
-      setWorking(null);
-    }
+    setMessage("请先导入匹配的 SRT/VTT 字幕；本地字幕绑定后即可开始逐句学习。 ");
   }
 
   async function importUrl() {
@@ -426,39 +454,32 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
     }
     try {
       setWorking("url");
-      const videoId = youtubeVideoId(sourceUrl);
-      if (videoId) {
-        const captions = await fetchYoutubeCaptions(sourceUrl);
+      const reference = bilibiliVideoReference(sourceUrl);
+      if (reference) {
+        const id = `bilibili-${reference.kind}-${reference.id}`;
+        if (snapshot.resources.some((resource) => resource.id === id)) {
+          setMessage("这个哔哩哔哩视频已经保存在资料库中。 ");
+          return;
+        }
         const now = new Date().toISOString();
-        const id = `youtube-${videoId}`;
         const resource: LearningResource = Object.freeze({
           id,
-          title: `YouTube 视频 ${videoId}`,
-          description: "通过公开英文字幕导入的 YouTube 学习视频。",
-          language: "en",
-          source: "youtube",
+          title:
+            reference.kind === "episode"
+              ? `哔哩哔哩番剧 ${reference.id}`
+              : `哔哩哔哩视频 ${reference.id}`,
+          description: "本地保存的哔哩哔哩公开视频引用；请另行导入匹配的 SRT/VTT 字幕。",
+          language: "未设置",
+          source: "bilibili",
           provider: "library",
-          content: captions.map((cue) => cue.text).join("\n"),
-          sentences: Object.freeze(
-            captions.map((cue) =>
-              Object.freeze({
-                id: `${id}-caption-${cue.index}`,
-                resourceId: id,
-                order: cue.index,
-                text: cue.text,
-                translation: null,
-                startMs: cue.startMs,
-                endMs: cue.endMs,
-                sourceAudioUri: null,
-              }),
-            ),
-          ),
-          mediaKind: "youtube",
+          content: "",
+          sentences: Object.freeze([]),
+          mediaKind: "bilibili",
           sourceUrl,
           createdAt: now,
           updatedAt: now,
         });
-        save(resource, `YouTube 视频已导入 ${captions.length} 条英文字幕，可立即逐句学习。`);
+        save(resource, "哔哩哔哩公开视频链接已保存。请选择该视频后导入匹配的 SRT/VTT 字幕。 ");
         setUrl("");
         setComposer("closed");
         return;
@@ -477,8 +498,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
         .replace(/&nbsp;|&amp;|&quot;/giu, " ")
         .replace(/\s+/gu, " ");
       const resource = createResource({ name: pageTitle, content: text, sourceUrl });
-      if (!resource.sentences.length)
+      if (!resource.sentences.length) {
         throw new Error("链接没有返回可切分的正文；视频和播客请导入媒体或字幕。 ");
+      }
       save(resource, `网页已导入并切分 ${resource.sentences.length} 句。`);
       setUrl("");
       setComposer("closed");
@@ -717,7 +739,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
           >
             <ResourceHeroArtwork />
             <View style={styles.heroDocumentIcon}>
-              {selected.mediaKind === "video" || selected.mediaKind === "youtube" ? (
+              {selected.mediaKind === "video" ||
+              selected.mediaKind === "youtube" ||
+              selected.mediaKind === "bilibili" ? (
                 <Video color="#D6E2FF" size={20} strokeWidth={1.8} />
               ) : selected.mediaKind === "audio" ? (
                 <Volume2 color="#D6E2FF" size={20} strokeWidth={1.8} />
@@ -746,7 +770,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
               <Text numberOfLines={1} style={styles.heroDescription}>
                 {selected.sentences.length
                   ? "继续完善这份学习材料"
-                  : "媒体尚未生成句子；先提取字幕"}
+                  : selected.mediaKind === "bilibili"
+                    ? "请导入匹配的 SRT/VTT 字幕"
+                    : "媒体尚未生成句子；可导入字幕或使用 AI 转写"}
               </Text>
             </View>
             <View style={styles.heroPlayButton}>
@@ -756,9 +782,19 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
           <View style={styles.processingGrid}>
             <ProcessingAction
               icon={Subtitles}
-              label="识别字幕"
-              detail={working === "subtitle" ? "处理中…" : "提取并切句"}
-              onPress={() => void transcribeSelectedMedia()}
+              label={selected.mediaKind === "bilibili" ? "导入字幕" : "识别字幕"}
+              detail={
+                working === "subtitle"
+                  ? "处理中…"
+                  : selected.mediaKind === "bilibili"
+                    ? "选择本地 SRT/VTT"
+                    : "提取并切句"
+              }
+              onPress={() =>
+                void (selected.mediaKind === "bilibili"
+                  ? importSubtitleForSelected()
+                  : transcribeSelectedMedia())
+              }
               disabled={working !== null}
               featured
               styles={styles}
@@ -784,13 +820,13 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
             />
             <ProcessingAction
               icon={Play}
-              label={selected.sentences.length ? "逐句学习" : "开始视频学习"}
+              label={selected.sentences.length ? "逐句学习" : "导入字幕后学习"}
               detail={
                 working === "subtitle"
-                  ? "正在获取字幕…"
+                  ? "正在导入字幕…"
                   : selected.sentences.length
                     ? "进入新版学习页"
-                    : "自动识别字幕后进入"
+                    : "先选择本地 SRT/VTT 字幕"
               }
               onPress={() => void startSelectedLearning()}
               disabled={working !== null}

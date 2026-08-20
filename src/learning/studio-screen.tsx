@@ -7,6 +7,7 @@ import type { AppServices } from "../app/app-services";
 import type { Theme } from "../app/theme";
 import { createPracticePosterSvg, fingerprintText } from "./enjoy-player-domain";
 import { collectLearningResponse } from "./learning-ai";
+import { bilibiliVideoReference } from "./bilibili-learning";
 import type { LearningResource, LearningSnapshot } from "./learning-types";
 
 type Props = Readonly<{
@@ -107,24 +108,31 @@ export function StudioScreen({ snapshot, onChange, services, theme }: Props) {
     }
   };
   const savePublicLink = () => {
-    if (!/^https:\/\//iu.test(url.trim())) {
-      setNotice(
-        "Use a public HTTPS link. Playback and captions always follow the source platform's own rules.",
-      );
+    const sourceUrl = url.trim();
+    const reference = bilibiliVideoReference(sourceUrl);
+    if (!reference) {
+      setNotice("请粘贴公开的哔哩哔哩 BV 视频或 EP 番剧链接。 ");
       return;
     }
     const now = new Date().toISOString();
-    const id = `public-${Date.now()}`;
+    const id = `bilibili-${reference.kind}-${reference.id}`;
+    if (snapshot.resources.some((resource) => resource.id === id)) {
+      setNotice("该哔哩哔哩视频已在资料库中。 ");
+      return;
+    }
     const item: LearningResource = Object.freeze({
       id,
-      title: "Public video reference",
-      description: url.trim(),
-      language: "English",
-      source: "youtube",
+      title:
+        reference.kind === "episode"
+          ? `哔哩哔哩番剧 ${reference.id}`
+          : `哔哩哔哩视频 ${reference.id}`,
+      description: "本地保存的公开视频引用；请另行导入匹配的 SRT/VTT 字幕。",
+      language: "未设置",
+      source: "bilibili",
       content: "",
       sentences: Object.freeze([]),
-      mediaKind: "youtube",
-      sourceUrl: url.trim(),
+      mediaKind: "bilibili",
+      sourceUrl,
       createdAt: now,
       updatedAt: now,
     });
@@ -136,9 +144,7 @@ export function StudioScreen({ snapshot, onChange, services, theme }: Props) {
       }),
     );
     setUrl("");
-    setNotice(
-      "Public link saved as a reference. Add a legal SRT/VTT file in Library to practise its captions.",
-    );
+    setNotice("哔哩哔哩视频引用已保存。请到资料库导入匹配的 SRT/VTT 字幕后开始学习。 ");
   };
   const sharePoster = async () => {
     if (!sentence) {

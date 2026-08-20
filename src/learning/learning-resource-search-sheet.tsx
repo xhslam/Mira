@@ -126,13 +126,13 @@ function ResourceResult({
   onPress: () => void;
 }>) {
   const Icon =
-    resource.mediaKind === "video" || resource.mediaKind === "youtube"
+    resource.mediaKind === "video" || resource.mediaKind === "bilibili"
       ? Video
       : resource.mediaKind === "audio"
         ? Volume2
         : FileText;
   const kind =
-    resource.mediaKind === "video" || resource.mediaKind === "youtube"
+    resource.mediaKind === "video" || resource.mediaKind === "bilibili"
       ? "视频"
       : resource.mediaKind === "audio"
         ? "音频"

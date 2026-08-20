@@ -36,7 +36,7 @@ import { openLearningResource } from "../learning/learning-session";
 import { hasLearningSttKey, saveLearningSttKey } from "../learning/learning-stt";
 import { hasLearningTtsKey, saveLearningTtsKey } from "../learning/learning-tts";
 import { PracticeScreen } from "../learning/practice-screen";
-import { VocabularyScreen } from "../learning/vocabulary-screen";
+import { PhraseMemoryScreen } from "../learning/phrase-memory-screen";
 import { LearningResourceSearchSheet } from "../learning/learning-resource-search-sheet";
 import type {
   LearningResource,
@@ -128,8 +128,9 @@ export function LearningScreen({ services }: Readonly<{ services: AppServices }>
   }
 
   const activeSnapshot = snapshot;
-  const showingVocabulary = activeSnapshot.ui.section === "vocabulary";
-  const section: PrimarySection = showingVocabulary
+  const showingPhraseMemory =
+    activeSnapshot.ui.section === "phrase-memory" || activeSnapshot.ui.section === "vocabulary";
+  const section: PrimarySection = showingPhraseMemory
     ? "settings"
     : activeSnapshot.ui.section === "practice"
       ? "practice"
@@ -149,6 +150,24 @@ export function LearningScreen({ services }: Readonly<{ services: AppServices }>
   function openResource(resource: LearningResource) {
     void update(openLearningResource(activeSnapshot, resource.id));
   }
+  if (activeSnapshot.ui.section === "phrase-memory" || activeSnapshot.ui.section === "vocabulary") {
+    return (
+      <PhraseMemoryScreen
+        snapshot={activeSnapshot}
+        onChange={(next) => void update(next)}
+        onClose={() =>
+          void update(
+            Object.freeze({
+              ...activeSnapshot,
+              ui: Object.freeze({ ...activeSnapshot.ui, section: "settings" }),
+            }),
+          )
+        }
+        theme={theme}
+      />
+    );
+  }
+
   if (activeSnapshot.ui.section === "craft") {
     return (
       <CraftScreen
@@ -282,22 +301,15 @@ export function LearningScreen({ services }: Readonly<{ services: AppServices }>
               services={services}
               snapshot={snapshot}
               onChange={(next) => void update(next)}
-              onOpenVocabulary={() =>
+              onOpenPhraseMemory={() =>
                 void update(
                   Object.freeze({
                     ...snapshot,
-                    ui: Object.freeze({ ...snapshot.ui, section: "vocabulary" }),
+                    ui: Object.freeze({ ...snapshot.ui, section: "phrase-memory" }),
                   }),
                 )
               }
               styles={styles}
-              theme={theme}
-            />
-          ) : null}
-          {snapshot.ui.section === "vocabulary" ? (
-            <VocabularyScreen
-              snapshot={snapshot}
-              onChange={(next) => void update(next)}
               theme={theme}
             />
           ) : null}
@@ -333,14 +345,14 @@ function SettingsScreen({
   services,
   snapshot,
   onChange,
-  onOpenVocabulary,
+  onOpenPhraseMemory,
   styles,
   theme,
 }: Readonly<{
   services: AppServices;
   snapshot: LearningSnapshot;
   onChange: (next: LearningSnapshot) => void;
-  onOpenVocabulary: () => void;
+  onOpenPhraseMemory: () => void;
   styles: ReturnType<typeof createStyles>;
   theme: Theme;
 }>) {
@@ -405,7 +417,7 @@ function SettingsScreen({
       />
       <Pressable
         accessibilityRole="button"
-        onPress={onOpenVocabulary}
+        onPress={onOpenPhraseMemory}
         style={({ pressed }) => [styles.settingsRow, pressed && styles.pressed]}
       >
         <View style={styles.settingsIcon}>
@@ -414,7 +426,7 @@ function SettingsScreen({
         <View style={styles.settingsCopy}>
           <Text style={styles.settingsTitle}>短语与记忆</Text>
           <Text style={styles.settingsDetail}>
-            {snapshot.vocabulary.length} 个词语保留了出现语境
+            {snapshot.vocabulary.length} 个短语 · {snapshot.memories.length} 条记忆
           </Text>
         </View>
         <Text style={styles.settingsChevron}>›</Text>

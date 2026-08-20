@@ -20,7 +20,7 @@ describe("learning library visual hierarchy", () => {
     expect(heroIndex).toBeGreaterThan(filterIndex);
     expect(actionsIndex).toBeGreaterThan(heroIndex);
     expect(source).toContain("<ResourceHeroArtwork />");
-    expect(source).toContain('label="识别字幕"');
+    expect(source).toContain('label={selected.mediaKind === "bilibili" ? "导入字幕" : "识别字幕"}');
     expect(source).toContain('label="逐句翻译"');
     expect(source).toContain('label="下载"');
     expect(source).toContain('label={selected.sentences.length ? "逐句学习"');

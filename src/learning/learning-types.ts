@@ -20,6 +20,7 @@ export const LEARNING_SECTIONS = [
   "library",
   "practice",
   "vocabulary",
+  "phrase-memory",
   "studio",
   "chat",
   "courses",
@@ -48,12 +49,12 @@ export type LearningResource = Readonly<{
   title: string;
   description: string;
   language: string;
-  source: "generated" | "imported" | "manual" | "youtube";
+  source: "generated" | "imported" | "manual" | "youtube" | "bilibili";
   provider?: "library" | "craft" | "discover" | "recording" | "manual";
   content: string;
   sentences: readonly LearningSentence[];
   mediaUri?: string;
-  mediaKind?: "audio" | "video" | "youtube" | "text";
+  mediaKind?: "audio" | "video" | "youtube" | "bilibili" | "text";
   sourceUrl?: string;
   captionFingerprint?: string;
   durationMs?: number | null;
@@ -202,6 +203,20 @@ export type LearningSavedItem = Readonly<{
   originalSentence: string;
   createdAt: string;
 }>;
+export type LearningMemoryCategory = "preference" | "goal" | "weakness" | "learning" | "other";
+
+export type LearningMemory = Readonly<{
+  id: string;
+  text: string;
+  category: LearningMemoryCategory | null;
+  tags: readonly string[];
+  notes?: string;
+  sourceType: "user" | "assistant" | "system";
+  sourceId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
 export type LearningSentenceAnalysis = Readonly<{
   id: string;
   resourceId: string;
@@ -248,7 +263,8 @@ export type DiscoverFeedEntry = Readonly<{
   createdAt: string;
   updatedAt: string;
 }>;
-export type LearningImportIntent = "local" | "photo" | "text" | "url" | "recording" | null;
+export type LearningImportIntent =
+  "local" | "photo" | "text" | "url" | "recording" | "subtitle" | null;
 
 export type LearningSettings = Readonly<{
   selectedProviderProfileId: string | null;
@@ -276,7 +292,7 @@ export type LearningUiState = Readonly<{
 }>;
 
 export type LearningSnapshot = Readonly<{
-  version: 4;
+  version: 5;
   resources: readonly LearningResource[];
   recordings: readonly LearningRecording[];
   practice: readonly PracticeProgress[];
@@ -294,6 +310,7 @@ export type LearningSnapshot = Readonly<{
   generationDrafts: readonly GenerationDraft[];
   transcriptTracks: readonly LearningTranscriptTrack[];
   savedItems: readonly LearningSavedItem[];
+  memories: readonly LearningMemory[];
   analyses: readonly LearningSentenceAnalysis[];
   subscriptions: readonly DiscoverSubscription[];
   discoverEntries: readonly DiscoverFeedEntry[];
@@ -308,7 +325,7 @@ export type LearningSnapshot = Readonly<{
 export function createInitialLearningSnapshot(): LearningSnapshot {
   const today = new Date().toISOString().slice(0, 10);
   return Object.freeze({
-    version: 4,
+    version: 5,
     resources: Object.freeze([]),
     recordings: Object.freeze([]),
     practice: Object.freeze([]),
@@ -331,6 +348,7 @@ export function createInitialLearningSnapshot(): LearningSnapshot {
     generationDrafts: Object.freeze([]),
     transcriptTracks: Object.freeze([]),
     savedItems: Object.freeze([]),
+    memories: Object.freeze([]),
     analyses: Object.freeze([]),
     subscriptions: Object.freeze([]),
     discoverEntries: Object.freeze([]),
@@ -372,14 +390,15 @@ export function normalizeLearningSnapshot(value: unknown): LearningSnapshot {
     candidate.version !== 1 &&
     candidate.version !== 2 &&
     candidate.version !== 3 &&
-    candidate.version !== 4
+    candidate.version !== 4 &&
+    candidate.version !== 5
   )
     return createInitialLearningSnapshot();
   const initial = createInitialLearningSnapshot();
   return Object.freeze({
     ...initial,
     ...candidate,
-    version: 4,
+    version: 5,
     resources: Object.freeze(candidate.resources ?? []),
     recordings: Object.freeze(candidate.recordings ?? []),
     practice: Object.freeze(candidate.practice ?? []),
@@ -397,6 +416,7 @@ export function normalizeLearningSnapshot(value: unknown): LearningSnapshot {
     generationDrafts: Object.freeze(candidate.generationDrafts ?? []),
     transcriptTracks: Object.freeze(candidate.transcriptTracks ?? []),
     savedItems: Object.freeze(candidate.savedItems ?? []),
+    memories: Object.freeze(candidate.memories ?? []),
     analyses: Object.freeze(candidate.analyses ?? []),
     subscriptions: Object.freeze(candidate.subscriptions ?? []),
     discoverEntries: Object.freeze(candidate.discoverEntries ?? []),

@@ -1,4 +1,4 @@
-import { createVocabularyCard } from "./enjoy-player-domain";
+import { canonicalizePhrase, upsertPhraseCard } from "./phrase-recognition";
 import {
   inferExpressionType,
   normalizeEnglishExpression,
@@ -186,26 +186,32 @@ export function saveConfirmedEnglishLesson(
   for (const candidate of selected) {
     const type = candidateType(candidate);
     const sentence = sentences.find((item) => item.text === candidate.english.trim()) ?? null;
-    const vocabularyCard =
-      type === "sentence"
-        ? null
-        : (vocabulary.find(
-            (item) =>
-              normalizeEnglishExpression(item.term) ===
-              normalizeEnglishExpression(candidate.english),
-          ) ??
-          createVocabularyCard({
-            id: `lesson-vocabulary-${options.session.id}-${stableSegment(candidate.english)}`,
-            term: candidate.english,
-            definition: candidate.translation,
-            context: options.session.scenario,
-            translation: candidate.translation,
-            sourceResourceId: resourceId,
-            now: options.now,
-          }));
-    if (vocabularyCard && !vocabulary.some((item) => item.id === vocabularyCard.id)) {
-      vocabulary = Object.freeze([vocabularyCard, ...vocabulary]);
-    }
+    const phraseResult =
+      type === "phrase"
+        ? upsertPhraseCard(
+            vocabulary,
+            {
+              displayText: candidate.english,
+              canonicalText: candidate.english,
+              confidence: 1,
+              context: options.session.scenario,
+              phraseType: "manual",
+              definition: candidate.translation,
+              translation: candidate.translation,
+              sourceResourceId: resourceId,
+            },
+            options.now,
+            { manual: true },
+          )
+        : null;
+    if (phraseResult) vocabulary = phraseResult.cards;
+    const vocabularyCard = phraseResult
+      ? (vocabulary.find(
+          (item) =>
+            canonicalizePhrase(item.canonicalText ?? item.term) ===
+            canonicalizePhrase(candidate.english),
+        ) ?? null)
+      : null;
     const written = writeExpression(
       expressions,
       candidate,
