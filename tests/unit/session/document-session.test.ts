@@ -59,7 +59,7 @@ describe("createDocumentSession", () => {
       documentId: documentId(),
       markdown: "Hello\n",
       selection,
-      mode: "source-peek",
+      mode: "source",
       baseFileHash: "sha256:initial",
       lastConfirmedSave,
     });
@@ -67,7 +67,7 @@ describe("createDocumentSession", () => {
     expect(session).toMatchObject({
       revision: 0,
       markdown: "Hello\n",
-      mode: "source-peek",
+      mode: "source",
       baseFileHash: "sha256:initial",
       dirty: false,
     });
@@ -134,7 +134,7 @@ describe("applyEditorSnapshot", () => {
     ["stale base revision", { baseRevision: -1 }, "STALE_BASE_REVISION"],
     ["duplicate revision", { revision: 0 }, "DUPLICATE_REVISION"],
     ["non-monotonic revision", { revision: -1 }, "NON_MONOTONIC_REVISION"],
-    ["unsupported mode", { mode: "preview" as EditorMode }, "UNSUPPORTED_MODE"],
+    ["unsupported mode", { mode: "unknown-mode" as EditorMode }, "UNSUPPORTED_MODE"],
   ])("rejects %s", (_name, overrides, code) => {
     const session = createSession();
     const snapshot = {

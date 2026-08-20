@@ -1,0 +1,393 @@
+diff --git a/src/formats/excalidraw/excalidraw-file.ts b/src/formats/excalidraw/excalidraw-file.ts
+index 7f77303..9a3f7a7 100644
+--- a/src/formats/excalidraw/excalidraw-file.ts
++++ b/src/formats/excalidraw/excalidraw-file.ts
+@@ -15,7 +15,13 @@ export type ExcalidrawScene = z.infer<typeof sceneSchema>;
+ export type ExcalidrawFileError = Readonly<{
+   code: "INVALID_JSON" | "INVALID_SCENE" | "MISSING_DRAWING" | "INVALID_COMPRESSION";
+   message: string;
++  recoverable: boolean;
+ }>;
++
++const DRAWING_HEADING = /^\s{0,3}#{1,6}\s+Drawing(?:\s+#+)?\s*$/im;
++const DRAWING_FENCE = /^\s{0,3}(`{3,}|~{3,})[^\S\r\n]*([a-z0-9+_-]+)?[^\r\n]*\r?\n([\s\S]*?)^\s{0,3}\1[^\S\r\n]*$/gim;
++const JSON_FENCE_LANGUAGES = new Set(["json", "excalidraw", "excalidraw-json"]);
++const RECOVERY_MARKER = "mira-recovery: true";
++
+ export const EMPTY_EXCALIDRAW_SCENE: ExcalidrawScene = (() => {
+@@ -30,7 +36,10 @@ function error(
+   code: ExcalidrawFileError["code"],
+   message: string,
+ ): Result<never, ExcalidrawFileError> {
+-  return failure(Object.freeze({ code, message }));
++  return failure(
++    Object.freeze({ code, message, recoverable: code === "MISSING_DRAWING" }),
++  );
+ }
++
+ export function isExcalidrawMarkdownPath(path: string): boolean {
+   return path.toLowerCase().endsWith(".excalidraw.md");
+ }
+@@ -39,30 +48,94 @@ export function isExcalidrawPath(path: string): boolean {
+   const lower = path.toLowerCase();
+   return lower.endsWith(".excalidraw") || lower.endsWith(".excalidraw.md");
+ }
++
++function normalizeJsonSource(value: string): string {
++  return value.replace(/^\uFEFF/, "").trim();
++}
++
++function drawingSection(source: string): string | null {
++  const heading = DRAWING_HEADING.exec(source);
++  if (!heading || heading.index === undefined) return null;
++  return source.slice(heading.index + heading[0].length);
++}
++
++function decodeCompressed(body: string): Result<string, ExcalidrawFileError> {
++  const decoded = LZString.decompressFromBase64(body.replace(/[\r\n\t ]/g, ""));
++  return decoded
++    ? success(decoded)
++    : error("INVALID_COMPRESSION", "The compressed Excalidraw scene could not be decoded.");
++}
++
++function extractFromFences(
++  section: string,
++  allowPlainJson = true,
++): Result<string, ExcalidrawFileError> | null {
++  DRAWING_FENCE.lastIndex = 0;
++  let match: RegExpExecArray | null;
++  while ((match = DRAWING_FENCE.exec(section)) !== null) {
++    const language = (match[2] ?? "").toLowerCase();
++    const body = match[3] ?? "";
++    if (language === "compressed-json") return decodeCompressed(body);
++    if (JSON_FENCE_LANGUAGES.has(language) && (allowPlainJson || language !== "json")) {
++      return success(body);
++    }
++  }
++  return null;
++}
++
++function extractBalancedJsonObject(section: string): string | null {
++  const start = section.indexOf("{");
++  if (start < 0) return null;
++  let depth = 0;
++  let inString = false;
++  let escaped = false;
++  for (let index = start; index < section.length; index += 1) {
++    const character = section[index];
++    if (character === undefined) continue;
++    if (inString) {
++      if (escaped) escaped = false;
++      else if (character === "\\") escaped = true;
++      else if (character === '"') inString = false;
++      continue;
++    }
++    if (character === '"') {
++      inString = true;
++      continue;
++    }
++    if (character === "{") depth += 1;
++    if (character === "}") {
++      depth -= 1;
++      if (depth === 0) return section.slice(start, index + 1);
++    }
++  }
++  return null;
++}
++
+ function extractMarkdownScene(source: string): Result<string, ExcalidrawFileError> {
+-  const compressed = source.match(
+-    /(?:^|\n)##? Drawing\r?\n[^`]*```compressed-json\r?\n([\s\S]*?)\r?\n```/m,
+-  );
+-  if (compressed?.[1]) {
+-    const decompressed = LZString.decompressFromBase64(compressed[1].replace(/[\r\n]/g, ""));
+-    return decompressed
+-      ? success(decompressed)
+-      : error("INVALID_COMPRESSION", "The compressed Excalidraw scene could not be decoded.");
+-  }
+-  const json = source.match(/(?:^|\n)##? Drawing\r?\n[^`]*```json\r?\n([\s\S]*?)\r?\n```/m);
+-  if (json?.[1]) return success(json[1]);
+-  const drawing = /(?:^|\n)##? Drawing\r?\n/m.exec(source);
+-  if (drawing?.index !== undefined) {
+-    const tail = source.slice(drawing.index + drawing[0].length);
+-    const start = tail.indexOf("{");
+-    const end = tail.lastIndexOf("}");
+-    if (start >= 0 && end > start) return success(tail.slice(start, end + 1));
+-  }
++  const section = drawingSection(source);
++  if (section !== null) {
++    const fenced = extractFromFences(section);
++    if (fenced) return fenced;
++    const inline = extractBalancedJsonObject(section);
++    if (inline) return success(inline);
++  }
++
++  // Some interoperable files contain only a tagged scene fence. Accept it after
++  // the primary Drawing-section path, but never treat an arbitrary Markdown JSON
++  // block as a drawing.
++  const tagged = extractFromFences(source, false);
++  if (tagged) return tagged;
++
+   return error(
+     "MISSING_DRAWING",
+     "The Markdown file does not contain an Excalidraw drawing block.",
+   );
+ }
++
+ export function parseExcalidrawFile(
+   source: string,
+   path: string,
+ ): Result<ExcalidrawScene, ExcalidrawFileError> {
+   const extracted = isExcalidrawMarkdownPath(path) ? extractMarkdownScene(source) : success(source);
+   if (!extracted.ok) return extracted;
+   let value: unknown;
+   try {
+-    value = JSON.parse(extracted.value);
++    value = JSON.parse(normalizeJsonSource(extracted.value));
+   } catch {
+     return error("INVALID_JSON", "The Excalidraw scene is not valid JSON.");
+   }
+@@ -194,5 +267,53 @@ export function createEmptyExcalidrawFile(path = "Untitled.excalidraw.md"): string {
+   return serializeExcalidrawFile(EMPTY_EXCALIDRAW_SCENE, path);
+ }
++
++/**
++ * Prevents the generic new-file dialog from creating an empty Markdown document
++ * with an Excalidraw extension. Non-empty template content is never replaced.
++ */
++export function contentForNewExcalidrawPath(path: string, content: string): string {
++  return isExcalidrawPath(path) && content.trim().length === 0
++    ? createEmptyExcalidrawFile(path)
++    : content;
++}
++
++function fenceForSource(source: string): string {
++  const longest = [...source.matchAll(/`+/g)].reduce(
++    (length, match) => Math.max(length, match[0].length),
++    2,
++  );
++  return "`".repeat(longest + 1);
++}
++
++/**
++ * Creates a valid, empty Markdown canvas while retaining the exact unparseable
++ * source inside the document. This operation is deliberately limited to
++ * `.excalidraw.md`, where Markdown can preserve the source without weakening
++ * the standard `.excalidraw` JSON contract.
++ */
++export function createRecoveredExcalidrawMarkdownFile(path: string, source: string): string {
++  if (!isExcalidrawMarkdownPath(path)) {
++    throw new Error("Recovery is only supported for .excalidraw.md files");
++  }
++  const fence = fenceForSource(source);
++  const preamble = [
++    "---",
++    "excalidraw-plugin: parsed",
++    "mira-document-type: excalidraw",
++    RECOVERY_MARKER,
++    "---",
++    "",
++    "# Mira Recovery",
++    "",
++    "The original source could not be recognized as an Excalidraw drawing. It is preserved below before the new empty canvas.",
++    "",
++    "## Original Source Backup",
++    "",
++    `${fence}text`,
++    source,
++    fence,
++  ].join("\n");
++  return serializeExcalidrawFile(EMPTY_EXCALIDRAW_SCENE, path, preamble);
++}
+diff --git a/src/app/use-entry-creation.ts b/src/app/use-entry-creation.ts
+index a01b7cf..e4df8bb 100644
+--- a/src/app/use-entry-creation.ts
++++ b/src/app/use-entry-creation.ts
+@@ -5,6 +5,7 @@ import type {
+ } from "../workspace/workspace-browser";
+ import type { BrowserCommandResult } from "./browser-command";
+ import type { FileTemplate } from "./file-template-registry";
+ import type { WorkspaceCreateKind } from "./workspace-drawer-dialogs";
++import { contentForNewExcalidrawPath } from "../formats/excalidraw/excalidraw-file";
+ export function useEntryCreation(options: {
+@@ -75,7 +76,10 @@ export function useEntryCreation(options: {
+       const result =
+         kind === "directory"
+           ? await options.onCreateDirectory(value)
+-          : await options.onCreateFile(value, content, conflict);
++          : await options.onCreateFile(
++              value,
++              contentForNewExcalidrawPath(value, content),
++              conflict,
++            );
+diff --git a/src/formats/excalidraw/excalidraw-editor.tsx b/src/formats/excalidraw/excalidraw-editor.tsx
+index 0203b49..d5a0783 100644
+--- a/src/formats/excalidraw/excalidraw-editor.tsx
++++ b/src/formats/excalidraw/excalidraw-editor.tsx
+@@ -21,7 +21,9 @@ import {
+ import {
++  createRecoveredExcalidrawMarkdownFile,
++  isExcalidrawMarkdownPath,
+   parseExcalidrawFile,
+   serializeExcalidrawFile,
+   type ExcalidrawScene,
+@@ -63,6 +65,7 @@ export default function ExcalidrawEditor({
+ }: ExcalidrawEditorProps) {
+   const parsed = useMemo(() => parseExcalidrawFile(source, path), [path, source]);
+   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
++  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+   const originalSourceRef = useRef(source);
+@@ -154,6 +157,55 @@ export default function ExcalidrawEditor({
+     [emitPending],
+   );
++  const copySource = useCallback(async (): Promise<void> => {
++    try {
++      if (navigator.clipboard?.writeText) {
++        await navigator.clipboard.writeText(source);
++      } else {
++        const field = document.createElement("textarea");
++        field.value = source;
++        field.setAttribute("readonly", "");
++        field.style.position = "fixed";
++        field.style.opacity = "0";
++        document.body.appendChild(field);
++        field.select();
++        const copied = document.execCommand("copy");
++        field.remove();
++        if (!copied) throw new Error("Clipboard unavailable");
++      }
++      setRecoveryError(locale === "zh-CN" ? "原始内容已复制。" : "Original source copied.");
++    } catch {
++      setRecoveryError(
++        locale === "zh-CN"
++          ? "无法访问剪贴板，请从版本历史中恢复原始内容。"
++          : "The clipboard is unavailable. Restore the original source from version history.",
++      );
++    }
++  }, [locale, source]);
++  const repairMarkdownCanvas = useCallback(async (): Promise<void> => {
++    if (!isExcalidrawMarkdownPath(path)) return;
++    setRecoveryError(null);
++    try {
++      const recovered = createRecoveredExcalidrawMarkdownFile(path, source);
++      const baseRevision = revisionRef.current;
++      await onSnapshot(
++        createEditorSnapshotMessage({
++          sessionId,
++          documentId,
++          baseRevision,
++          revision: baseRevision + 1,
++          mode: "source",
++          markdown: recovered,
++          selection: Object.freeze({ anchor: 0, head: 0 }),
++        }),
++      );
++      revisionRef.current = baseRevision + 1;
++      lastEmittedRef.current = recovered;
++      originalSourceRef.current = recovered;
++    } catch {
++      setRecoveryError(
++        locale === "zh-CN"
++          ? "修复未能保存。原文件未被覆盖，请检查存储权限后重试。"
++          : "Repair could not be saved. The original file was not overwritten; check storage permissions and try again.",
++      );
++    }
++  }, [documentId, locale, onSnapshot, path, sessionId, source]);
+   if (!parsed.ok) {
++    const canRepair = parsed.error.recoverable && isExcalidrawMarkdownPath(path);
++    const title = locale === "zh-CN" ? "画板文件无法打开" : "Unable to open drawing";
++    const hint = canRepair
++      ? locale === "zh-CN"
++        ? "可安全创建一个新画板；原始内容会保留在同一文件的恢复区，并可从版本历史找回。"
++        : "You can safely create a new canvas. The original source will be retained in a recovery section and remains available in version history."
++      : locale === "zh-CN"
++        ? "原文件未被修改。请复制原始内容或从版本历史恢复。"
++        : "The source file has not been modified. Copy the original content or restore it from version history.";
+     return (
+       <main className="mira-drawing-error">
+         <div className="mira-drawing-error-card">
+           <span>EXCALIDRAW</span>
+-          <h1>画板文件无法打开</h1>
++          <h1>{title}</h1>
+           <p>{parsed.error.message}</p>
+-          <p className="mira-drawing-error-hint">源文件未被修改，可从版本历史恢复或修复。</p>
++          <p className="mira-drawing-error-hint">{hint}</p>
++          <div className="mira-drawing-error-actions">
++            <button onClick={() => void copySource()} type="button">
++              {locale === "zh-CN" ? "复制原始内容" : "Copy original source"}
++            </button>
++            {canRepair ? (
++              <button className="mira-drawing-repair" onClick={() => void repairMarkdownCanvas()} type="button">
++                {locale === "zh-CN" ? "安全修复为新画板" : "Safely repair as new canvas"}
++              </button>
++            ) : null}
++          </div>
++          {recoveryError ? <p aria-live="polite" className="mira-drawing-error-feedback">{recoveryError}</p> : null}
+         </div>
+         <style>{ERROR_STYLES}</style>
+@@ -315,5 +367,13 @@ const ERROR_STYLES = `
+   .mira-drawing-error h1 { margin: 12px 0 8px; font-size: 22px; }
+   .mira-drawing-error p { margin: 0; color: #69645b; line-height: 1.65; }
+   .mira-drawing-error .mira-drawing-error-hint { margin-top: 12px; font-size: 13px; }
++  .mira-drawing-error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
++  .mira-drawing-error-actions button { border: 1px solid #bbb4a7; border-radius: 10px; padding: 9px 12px;
++    color: #39352d; background: #fffdf8; font: 650 13px/1.2 ui-rounded, system-ui, sans-serif; cursor: pointer; }
++  .mira-drawing-error-actions .mira-drawing-repair { border-color: #bd6543; color: #fff; background: #bd6543; }
++  .mira-drawing-error-actions button:focus-visible { outline: 2px solid #4b8dff; outline-offset: 2px; }
++  .mira-drawing-error-feedback { margin-top: 12px !important; font-size: 12px; }
+ `;
+diff --git a/tests/unit/formats/excalidraw-file.test.ts b/tests/unit/formats/excalidraw-file.test.ts
+index 1e57f0b..ebda930 100644
+--- a/tests/unit/formats/excalidraw-file.test.ts
++++ b/tests/unit/formats/excalidraw-file.test.ts
+@@ -2,8 +2,10 @@ import {
++  contentForNewExcalidrawPath,
++  createRecoveredExcalidrawMarkdownFile,
+   createEmptyExcalidrawFile,
+   isExcalidrawMarkdownPath,
+   isExcalidrawPath,
+@@ -69,6 +71,51 @@ describe("Excalidraw file format", () => {
+     expect(parseExcalidrawFile("# note", "Broken.excalidraw.md")).toMatchObject({
+       ok: false,
+-      error: { code: "MISSING_DRAWING" },
++      error: { code: "MISSING_DRAWING", recoverable: true },
+     });
+   });
++  it("accepts resilient Obsidian Markdown variants without widening to arbitrary JSON", () => {
++    const serialized = serializeExcalidrawFile(SCENE, "Map.excalidraw.md")
++      .replace("## Drawing", "### Drawing ###")
++      .replaceAll("\n", "\r\n");
++    const parsed = parseExcalidrawFile(serialized, "Map.excalidraw.md");
++    expect(parsed.ok).toBe(true);
++    if (parsed.ok) expect(parsed.value.elements[0]).toMatchObject({ text: "System map" });
++
++    const taggedOnly = [
++      "# Imported canvas",
++      "",
++      "```excalidraw-json",
++      serializeExcalidrawFile(SCENE, "Map.excalidraw").trim(),
++      "```",
++    ].join("\n");
++    expect(parseExcalidrawFile(taggedOnly, "Imported.excalidraw.md").ok).toBe(true);
++    expect(parseExcalidrawFile("```json\n{}\n```", "Note.excalidraw.md")).toMatchObject({
++      ok: false,
++      error: { code: "MISSING_DRAWING" },
++    });
++  });
++  it("initializes generic new-file canvas paths with a valid drawing instead of empty Markdown", () => {
++    const markdown = contentForNewExcalidrawPath("Canvas.excalidraw.md", "");
++    const json = contentForNewExcalidrawPath("Canvas.excalidraw", "  \n");
++    expect(parseExcalidrawFile(markdown, "Canvas.excalidraw.md").ok).toBe(true);
++    expect(parseExcalidrawFile(json, "Canvas.excalidraw").ok).toBe(true);
++    expect(contentForNewExcalidrawPath("Template.excalidraw.md", "# Template")).toBe("# Template");
++  });
++  it("repairs malformed Markdown drawings without discarding the original source", () => {
++    const original = "# Notes\n\n```\nThis must remain byte-for-byte visible.\n```\n";
++    const recovered = createRecoveredExcalidrawMarkdownFile("Broken.excalidraw.md", original);
++    expect(recovered).toContain("mira-recovery: true");
++    expect(recovered).toContain(original);
++    expect(recovered.match(/# Excalidraw Data/g)).toHaveLength(1);
++    expect(parseExcalidrawFile(recovered, "Broken.excalidraw.md").ok).toBe(true);
++    expect(() => createRecoveredExcalidrawMarkdownFile("Broken.excalidraw", original)).toThrow();
++  });
+ });

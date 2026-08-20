@@ -1,16 +1,7 @@
-# Product Requirements
+# Inkstone Product Requirements
 
-The authoritative product design is [VMark-aligned Mobile Native Markdown Notes](../docs/superpowers/specs/2026-07-30-vmark-mobile-native-markdown-notes-design.md).
+The user-approved design is the VMark-aligned mobile native Markdown notes specification dated 2026-07-30. The repository's executable scope audit is maintained in [docs/product-status.md](docs/product-status.md); it distinguishes connected production workflows from partial implementations and missing release scope.
 
-## Foundation Milestone
+The product is complete only when a user can create or mount a workspace, edit and safely recover Markdown in all three modes, navigate and search a durable knowledge workspace, manage links and attachments, export portable results, install a reproducible Android APK, and pass the full device/security/accessibility matrix.
 
-Foundation establishes a bootable Expo 57 application and pure TypeScript contracts for:
-
-- portable workspace paths and opaque identities;
-- immutable document session revisions;
-- strict, size-bounded editor snapshot messages;
-- provider-independent, verified repository operations;
-- byte-for-byte Markdown source preservation;
-- an editor-first mobile composition root.
-
-Foundation is complete when formatting, linting, strict type checking, unit/contract tests, and Android source export pass. It deliberately does not satisfy the product design's release criteria for native persistence, a functional editor, APK generation, installation, or device smoke testing.
+Passing TypeScript, unit tests, Expo export, or Gradle packaging is necessary evidence, but none of those alone changes a partial capability into a completed product workflow.

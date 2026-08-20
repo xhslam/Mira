@@ -2,7 +2,7 @@
 
 Date: 2026-07-30
 
-Status: 源码已更新，预览服务已启动，未打包。
+Status: Historical foundation handoff. Superseded by `README.md` and `docs/product-status.md`.
 
 ## Implemented Evidence
 

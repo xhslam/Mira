@@ -1,26 +1,63 @@
 import type { ExpoConfig } from "expo/config";
 
-// Development identity only. Public naming is a release decision, not an environment fallback.
 const config: ExpoConfig = {
-  name: "Markdown Notes Dev",
-  slug: "vmark-mobile",
-  scheme: "vmark-mobile-dev",
-  version: "0.1.0",
-  orientation: "portrait",
+  name: "Inkstone",
+  slug: "inkstone-markdown",
+  scheme: "inkstone",
+  version: "1.0.0",
+  orientation: "default",
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
+  plugins: [
+    "expo-video",
+    "expo-secure-store",
+    [
+      "expo-audio",
+      {
+        microphonePermission: "Allow Inkstone to access your microphone for speaking practice.",
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "Allow Inkstone to choose videos from your photo library for sentence-by-sentence learning.",
+      },
+    ],
+  ],
   ios: {
+    bundleIdentifier: "app.inkstone.markdown",
+    buildNumber: "1",
     supportsTablet: true,
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+      NSMicrophoneUsageDescription:
+        "Inkstone uses your microphone only when you start a speaking practice recording.",
+      UIFileSharingEnabled: false,
+      LSSupportsOpeningDocumentsInPlace: true,
+    },
   },
   android: {
-    package: "dev.local.vmarkmobile",
+    package: "app.inkstone.markdown",
+    versionCode: 1,
+    allowBackup: false,
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#F4F7F5",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
-    predictiveBackGestureEnabled: false,
+    blockedPermissions: [
+      "android.permission.CAMERA",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.VIBRATE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+    ],
+    permissions: ["android.permission.INTERNET", "android.permission.RECORD_AUDIO"],
+    predictiveBackGestureEnabled: true,
+    softwareKeyboardLayoutMode: "resize",
   },
   web: {
     favicon: "./assets/favicon.png",

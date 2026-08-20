@@ -1,0 +1,12 @@
+appId: app.inkstone.markdown
+name: Search scope and result navigation
+---
+- launchApp
+- tapOn: "Search"
+- assertVisible: "Search filenames, content, and history"
+- tapOn: "Search filenames, content, and history"
+- inputText: "Welcome"
+- tapOn: "Content"
+- hideKeyboard
+- tapOn: "Files"
+- assertVisible: "Files"

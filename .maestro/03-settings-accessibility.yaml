@@ -1,0 +1,10 @@
+appId: app.inkstone.markdown
+name: Settings theme and large text semantics
+---
+- launchApp
+- tapOn: "Settings"
+- assertVisible: "Appearance"
+- tapOn: "Dark theme"
+- assertVisible: "Security & privacy"
+- tapOn: "Light theme"
+- assertVisible: "Editor"

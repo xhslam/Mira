@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- tapOn:
+    text: "学习"
+    optional: true
+- assertVisible: "首页"
+- tapOn: "资料库"
+- assertVisible:
+    text: "资料库"
+    optional: true
+- tapOn:
+    text: "个人资料"
+    optional: true
+- assertVisible:
+    text: "媒体转写与语音"
+    optional: true
+- tapOn: "首页"
+- assertVisible:
+    text: "Craft"
+    optional: true
