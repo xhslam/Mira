@@ -39,6 +39,8 @@ import { WorkspacePicker } from "./workspace-picker";
 import { openStartupWorkspace } from "./workspace-startup";
 import { DEFAULT_SETTINGS } from "./settings-store";
 import { UiSoundProvider, useUiSound } from "./ui-sound-context";
+import { GlobalSidebar } from "./global-sidebar";
+import { NotesOverviewScreen } from "./notes-overview-screen";
 
 type TabDefinition = Readonly<{
   id: PrimaryTab;
@@ -47,10 +49,10 @@ type TabDefinition = Readonly<{
 }>;
 
 const TABS: readonly TabDefinition[] = Object.freeze([
-  Object.freeze({ id: "files", labelKey: "nav.files", icon: FileText }),
-  Object.freeze({ id: "drawings", labelKey: "nav.drawings", icon: Palette }),
-  Object.freeze({ id: "ai", labelKey: "nav.ai", icon: Bot }),
   Object.freeze({ id: "learn", labelKey: "nav.learn", icon: BookOpen }),
+  Object.freeze({ id: "files", labelKey: "nav.files", icon: FileText }),
+  Object.freeze({ id: "ai", labelKey: "nav.ai", icon: Bot }),
+  Object.freeze({ id: "drawings", labelKey: "nav.drawings", icon: Palette }),
   Object.freeze({ id: "settings", labelKey: "nav.settings", icon: Settings }),
 ]);
 
@@ -69,6 +71,9 @@ function NativeAppShellScreen() {
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [indexReadyVersion, setIndexReadyVersion] = useState(0);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [notesSurface, setNotesSurface] = useState<"overview" | "editor">("overview");
+  const [notesFolder, setNotesFolder] = useState<string | null>(null);
 
   function synchronizeIndex(nextServices: AppServices): void {
     void nextServices
@@ -281,6 +286,34 @@ function NativeAppShellScreen() {
     );
   }
 
+  function navigatePrimary(tab: PrimaryTab): void {
+    Keyboard.dismiss();
+    if (tab === "files") {
+      setNotesFolder(null);
+      setNotesSurface("overview");
+    }
+    setState((current) => selectPrimaryTab(current, tab));
+  }
+
+  function openNotes(folder: string | null): void {
+    Keyboard.dismiss();
+    setNotesFolder(folder);
+    setNotesSurface("overview");
+    setSidebarVisible(false);
+    setState((current) => selectPrimaryTab(current, "files"));
+  }
+
+  function chooseWorkspaceFromSidebar(): void {
+    void editorController.prepareWorkspaceSwitch().then((prepared) => {
+      if (!prepared) {
+        Alert.alert("暂时无法切换工作区", "当前笔记的最新修改尚未确认，工作区保持不变。");
+        return;
+      }
+      setSidebarVisible(false);
+      setPickerVisible(true);
+    });
+  }
+
   if (state.startup === "checking-workspace") {
     return (
       <LocaleContext.Provider value={locale}>
@@ -338,37 +371,64 @@ function NativeAppShellScreen() {
         <UiSoundProvider enabled={soundEnabled} volume={soundVolume}>
           <View style={styles.shell}>
             <View
-              accessibilityElementsHidden={state.activeTab !== "files"}
+              accessibilityElementsHidden={state.activeTab !== "files" || notesSurface !== "editor"}
               importantForAccessibility={
-                state.activeTab === "files" ? "auto" : "no-hide-descendants"
+                state.activeTab === "files" && notesSurface === "editor"
+                  ? "auto"
+                  : "no-hide-descendants"
               }
-              pointerEvents={state.activeTab === "files" ? "auto" : "none"}
-              style={[styles.destination, state.activeTab !== "files" && styles.hiddenDestination]}
+              pointerEvents={
+                state.activeTab === "files" && notesSurface === "editor" ? "auto" : "none"
+              }
+              style={[
+                styles.destination,
+                (state.activeTab !== "files" || notesSurface !== "editor") &&
+                  styles.hiddenDestination,
+              ]}
             >
               <EditorWorkspaceView
                 bottomNavigation={
                   <PrimaryNavigation
                     activeTab={state.activeTab}
                     clickVibration={clickVibration}
-                    onSelect={(tab) => {
-                      Keyboard.dismiss();
-                      setState((current) => selectPrimaryTab(current, tab));
-                    }}
+                    onSelect={navigatePrimary}
                   />
                 }
                 controller={editorController}
                 key={catalog.activeWorkspaceId ?? "managed"}
-                onChooseWorkspace={() => setPickerVisible(true)}
+                onExitToNotes={() => setNotesSurface("overview")}
+                onOpenSidebar={() => setSidebarVisible(true)}
                 services={services}
                 clickVibration={clickVibration}
               />
             </View>
+            {state.activeTab === "files" && notesSurface === "overview" ? (
+              <View style={styles.destination}>
+                <NotesOverviewScreen
+                  bottomNavigation={
+                    <PrimaryNavigation
+                      activeTab={state.activeTab}
+                      clickVibration={clickVibration}
+                      onSelect={navigatePrimary}
+                    />
+                  }
+                  controller={editorController}
+                  folder={notesFolder}
+                  onOpenEditor={() => setNotesSurface("editor")}
+                  onOpenSidebar={() => setSidebarVisible(true)}
+                />
+              </View>
+            ) : null}
             {state.activeTab === "drawings" ? (
               <View style={styles.destination}>
                 <DrawingsScreen
                   clickVibration={clickVibration}
                   controller={editorController}
-                  onEnterEditor={() => setState((current) => selectPrimaryTab(current, "files"))}
+                  onEnterEditor={() => {
+                    setNotesSurface("editor");
+                    setState((current) => selectPrimaryTab(current, "files"));
+                  }}
+                  onOpenSidebar={() => setSidebarVisible(true)}
                 />
               </View>
             ) : state.activeTab === "ai" ? (
@@ -379,15 +439,17 @@ function NativeAppShellScreen() {
                   onOpenLearningPractice={() =>
                     setState((current) => selectPrimaryTab(current, "learn"))
                   }
+                  onOpenSidebar={() => setSidebarVisible(true)}
                 />
               </View>
             ) : state.activeTab === "learn" ? (
               <View style={styles.destination}>
-                <LearningScreen services={services} />
+                <LearningScreen onOpenSidebar={() => setSidebarVisible(true)} services={services} />
               </View>
             ) : state.activeTab === "settings" ? (
               <View style={styles.destination}>
                 <SettingsScreen
+                  onOpenSidebar={() => setSidebarVisible(true)}
                   onClearAiAudit={() =>
                     services.aiStore.clearToolAudit(services.activeWorkspace.grant.workspaceId)
                   }
@@ -408,20 +470,43 @@ function NativeAppShellScreen() {
                 />
               </View>
             ) : null}
-            {/* The files destination renders its own navigation so the workspace
-              drawer overlay, which lives inside that subtree, can paint above
-              the tab bar. React Native only orders siblings by zIndex, so a
-              shell-level tab bar could never be covered by a nested overlay. */}
+            {/* Notes renders its navigation beside its own overview/editor surface.
+              Every other destination shares this shell-level instance; the global
+              sidebar remains a later sibling so it can cover either variant. */}
             {state.activeTab === "files" ? null : (
               <PrimaryNavigation
                 activeTab={state.activeTab}
                 clickVibration={clickVibration}
-                onSelect={(tab) => {
-                  Keyboard.dismiss();
-                  setState((current) => selectPrimaryTab(current, tab));
-                }}
+                onSelect={navigatePrimary}
               />
             )}
+            <GlobalSidebar
+              activeFolder={notesFolder}
+              activeTab={state.activeTab}
+              canCreateFolder={editorController.services.browser.capabilities.createDirectory}
+              canMoveFiles={editorController.services.browser.capabilities.move}
+              entries={editorController.browserEntries}
+              onChooseWorkspace={chooseWorkspaceFromSidebar}
+              onClose={() => setSidebarVisible(false)}
+              onCreateFolder={editorController.createBrowserDirectory}
+              onMoveFile={editorController.moveBrowserEntry}
+              onOpenNote={async (path) => {
+                const opened = await editorController.openDocumentFromOverview(path);
+                if (opened) {
+                  setSidebarVisible(false);
+                  setNotesSurface("editor");
+                  setState((current) => selectPrimaryTab(current, "files"));
+                }
+                return opened;
+              }}
+              onOpenNotes={openNotes}
+              onSelectTab={(tab) => {
+                setSidebarVisible(false);
+                navigatePrimary(tab);
+              }}
+              visible={sidebarVisible}
+              workspaceName={services.activeWorkspace.grant.displayName}
+            />
             <WorkspacePicker
               activeWorkspaceId={catalog.activeWorkspaceId}
               busy={workspaceBusy}

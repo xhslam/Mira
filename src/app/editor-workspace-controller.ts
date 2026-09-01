@@ -29,8 +29,13 @@ export type EditorWorkspaceController = Readonly<{
   handleEditorMessage: (input: unknown) => Promise<void>;
   requestMode: (mode: EditorMode) => void;
   selectDocument: (documentId: OpenWorkspaceDocument["documentId"]) => Promise<void>;
+  openDocumentFromOverview: (path: string) => Promise<boolean>;
+  closeDocument: (
+    documentId: OpenWorkspaceDocument["documentId"],
+  ) => Promise<"closed" | "last" | "failed">;
   selectSearchResult: (result: SearchResult) => Promise<void>;
   addDocument: () => Promise<void>;
+  addDocumentFromOverview: () => Promise<boolean>;
   saveNow: () => Promise<void>;
   captureAiSnapshot: () => Promise<OpenWorkspaceDocument>;
   applyAiReplacement: (
@@ -60,6 +65,10 @@ export type EditorWorkspaceController = Readonly<{
   createBrowserDirectory: (path: string) => Promise<BrowserCommandResult>;
   renameBrowserEntry: (
     entry: FileEntry,
+    to: string,
+    conflict?: WorkspaceConflictPolicy,
+  ) => Promise<BrowserCommandResult>;
+  renameActiveDocument: (
     to: string,
     conflict?: WorkspaceConflictPolicy,
   ) => Promise<BrowserCommandResult>;

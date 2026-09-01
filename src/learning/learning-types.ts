@@ -16,6 +16,7 @@ import type {
 export const LEARNING_SECTIONS = [
   "home",
   "craft",
+  "url-import",
   "discover",
   "library",
   "practice",

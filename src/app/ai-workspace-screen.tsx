@@ -40,6 +40,7 @@ import { createExpoLearningStore } from "../learning/expo-learning-store";
 import type { LearningSnapshot } from "../learning/learning-types";
 import { useTheme, type Theme } from "./theme";
 import { useUiSound } from "./ui-sound-context";
+import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 type DisplayMessage = AiConversationMessage & Readonly<{ localError?: boolean }>;
 type Citation = Readonly<{ url: string; title: string | null }>;
@@ -153,10 +154,12 @@ export function AiWorkspaceScreen({
   services,
   controller,
   onOpenLearningPractice,
+  onOpenSidebar,
 }: Readonly<{
   services: AppServices;
   controller: EditorWorkspaceController;
   onOpenLearningPractice: () => void;
+  onOpenSidebar: () => void;
 }>) {
   const theme = useTheme();
   const styles = createStyles(theme);
@@ -561,6 +564,7 @@ export function AiWorkspaceScreen({
         onSnapshotChange={updateLearningSnapshot}
         onSelectMarkdown={() => setMode("markdown")}
         onOpenPractice={onOpenLearningPractice}
+        onOpenSidebar={onOpenSidebar}
       />
     );
   }
@@ -571,7 +575,16 @@ export function AiWorkspaceScreen({
       style={styles.screen}
     >
       <View style={styles.modeHeader}>
-        <View style={styles.modeHeaderSlot} />
+        <View style={styles.modeHeaderSlot}>
+          <Pressable
+            accessibilityLabel="打开全局侧边栏"
+            accessibilityRole="button"
+            onPress={onOpenSidebar}
+            style={styles.iconAction}
+          >
+            <SidebarToggleIcon color={theme.colors.text} expanded={false} size={23} />
+          </Pressable>
+        </View>
         <View accessibilityRole="tablist" style={styles.modeSwitch}>
           <Pressable
             accessibilityRole="tab"

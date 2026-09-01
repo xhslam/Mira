@@ -9,13 +9,16 @@ import {
   applyWorkspaceDiagnostics,
   applyWorkspaceSelectionChange,
   applyWorkspaceSnapshot,
+  closeWorkspaceDocument,
   confirmWorkspaceSave,
   createWorkspaceState,
   failWorkspaceSave,
   failEditorFlush,
+  focusWorkspaceDocument,
   markWorkspaceSaving,
   planWorkspaceSaveCompletion,
   loadWorkspaceConflictSnapshot,
+  openWorkspaceDocument,
   setWorkspaceConflictSnapshot,
   createConflictCopyPath,
   resolveWorkspaceConflictAsCopy,
@@ -550,6 +553,60 @@ describe("workspace state", () => {
 
     expect(selected.activeDocument.documentId).toBe(SECOND_DOCUMENT_ID);
     expect(state.activeDocument.documentId).toBe(DOCUMENT_ID);
+  });
+
+  test("focuses one overview note while retaining recovered work", () => {
+    const second = Object.freeze({
+      ...document,
+      documentId: SECOND_DOCUMENT_ID,
+      path: "Guides/Start.md" as WorkspaceDocumentSnapshot["path"],
+    });
+    const clean = createWorkspaceState({
+      documents: [document, second],
+      recoveryDrafts: [],
+      sessionId: SESSION_ID,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+    const focused = focusWorkspaceDocument(clean, SECOND_DOCUMENT_ID);
+
+    expect(focused.documents.map((item) => item.path)).toEqual(["Guides/Start.md"]);
+    expect(clean.documents).toHaveLength(2);
+
+    const recovered = createWorkspaceState({
+      documents: [document, second],
+      recoveryDrafts: [recovery("local draft")],
+      sessionId: SESSION_ID,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+    const protectedFocus = focusWorkspaceDocument(recovered, SECOND_DOCUMENT_ID);
+
+    expect(protectedFocus.documents.map((item) => item.path)).toEqual([
+      "Notes.md",
+      "Guides/Start.md",
+    ]);
+  });
+
+  test("closes a tab without deleting its snapshot and reopens it later", () => {
+    const second = Object.freeze({
+      ...document,
+      documentId: SECOND_DOCUMENT_ID,
+      path: "Guides/Start.md" as WorkspaceDocumentSnapshot["path"],
+    });
+    const state = createWorkspaceState({
+      documents: [document, second],
+      recoveryDrafts: [],
+      sessionId: SESSION_ID,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+
+    const closed = closeWorkspaceDocument(state, DOCUMENT_ID);
+    const reopened = openWorkspaceDocument(closed, document);
+
+    expect(closed.documents.map((item) => item.path)).toEqual(["Guides/Start.md"]);
+    expect(closed.activeDocument.path).toBe("Guides/Start.md");
+    expect(reopened.documents.map((item) => item.path)).toEqual(["Guides/Start.md", "Notes.md"]);
+    expect(reopened.activeDocument.path).toBe("Notes.md");
+    expect(closeWorkspaceDocument(closed, SECOND_DOCUMENT_ID)).toBe(closed);
   });
 
   test("preserves or translates the active path after browser mutations", () => {

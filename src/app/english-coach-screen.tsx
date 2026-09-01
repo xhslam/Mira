@@ -48,6 +48,7 @@ import {
 } from "../learning/english-coach-storage";
 import type { LearningSnapshot } from "../learning/learning-types";
 import { createSerializedStateQueue } from "../learning/serialized-state-queue";
+import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 type CoachProps = Readonly<{
   services: AppServices;
@@ -55,6 +56,7 @@ type CoachProps = Readonly<{
   onSnapshotChange: (next: LearningSnapshot) => Promise<void>;
   onSelectMarkdown: () => void;
   onOpenPractice: () => void;
+  onOpenSidebar: () => void;
 }>;
 
 function now(): string {
@@ -90,6 +92,7 @@ export function EnglishCoachScreen({
   onSnapshotChange,
   onSelectMarkdown,
   onOpenPractice,
+  onOpenSidebar,
 }: CoachProps) {
   const theme = useTheme();
   const styles = createStyles(theme);
@@ -489,7 +492,16 @@ export function EnglishCoachScreen({
       style={styles.screen}
     >
       <View style={styles.header}>
-        <View style={styles.headerSlot} />
+        <View style={styles.headerSlot}>
+          <Pressable
+            accessibilityLabel="打开全局侧边栏"
+            accessibilityRole="button"
+            onPress={onOpenSidebar}
+            style={styles.headerMenu}
+          >
+            <SidebarToggleIcon color={theme.colors.text} expanded={false} size={23} />
+          </Pressable>
+        </View>
         <View accessibilityRole="tablist" style={styles.modeSwitch}>
           <Pressable
             accessibilityRole="tab"
@@ -868,6 +880,7 @@ function createStyles(theme: Theme) {
       borderBottomColor: theme.colors.divider,
     },
     headerSlot: { width: 58 },
+    headerMenu: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     modeSwitch: {
       flexDirection: "row",
       backgroundColor: theme.colors.surface,
