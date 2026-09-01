@@ -44,9 +44,18 @@ modules/*/android/build/
 # Local Android release signing
 android/keystore.properties
 
-# Local tooling, verification artifacts, and generated release output
+# Local tooling, verification artifacts, and generated release output.
+# Keep the small, stable screenshot/accessibility fixtures used by `npm test`.
 .playwright-cli/
 .superpowers/
 .workbuddy/
-artifacts/
+artifacts/*
+!artifacts/screenshot-baselines.json
+!artifacts/inkstone-home.png
+!artifacts/inkstone-landscape.png
+!artifacts/inkstone-drawer.png
+!artifacts/inkstone-source.png
+!artifacts/spikes/
+artifacts/spikes/*
+!artifacts/spikes/phase1-clean-release-save.xml
 output/

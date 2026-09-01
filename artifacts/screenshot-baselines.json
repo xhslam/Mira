@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "baselines": [
+    {
+      "path": "artifacts/inkstone-home.png",
+      "sha256": "e0bce34670bb7baa80c353c351061b39beda872bdc87212c4385070fe8331bae",
+      "viewport": "phone-portrait"
+    },
+    {
+      "path": "artifacts/inkstone-landscape.png",
+      "sha256": "03d02c7231f17cd91408ba9ffe72d96bfc29913fc92bebde35fcc5a10958551a",
+      "viewport": "phone-landscape"
+    },
+    {
+      "path": "artifacts/inkstone-drawer.png",
+      "sha256": "0dfbe0c859f61d4a85885e28a5d20dca07a6c9500556585a278bccc0e1a55d74",
+      "viewport": "drawer"
+    },
+    {
+      "path": "artifacts/inkstone-source.png",
+      "sha256": "53678b652384b34b620a18da36c283347eddf80128081dc7a440463a4d0e919e",
+      "viewport": "source-editor"
+    }
+  ]
+}
