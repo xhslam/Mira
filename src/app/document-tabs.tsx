@@ -1,4 +1,4 @@
-import { FileText, Plus } from "lucide-react-native";
+import { FileText, Plus, X } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import type { DocumentId } from "../domain/identifiers";
@@ -10,10 +10,17 @@ type DocumentTabsProps = Readonly<{
   documents: readonly OpenWorkspaceDocument[];
   activeDocumentId: DocumentId;
   onSelect: (documentId: DocumentId) => void;
+  onClose: (documentId: DocumentId) => void;
   onAdd: () => void;
 }>;
 
-export function DocumentTabs({ documents, activeDocumentId, onSelect, onAdd }: DocumentTabsProps) {
+export function DocumentTabs({
+  documents,
+  activeDocumentId,
+  onSelect,
+  onClose,
+  onAdd,
+}: DocumentTabsProps) {
   const theme = useTheme();
   const t = useTranslate();
   const styles = createStyles(theme);
@@ -28,23 +35,31 @@ export function DocumentTabs({ documents, activeDocumentId, onSelect, onAdd }: D
         {documents.map((document) => {
           const active = document.documentId === activeDocumentId;
           return (
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              key={document.documentId}
-              onPress={() => onSelect(document.documentId)}
-              style={({ pressed }) => [
-                styles.tab,
-                active && styles.activeTab,
-                pressed && styles.pressed,
-              ]}
-            >
-              <FileText color={active ? theme.colors.accent : theme.colors.mutedText} size={16} />
-              <Text numberOfLines={1} style={[styles.tabText, active && styles.activeTabText]}>
-                {document.path.replace(/\.md$/i, "")}
-                {document.dirty ? " *" : ""}
-              </Text>
-            </Pressable>
+            <View key={document.documentId} style={[styles.tab, active && styles.activeTab]}>
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                onPress={() => onSelect(document.documentId)}
+                style={({ pressed }) => [styles.tabMain, pressed && styles.pressed]}
+              >
+                <FileText color={active ? theme.colors.accent : theme.colors.mutedText} size={16} />
+                <Text numberOfLines={1} style={[styles.tabText, active && styles.activeTabText]}>
+                  {document.path.replace(/\.md$/i, "")}
+                  {document.dirty ? " *" : ""}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel={t("tabs.closeNote", {
+                  name: document.path.replace(/\.md$/i, ""),
+                })}
+                accessibilityRole="button"
+                hitSlop={6}
+                onPress={() => onClose(document.documentId)}
+                style={({ pressed }) => [styles.closeButton, pressed && styles.closePressed]}
+              >
+                <X color={active ? theme.colors.text : theme.colors.mutedText} size={14} />
+              </Pressable>
+            </View>
           );
         })}
       </ScrollView>
@@ -79,10 +94,18 @@ function createStyles(theme: Theme) {
       minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 7,
-      paddingHorizontal: 12,
       borderBottomWidth: 2,
       borderBottomColor: "transparent",
+    },
+    tabMain: {
+      minWidth: 0,
+      minHeight: 42,
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      paddingLeft: 12,
+      paddingRight: 5,
     },
     activeTab: {
       borderBottomColor: theme.colors.accent,
@@ -95,6 +118,18 @@ function createStyles(theme: Theme) {
     },
     activeTabText: {
       color: theme.colors.text,
+    },
+    closeButton: {
+      width: 30,
+      height: 30,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 8,
+      marginRight: 4,
+    },
+    closePressed: {
+      backgroundColor: theme.colors.surfaceMuted,
+      transform: [{ scale: 0.94 }],
     },
     addButton: {
       width: 48,

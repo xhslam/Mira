@@ -14,6 +14,22 @@ export type VocabularyCard = Readonly<{
   context: string;
   translation: string | null;
   sourceResourceId: string | null;
+  sourceResourceIds?: readonly string[];
+  /** Optional phrase metadata. Legacy cards remain valid without these fields. */
+  normalizedText?: string;
+  canonicalText?: string;
+  phraseType?:
+    "phrasal_verb" | "fixed_expression" | "collocation" | "spoken_pattern" | "idiom" | "manual";
+  confidence?: number;
+  encounterCount?: number;
+  lastEncounteredAt?: string | null;
+  contexts?: readonly string[];
+  updatedAt?: string;
+  isFavorite?: boolean;
+  masteryStatus?: "learning" | "mastered";
+  masteredAt?: string | null;
+  notes?: string;
+  sourceType?: "video" | "conversation" | "reading" | "manual" | "other";
   repetitions: number;
   intervalDays: number;
   ease: number;
@@ -183,6 +199,20 @@ export function createVocabularyCard(
     context: string;
     translation?: string | null;
     sourceResourceId?: string | null;
+    sourceResourceIds?: readonly string[];
+    normalizedText?: string;
+    canonicalText?: string;
+    phraseType?: VocabularyCard["phraseType"];
+    confidence?: number;
+    encounterCount?: number;
+    lastEncounteredAt?: string | null;
+    contexts?: readonly string[];
+    updatedAt?: string;
+    isFavorite?: boolean;
+    masteryStatus?: "learning" | "mastered";
+    masteredAt?: string | null;
+    notes?: string;
+    sourceType?: "video" | "conversation" | "reading" | "manual" | "other";
     now: string;
   }>,
 ): VocabularyCard {
@@ -193,6 +223,26 @@ export function createVocabularyCard(
     context: options.context.trim(),
     translation: options.translation?.trim() || null,
     sourceResourceId: options.sourceResourceId ?? null,
+    ...(options.sourceResourceIds
+      ? { sourceResourceIds: Object.freeze([...options.sourceResourceIds]) }
+      : options.sourceResourceId
+        ? { sourceResourceIds: Object.freeze([options.sourceResourceId]) }
+        : {}),
+    ...(options.normalizedText ? { normalizedText: options.normalizedText } : {}),
+    ...(options.canonicalText ? { canonicalText: options.canonicalText } : {}),
+    ...(options.phraseType ? { phraseType: options.phraseType } : {}),
+    ...(typeof options.confidence === "number" ? { confidence: options.confidence } : {}),
+    ...(typeof options.encounterCount === "number"
+      ? { encounterCount: options.encounterCount }
+      : {}),
+    ...(options.lastEncounteredAt ? { lastEncounteredAt: options.lastEncounteredAt } : {}),
+    ...(options.contexts ? { contexts: Object.freeze([...options.contexts]) } : {}),
+    ...(options.updatedAt ? { updatedAt: options.updatedAt } : {}),
+    ...(typeof options.isFavorite === "boolean" ? { isFavorite: options.isFavorite } : {}),
+    ...(options.masteryStatus ? { masteryStatus: options.masteryStatus } : {}),
+    ...(options.masteredAt ? { masteredAt: options.masteredAt } : {}),
+    ...(options.notes ? { notes: options.notes } : {}),
+    ...(options.sourceType ? { sourceType: options.sourceType } : {}),
     repetitions: 0,
     intervalDays: 0,
     ease: 2.5,

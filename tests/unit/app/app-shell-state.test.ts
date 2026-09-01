@@ -12,7 +12,7 @@ describe("app shell state", () => {
   test("starts by checking workspace access instead of authentication", () => {
     expect(createAppShellState()).toEqual({
       startup: "checking-workspace",
-      activeTab: "files",
+      activeTab: "learn",
       errorMessage: null,
     });
   });
@@ -26,21 +26,21 @@ describe("app shell state", () => {
     expect(initial.startup).toBe("checking-workspace");
   });
 
-  test("restores the Files destination when the managed workspace is accessible", () => {
+  test("opens Learning when the managed workspace is accessible", () => {
     const next = completeWorkspaceCheck(createAppShellState(), 2);
 
     expect(next).toEqual({
       startup: "ready",
-      activeTab: "files",
+      activeTab: "learn",
       errorMessage: null,
     });
   });
 
-  test("opens Files immediately when only a recovery draft exists", () => {
+  test("opens Learning immediately when only a recovery draft exists", () => {
     const next = completeWorkspaceCheck(createAppShellState(), 0, 1);
 
     expect(next.startup).toBe("ready");
-    expect(next.activeTab).toBe("files");
+    expect(next.activeTab).toBe("learn");
   });
 
   test("opens the real app-managed workspace without creating a fake grant", () => {
@@ -49,10 +49,10 @@ describe("app shell state", () => {
     const next = openManagedWorkspace(guidance);
 
     expect(next.startup).toBe("ready");
-    expect(next.activeTab).toBe("files");
+    expect(next.activeTab).toBe("learn");
   });
 
-  test("switches among the four primary destinations only after startup", () => {
+  test("switches among primary destinations only after startup", () => {
     const ready = completeWorkspaceCheck(createAppShellState(), 1);
 
     const drawings = selectPrimaryTab(ready, "drawings");
@@ -60,8 +60,8 @@ describe("app shell state", () => {
 
     expect(next.activeTab).toBe("ai");
     expect(drawings.activeTab).toBe("drawings");
-    expect(ready.activeTab).toBe("files");
-    expect(selectPrimaryTab(createAppShellState(), "settings").activeTab).toBe("files");
+    expect(ready.activeTab).toBe("learn");
+    expect(selectPrimaryTab(createAppShellState(), "settings").activeTab).toBe("learn");
   });
 
   test("exposes a recoverable workspace error without claiming readiness", () => {

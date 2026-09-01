@@ -1,8 +1,11 @@
 import { FileJson2, Paintbrush, Plus, Shapes } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
+  BackHandler,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,19 +22,23 @@ import {
 } from "../formats/excalidraw/excalidraw-file";
 import type { FileEntry } from "../workspace/workspace-adapter";
 import type { EditorWorkspaceController } from "./editor-workspace-controller";
+import { drawingCreateTarget } from "./drawing-create";
 import { useTranslate } from "./locale";
 import { triggerClickFeedback } from "./press-feedback";
 import { useTheme, type Theme } from "./theme";
 import { useUiSound } from "./ui-sound-context";
+import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export function DrawingsScreen({
   clickVibration = true,
   controller,
   onEnterEditor,
+  onOpenSidebar,
 }: Readonly<{
   clickVibration?: boolean;
   controller: EditorWorkspaceController;
   onEnterEditor: () => void;
+  onOpenSidebar: () => void;
 }>) {
   const theme = useTheme();
   const t = useTranslate();
@@ -42,6 +49,13 @@ export function DrawingsScreen({
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const closeCreate = useCallback(() => {
+    if (busy) return;
+    Keyboard.dismiss();
+    setCreateVisible(false);
+    setName("");
+    setError(null);
+  }, [busy]);
   const drawings = useMemo(
     () =>
       controller.browserEntries
@@ -53,6 +67,15 @@ export function DrawingsScreen({
         }),
     [controller.browserEntries],
   );
+
+  useEffect(() => {
+    if (!createVisible) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!busy) closeCreate();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [busy, closeCreate, createVisible]);
 
   async function open(entry: FileEntry): Promise<void> {
     triggerClickFeedback(clickVibration);
@@ -67,35 +90,45 @@ export function DrawingsScreen({
         uiSound.play("error");
         setError(result.error ?? t("drawings.openFailed"));
       }
+    } catch {
+      uiSound.play("error");
+      setError(t("drawings.openFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   async function create(): Promise<void> {
-    const normalized = name
-      .trim()
-      .replace(/[\\/:*?"<>|]/g, "-")
-      .replace(/\s+/g, " ");
-    if (!normalized) {
+    const target = drawingCreateTarget(name);
+    if (!target.ok) {
       uiSound.play("blocked");
-      setError(t("drawings.nameRequired"));
+      setError(target.code === "EMPTY" ? t("drawings.nameRequired") : t("drawings.nameInvalid"));
       return;
     }
-    const path = `${normalized.replace(/\.excalidraw(?:\.md)?$/i, "")}.excalidraw.md`;
+    Keyboard.dismiss();
     setBusy(true);
     setError(null);
     try {
-      const result = await controller.createBrowserFile(path, createEmptyExcalidrawFile(path));
+      const result = await controller.createBrowserFile(
+        target.path,
+        createEmptyExcalidrawFile(target.path),
+      );
       if (!result.ok) {
         uiSound.play("error");
-        setError(result.error ?? t("drawings.createFailed"));
+        setError(
+          result.errorCode === "ALREADY_EXISTS"
+            ? t("drawings.nameExists")
+            : (result.error ?? t("drawings.createFailed")),
+        );
         return;
       }
       setCreateVisible(false);
       setName("");
       uiSound.play("success");
       onEnterEditor();
+    } catch {
+      uiSound.play("error");
+      setError(t("drawings.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -103,8 +136,21 @@ export function DrawingsScreen({
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        accessibilityElementsHidden={createVisible}
+        contentContainerStyle={styles.content}
+        importantForAccessibility={createVisible ? "no-hide-descendants" : "auto"}
+        pointerEvents={createVisible ? "none" : "auto"}
+      >
         <View style={styles.hero}>
+          <Pressable
+            accessibilityLabel="打开全局侧边栏"
+            accessibilityRole="button"
+            onPress={onOpenSidebar}
+            style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+          >
+            <SidebarToggleIcon color={theme.colors.text} expanded={false} />
+          </Pressable>
           <View style={styles.heroMark}>
             <Paintbrush color="#000000" size={27} strokeWidth={1.8} />
           </View>
@@ -165,13 +211,19 @@ export function DrawingsScreen({
         )}
       </ScrollView>
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => !busy && setCreateVisible(false)}
-        transparent
-        visible={createVisible}
-      >
-        <View style={styles.modalScrim}>
+      {createVisible ? (
+        <KeyboardAvoidingView
+          accessibilityViewIsModal
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.modalScrim}
+        >
+          <Pressable
+            accessibilityLabel={t("drawings.cancel")}
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={closeCreate}
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.modalCard}>
             <View style={styles.modalIcon}>
               <Shapes color={theme.colors.accent} size={23} />
@@ -196,15 +248,7 @@ export function DrawingsScreen({
               </Text>
             ) : null}
             <View style={styles.modalActions}>
-              <Pressable
-                disabled={busy}
-                onPress={() => {
-                  setCreateVisible(false);
-                  setName("");
-                  setError(null);
-                }}
-                style={styles.cancelButton}
-              >
+              <Pressable disabled={busy} onPress={closeCreate} style={styles.cancelButton}>
                 <Text style={styles.cancelText}>{t("drawings.cancel")}</Text>
               </Pressable>
               <Pressable disabled={busy} onPress={() => void create()} style={styles.createButton}>
@@ -217,8 +261,8 @@ export function DrawingsScreen({
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+        </KeyboardAvoidingView>
+      ) : null}
     </View>
   );
 }
@@ -297,6 +341,13 @@ function createStyles(theme: Theme, width: number) {
       paddingBottom: 22,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
+    },
+    menuButton: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 10,
     },
     heroMark: {
       width: 54,
@@ -442,7 +493,13 @@ function createStyles(theme: Theme, width: number) {
       textAlign: "center",
     },
     modalScrim: {
-      flex: 1,
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 20,
+      elevation: 20,
       alignItems: "center",
       justifyContent: "center",
       padding: 22,

@@ -37,4 +37,4 @@ jobs:
         run: npm test
 
       - name: Export Android source bundle
-        run: npx expo export --platform android
+        run: npm run export:android -- --clear

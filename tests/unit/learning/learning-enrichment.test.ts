@@ -15,12 +15,13 @@ describe("learning enrichment", () => {
     ).toBe("Note A useful phrase helps. ignore focus.");
   });
 
-  it("suggests meaningful repeated multi-word phrases", () => {
+  it("suggests only reusable expressions instead of repeated arbitrary word chunks", () => {
     const phrases = extractImportantPhrases([
-      "Daily practice builds stronger language habits.",
-      "Small daily practice improves language confidence.",
+      "I'm looking forward to seeing you.",
+      "The weather is very beautiful today.",
     ]);
-    expect(phrases.map((item) => item.phrase)).toContain("daily practice");
+    expect(phrases.map((item) => item.phrase)).toContain("looking forward to");
+    expect(phrases.map((item) => item.phrase)).not.toContain("very beautiful");
   });
 
   it("finds cards that share a learning context", () => {

@@ -36,7 +36,7 @@ import {
 import * as Speech from "expo-speech";
 import type { AppServices } from "../app/app-services";
 import type { Theme } from "../app/theme";
-import { createVocabularyCard, fingerprintText } from "./enjoy-player-domain";
+import { fingerprintText } from "./enjoy-player-domain";
 import type {
   LearningResource,
   LearningSentence,
@@ -44,9 +44,10 @@ import type {
   LearningTranscriptTrack,
 } from "./learning-types";
 import { lookupPhrase, lookupWord, type WordLookup } from "./word-lookup";
+import { upsertPhraseCard } from "./phrase-recognition";
 import { VideoPreview } from "./video-preview";
 import { VideoLearningPlayer } from "./video-learning-player";
-import { YoutubePreview } from "./youtube-preview";
+import { BilibiliPreview } from "./bilibili-preview";
 import { addPracticeMinutes, persistLearningPosition, saveLearningItem } from "./learning-session";
 import { useAudioPlayerSession } from "./presentation/player/use-audio-player-session";
 import { TranscriptPanel } from "./presentation/transcript/transcript-panel";
@@ -78,7 +79,7 @@ const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
 function hasPlayableVideoResource(resource: LearningResource | null): boolean {
   return resource?.mediaKind === "video"
     ? Boolean(resource.mediaUri)
-    : resource?.mediaKind === "youtube"
+    : resource?.mediaKind === "bilibili"
       ? Boolean(resource.sourceUrl)
       : false;
 }
@@ -613,22 +614,27 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
 
   function saveWord() {
     if (!wordSheet?.lookup || !resource) return;
-    const alreadySaved = snapshot.vocabulary.some(
-      (card) => card.term.toLowerCase() === wordSheet.word.toLowerCase(),
-    );
-    const card = createVocabularyCard({
-      id: `phrase-${fingerprintText(wordSheet.word.toLowerCase())}`,
-      term: wordSheet.word,
-      definition: wordSheet.lookup.definitions[0]?.definition ?? "待补充释义",
-      context: wordSheet.sentence.text,
-      sourceResourceId: resource.id,
-      now: new Date().toISOString(),
-    });
+    const now = new Date().toISOString();
+    const phraseResult =
+      wordSheet.kind === "phrase"
+        ? upsertPhraseCard(
+            snapshot.vocabulary,
+            {
+              displayText: wordSheet.word,
+              canonicalText: wordSheet.word,
+              confidence: 1,
+              context: wordSheet.sentence.text,
+              phraseType: "manual",
+              definition: wordSheet.lookup.definitions[0]?.definition ?? "待补充释义",
+              sourceResourceId: resource.id,
+            },
+            now,
+            { manual: true },
+          )
+        : null;
     const withVocabulary = Object.freeze({
       ...snapshot,
-      vocabulary: alreadySaved
-        ? snapshot.vocabulary
-        : Object.freeze([card, ...snapshot.vocabulary]),
+      vocabulary: phraseResult?.cards ?? snapshot.vocabulary,
     });
     persist(
       saveLearningItem(withVocabulary, {
@@ -884,8 +890,8 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     >
       {hasPlayableVideoResource(resource) ? (
         <View style={styles.mediaPreview}>
-          {resource.mediaKind === "youtube" && resource.sourceUrl ? (
-            <YoutubePreview
+          {resource.mediaKind === "bilibili" && resource.sourceUrl ? (
+            <BilibiliPreview
               sourceUrl={resource.sourceUrl}
               positionMs={videoPositionMs}
               playing={videoPlaying}

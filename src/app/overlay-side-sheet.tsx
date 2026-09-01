@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Animated,
-  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -52,14 +51,22 @@ export function OverlaySideSheet({
 
   useEffect(() => {
     if (visible) dragX.setValue(0);
-    // Decelerating on open and accelerating on close reads as one continuous
-    // motion instead of the linear-feeling default ease.
-    Animated.timing(translateX, {
+    if (reduceMotion) {
+      translateX.setValue(visible ? 0 : -width);
+      return;
+    }
+    // Keep the sheet and the menu-to-close glyph on the same physical rhythm.
+    // A lightly damped spring gives the large surface a soft settle without
+    // inserting a fixed delay or blocking an immediate reversal.
+    const animation = Animated.spring(translateX, {
       toValue: visible ? 0 : -width,
-      duration: reduceMotion ? 0 : visible ? 260 : 210,
-      easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      damping: 20,
+      stiffness: 190,
+      mass: 0.86,
       useNativeDriver: true,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
     // `width` is a dependency so rotation re-runs the resting/open position.
   }, [dragX, reduceMotion, translateX, visible, width]);
 

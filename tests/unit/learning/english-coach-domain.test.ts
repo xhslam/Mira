@@ -158,7 +158,7 @@ describe("English provider privacy boundary", () => {
     const restored = normalizeLearningSnapshot(
       Object.freeze({ ...snapshot, englishLessonSessions: Object.freeze([session()]) }),
     );
-    expect(restored.version).toBe(4);
+    expect(restored.version).toBe(5);
     expect(restored.englishLessonSessions[0]?.scenario).toBe("在咖啡店点一杯拿铁");
   });
 });

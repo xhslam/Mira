@@ -607,6 +607,81 @@ export function selectWorkspaceDocumentByPath(state: WorkspaceState, path: strin
   return document ? selectWorkspaceDocument(state, document.documentId) : state;
 }
 
+/**
+ * Opens one saved workspace snapshot without turning the whole repository into
+ * editor tabs. Existing dirty/recovered copies always win over disk state.
+ */
+export function openWorkspaceDocument(
+  state: WorkspaceState,
+  snapshot: WorkspaceDocumentSnapshot,
+): WorkspaceState {
+  const existing = state.documents.find(
+    (document) => document.documentId === snapshot.documentId || document.path === snapshot.path,
+  );
+  const activeDocument = existing?.dirty ? existing : fromSnapshot(snapshot, undefined);
+  const documents = existing
+    ? state.documents.map((document) =>
+        document.documentId === existing.documentId ? activeDocument : document,
+      )
+    : [...state.documents, activeDocument];
+  return freezeState({
+    ...state,
+    documents,
+    activeDocument,
+    saveState: activeDocument.dirty ? "editing" : "saved",
+    errorMessage: null,
+    conflictSnapshot: null,
+    diagnostics: Object.freeze([]),
+  });
+}
+
+/**
+ * Used by the notes overview: the selected note becomes the visible browser-like
+ * tab, while any dirty/recovered note remains open as a data-safety guard.
+ */
+export function focusWorkspaceDocument(
+  state: WorkspaceState,
+  documentId: DocumentId,
+): WorkspaceState {
+  const activeDocument = state.documents.find((document) => document.documentId === documentId);
+  if (!activeDocument) return state;
+  const documents = state.documents.filter(
+    (document) => document.documentId === documentId || document.dirty || document.recovered,
+  );
+  return freezeState({
+    ...state,
+    documents,
+    activeDocument,
+    saveState: activeDocument.dirty ? "editing" : "saved",
+    errorMessage: null,
+    diagnostics: Object.freeze([]),
+  });
+}
+
+export function closeWorkspaceDocument(
+  state: WorkspaceState,
+  documentId: DocumentId,
+): WorkspaceState {
+  const closingIndex = state.documents.findIndex((document) => document.documentId === documentId);
+  if (closingIndex < 0 || state.documents.length === 1) return state;
+  const documents = state.documents.filter((document) => document.documentId !== documentId);
+  const activeDocument =
+    state.activeDocument.documentId === documentId
+      ? (documents[Math.min(closingIndex, documents.length - 1)] ?? state.activeDocument)
+      : state.activeDocument;
+  return freezeState({
+    ...state,
+    documents,
+    activeDocument,
+    saveState: activeDocument.dirty ? "editing" : "saved",
+    errorMessage: null,
+    diagnostics:
+      state.activeDocument.documentId === activeDocument.documentId
+        ? state.diagnostics
+        : Object.freeze([]),
+  });
+}
+
 export function pathAfterBrowserMutation(
   activePath: string,
   sourcePath: string,

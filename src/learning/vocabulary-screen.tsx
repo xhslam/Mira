@@ -4,18 +4,14 @@ import { BookmarkPlus, Check, Download, Link2, Plus, RotateCcw } from "lucide-re
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import type { Theme } from "../app/theme";
-import {
-  createVocabularyCard,
-  reviewVocabularyCard,
-  toAnkiCsv,
-  type VocabularyRating,
-} from "./enjoy-player-domain";
+import { reviewVocabularyCard, toAnkiCsv, type VocabularyRating } from "./enjoy-player-domain";
 import {
   extractImportantPhrases,
   findRelatedVocabulary,
   type SuggestedPhrase,
 } from "./learning-enrichment";
 import type { LearningSnapshot } from "./learning-types";
+import { upsertPhraseCard } from "./phrase-recognition";
 
 type Props = Readonly<{
   snapshot: LearningSnapshot;
@@ -53,30 +49,41 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
   function addManual() {
     const phrase = term.trim();
     if (!phrase) return;
-    addCard(
-      Object.freeze({ phrase, context: "手动添加到我的短语。", score: 0 }),
-      meaning.trim() || "待补充释义",
+    const result = upsertPhraseCard(
+      snapshot.vocabulary,
+      {
+        displayText: phrase,
+        canonicalText: phrase,
+        confidence: 1,
+        context: "用户手动添加到我的短语。",
+        phraseType: "manual",
+        definition: meaning.trim() || "待补充释义",
+      },
+      new Date().toISOString(),
+      { manual: true },
     );
+    onChange(Object.freeze({ ...snapshot, vocabulary: result.cards }));
+    setFocusedId(result.cards[0]?.id ?? null);
     setTerm("");
     setMeaning("");
   }
 
-  function addCard(suggestion: SuggestedPhrase, definition = "从句子中自动识别的重点片段。") {
-    const exists = snapshot.vocabulary.some(
-      (card) => card.term.toLowerCase() === suggestion.phrase.toLowerCase(),
+  function addCard(suggestion: SuggestedPhrase, definition = "从句子中识别的可复用表达。") {
+    const result = upsertPhraseCard(
+      snapshot.vocabulary,
+      {
+        displayText: suggestion.phrase,
+        canonicalText: suggestion.phrase,
+        confidence: suggestion.score,
+        context: suggestion.context,
+        phraseType: "manual",
+        definition,
+      },
+      new Date().toISOString(),
+      { manual: true },
     );
-    if (exists) return;
-    const card = createVocabularyCard({
-      id: `phrase-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      term: suggestion.phrase,
-      definition,
-      context: suggestion.context,
-      now: new Date().toISOString(),
-    });
-    onChange(
-      Object.freeze({ ...snapshot, vocabulary: Object.freeze([card, ...snapshot.vocabulary]) }),
-    );
-    setFocusedId(card.id);
+    onChange(Object.freeze({ ...snapshot, vocabulary: result.cards }));
+    setFocusedId(result.cards[0]?.id ?? null);
   }
 
   function review(rating: VocabularyRating) {

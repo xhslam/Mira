@@ -9,6 +9,8 @@ import { selectionForSearchLine } from "../search/search-navigation";
 import type { HistorySnapshot } from "../history/history-store";
 import type { EditorMode } from "../session/document-session";
 import type { FileEntry } from "../workspace/workspace-adapter";
+import type { WorkspaceConflictPolicy } from "../workspace/workspace-browser";
+import { parseWorkspacePath } from "../workspace/workspace-path";
 import { createAppServices, type AppServices } from "./app-services";
 import { DEFAULT_SETTINGS, type AppSettings } from "./settings-store";
 import {
@@ -26,11 +28,14 @@ import {
   applyWorkspaceDiagnostics,
   applyWorkspaceSelectionChange,
   applyWorkspaceSnapshot,
+  closeWorkspaceDocument,
   createConflictCopyPath,
   createWorkspaceState,
   failEditorFlush,
   failWorkspaceSave,
   markWorkspaceSaving,
+  focusWorkspaceDocument,
+  openWorkspaceDocument,
   planWorkspaceSaveCompletion,
   loadWorkspaceConflictSnapshot,
   selectWorkspaceDocument,
@@ -712,6 +717,28 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
     removeBrowserEntry,
     shareBrowserEntry,
   } = useWorkspaceBrowserCommands(browserCommandOptions);
+  const renameActiveDocument = useCallback(
+    async (
+      to: string,
+      conflict: WorkspaceConflictPolicy = "fail",
+    ): Promise<BrowserCommandResult> => {
+      const activePath = stateRef.current?.activeDocument.path;
+      if (!activePath) return browserCommandFailure("Choose a note to rename.");
+      const parsed = parseWorkspacePath(activePath);
+      if (!parsed.ok)
+        return browserCommandFailure("The current note path is invalid.", "INVALID_PATH");
+      const entry = Object.freeze({
+        path: parsed.value,
+        name: activePath.split("/").at(-1) ?? activePath,
+        kind: "file" as const,
+        size: null,
+        modifiedAt: null,
+        contentType: null,
+      });
+      return renameBrowserEntry(entry, to, conflict);
+    },
+    [renameBrowserEntry],
+  );
   const requestMode = useCallback(
     (mode: EditorMode) => {
       const current = stateRef.current;
@@ -727,10 +754,54 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
     },
     [replaceState, saveWithSource],
   );
+  const openDocumentFromOverview = useCallback(
+    async (path: string): Promise<boolean> => {
+      await saveWithSource("auto");
+      const beforeRead = stateRef.current;
+      if (!beforeRead || beforeRead.activeDocument.dirty) return false;
+      const result = await services.repository.read(path);
+      if (!result.ok) return false;
+      const current = stateRef.current;
+      if (!current) return false;
+      const opened = openWorkspaceDocument(current, result.value);
+      replaceState(focusWorkspaceDocument(opened, result.value.documentId));
+      return true;
+    },
+    [replaceState, saveWithSource, services.repository],
+  );
+  const closeDocument = useCallback(
+    async (
+      documentId: OpenWorkspaceDocument["documentId"],
+    ): Promise<"closed" | "last" | "failed"> => {
+      const beforeClose = stateRef.current;
+      const document = beforeClose?.documents.find((item) => item.documentId === documentId);
+      if (!beforeClose || !document) return "failed";
+      if (document.documentId === beforeClose.activeDocument.documentId) {
+        await saveWithSource("auto");
+      } else if (document.dirty) {
+        await saveDocument(document, "auto");
+      }
+      const current = stateRef.current;
+      const latest = current?.documents.find((item) => item.documentId === documentId);
+      if (!current || !latest || latest.dirty || current.saveState === "conflict") return "failed";
+      if (current.documents.length === 1) return "last";
+      replaceState(closeWorkspaceDocument(current, documentId));
+      return "closed";
+    },
+    [replaceState, saveDocument, saveWithSource],
+  );
   const addDocument = useCallback(async () => {
     await saveWithSource("auto");
     const current = stateRef.current;
     if (current) replaceState(addBlankWorkspaceDocument(current, services.createDocumentId()));
+  }, [replaceState, saveWithSource, services]);
+  const addDocumentFromOverview = useCallback(async (): Promise<boolean> => {
+    await saveWithSource("auto");
+    const current = stateRef.current;
+    if (!current || current.activeDocument.dirty) return false;
+    const added = addBlankWorkspaceDocument(current, services.createDocumentId());
+    replaceState(focusWorkspaceDocument(added, added.activeDocument.documentId));
+    return true;
   }, [replaceState, saveWithSource, services]);
   const selectSearchResult = useCallback(
     async (result: SearchResult) => {
@@ -898,8 +969,11 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
       handleEditorMessage,
       requestMode,
       selectDocument,
+      openDocumentFromOverview,
+      closeDocument,
       selectSearchResult,
       addDocument,
+      addDocumentFromOverview,
       saveNow,
       captureAiSnapshot,
       applyAiReplacement,
@@ -916,6 +990,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
       createBrowserFile,
       createBrowserDirectory,
       renameBrowserEntry,
+      renameActiveDocument,
       moveBrowserEntry,
       copyBrowserEntry,
       removeBrowserEntry,
@@ -924,6 +999,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
     }),
     [
       addDocument,
+      addDocumentFromOverview,
       captureAiSnapshot,
       applyAiReplacement,
       editorReadyVersion,
@@ -950,6 +1026,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
       removeBrowserEntry,
       shareBrowserEntry,
       renameBrowserEntry,
+      renameActiveDocument,
       moveBrowserEntry,
       requestMode,
       restoreHistory,
@@ -958,6 +1035,8 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
       saveConflictCopy,
       saveNow,
       selectDocument,
+      openDocumentFromOverview,
+      closeDocument,
       selectSearchResult,
       state,
       services,

@@ -16,7 +16,7 @@ import {
 import type { Theme } from "../app/theme";
 import type { LearningResource, LearningSentence } from "./learning-types";
 import { VideoPreview } from "./video-preview";
-import { YoutubePreview } from "./youtube-preview";
+import { BilibiliPreview } from "./bilibili-preview";
 
 type LearningMode = "normal" | "dictation" | "shadowing" | "cards";
 
@@ -56,7 +56,7 @@ function formatTime(value: number | null) {
 }
 
 function isVideoResource(resource: LearningResource) {
-  return resource.mediaKind === "video" || resource.mediaKind === "youtube";
+  return resource.mediaKind === "video" || resource.mediaKind === "bilibili";
 }
 
 export function VideoLearningPlayer({
@@ -105,8 +105,8 @@ export function VideoLearningPlayer({
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {isVideoResource(resource) ? (
           <View style={styles.videoFrame}>
-            {resource.mediaKind === "youtube" && resource.sourceUrl ? (
-              <YoutubePreview
+            {resource.mediaKind === "bilibili" && resource.sourceUrl ? (
+              <BilibiliPreview
                 sourceUrl={resource.sourceUrl}
                 positionMs={positionMs}
                 playing={playing}
@@ -251,78 +251,109 @@ export function VideoLearningPlayer({
       </ScrollView>
 
       <View style={styles.controlDock}>
-        <Pressable
-          accessibilityLabel="拖动播放进度"
-          accessibilityRole="adjustable"
-          onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
-          onPress={(event) => {
-            if (!durationMs || progressWidth <= 0) return;
-            onSeek((event.nativeEvent.locationX / progressWidth) * durationMs);
-          }}
-          style={styles.progressTrack}
-        >
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          <View style={[styles.progressThumb, { left: `${progress}%` }]} />
-        </Pressable>
-        <View style={styles.progressMeta}>
-          <Text style={styles.progressText}>{formatTime(positionMs)}</Text>
-          <Text style={styles.progressText}>
-            {durationMs === null ? "—:—" : formatTime(durationMs)}
-          </Text>
-        </View>
-        <View style={styles.controls}>
-          <ControlButton
-            icon={Focus}
-            label={`${playbackRate}×`}
-            onPress={onCycleRate}
-            styles={styles}
-            theme={theme}
-          />
-          <ControlButton
-            icon={showTranslation ? Captions : EyeOff}
-            label={showTranslation ? "隐藏" : "字幕"}
-            onPress={onToggleTranslation}
-            active={showTranslation}
-            styles={styles}
-            theme={theme}
-          />
-          <ControlButton
-            icon={ChevronLeft}
-            label="上句"
-            onPress={onPrevious}
-            disabled={!canGoPrevious}
-            styles={styles}
-            theme={theme}
-          />
-          <ControlButton
-            icon={playing ? Pause : Play}
-            label={playing ? "暂停" : "播放"}
-            onPress={onTogglePlayback}
-            active
-            styles={styles}
-            theme={theme}
-          />
-          <ControlButton
-            icon={ChevronRight}
-            label="下句"
-            onPress={onNext}
-            disabled={!canGoNext}
-            styles={styles}
-            theme={theme}
-          />
-          <ControlButton
-            icon={Repeat2}
-            label="精听"
-            onPress={onToggleRepeat}
-            active={repeat}
-            styles={styles}
-            theme={theme}
-          />
-        </View>
-        <Pressable accessibilityRole="button" onPress={onOpenFocus} style={styles.focusButton}>
-          <Languages color={theme.colors.accent} size={16} />
-          <Text style={styles.focusButtonText}>进入专注听力</Text>
-        </Pressable>
+        {resource.mediaKind === "bilibili" ? (
+          <View
+            accessibilityLabel="哔哩哔哩外链播放器说明"
+            accessibilityRole="summary"
+            style={[
+              styles.focusButton,
+              { alignItems: "flex-start", flexDirection: "column", gap: 7 },
+            ]}
+          >
+            <Text style={styles.focusButtonText}>使用哔哩哔哩播放器控制播放</Text>
+            <Text
+              style={[
+                styles.focusButtonText,
+                { color: theme.colors.mutedText, fontSize: 12, lineHeight: 18 },
+              ]}
+            >
+              播放、进度与倍速请在上方官方播放器中操作。选择字幕仅切换学习内容，不会控制外链播放器的位置。
+            </Text>
+            <ControlButton
+              icon={showTranslation ? Captions : EyeOff}
+              label={showTranslation ? "隐藏字幕译文" : "显示字幕译文"}
+              onPress={onToggleTranslation}
+              active={showTranslation}
+              styles={styles}
+              theme={theme}
+            />
+          </View>
+        ) : (
+          <>
+            <Pressable
+              accessibilityLabel="拖动播放进度"
+              accessibilityRole="adjustable"
+              onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
+              onPress={(event) => {
+                if (!durationMs || progressWidth <= 0) return;
+                onSeek((event.nativeEvent.locationX / progressWidth) * durationMs);
+              }}
+              style={styles.progressTrack}
+            >
+              <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              <View style={[styles.progressThumb, { left: `${progress}%` }]} />
+            </Pressable>
+            <View style={styles.progressMeta}>
+              <Text style={styles.progressText}>{formatTime(positionMs)}</Text>
+              <Text style={styles.progressText}>
+                {durationMs === null ? "—:—" : formatTime(durationMs)}
+              </Text>
+            </View>
+            <View style={styles.controls}>
+              <ControlButton
+                icon={Focus}
+                label={`${playbackRate}×`}
+                onPress={onCycleRate}
+                styles={styles}
+                theme={theme}
+              />
+              <ControlButton
+                icon={showTranslation ? Captions : EyeOff}
+                label={showTranslation ? "隐藏" : "字幕"}
+                onPress={onToggleTranslation}
+                active={showTranslation}
+                styles={styles}
+                theme={theme}
+              />
+              <ControlButton
+                icon={ChevronLeft}
+                label="上句"
+                onPress={onPrevious}
+                disabled={!canGoPrevious}
+                styles={styles}
+                theme={theme}
+              />
+              <ControlButton
+                icon={playing ? Pause : Play}
+                label={playing ? "暂停" : "播放"}
+                onPress={onTogglePlayback}
+                active
+                styles={styles}
+                theme={theme}
+              />
+              <ControlButton
+                icon={ChevronRight}
+                label="下句"
+                onPress={onNext}
+                disabled={!canGoNext}
+                styles={styles}
+                theme={theme}
+              />
+              <ControlButton
+                icon={Repeat2}
+                label="精听"
+                onPress={onToggleRepeat}
+                active={repeat}
+                styles={styles}
+                theme={theme}
+              />
+            </View>
+            <Pressable accessibilityRole="button" onPress={onOpenFocus} style={styles.focusButton}>
+              <Languages color={theme.colors.accent} size={16} />
+              <Text style={styles.focusButtonText}>进入专注听力</Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </View>
   );

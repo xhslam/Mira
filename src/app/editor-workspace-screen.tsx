@@ -1,14 +1,13 @@
 import {
   ArchiveRestore,
   CalendarClock,
+  ChevronLeft,
   Download,
-  FilePlus2,
   GitCompareArrows,
+  Pencil,
   RotateCw,
-  Save,
   Search as SearchIcon,
   Sparkles,
-  X,
 } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -26,7 +25,6 @@ import type { EditorCommand, EditorCommandName } from "../editor-kernel/editor-k
 import EditorKernel from "../editor-kernel/editor-kernel.dom";
 import { createEditorSavedMessage } from "../editor-bridge/editor-message-builder";
 import { createDocumentOpenTransfer } from "../editor-bridge/document-open-transfer";
-import { extractMarkdownOutline } from "../editor-kernel/editor-kernel-state";
 import { formatStructuredDocument } from "../formats/structured/format";
 import {
   advanceLocalResourceState,
@@ -34,8 +32,8 @@ import {
   localResourcePaths,
   resolveLocalResourcePath,
 } from "../formats/local-resource";
-import type { HistorySnapshot } from "../history/history-store";
 import type { SearchResult } from "../search/search-index";
+import type { WorkspaceConflictPolicy } from "../workspace/workspace-browser";
 import type { AppServices } from "./app-services";
 import { DocumentTabs } from "./document-tabs";
 import { nextEditorMode } from "./editor-mode-cycle";
@@ -50,25 +48,24 @@ import {
 import { FormattingToolbar } from "./formatting-toolbar";
 import { AiQuickAssistant } from "./ai-quick-assistant";
 import { useLocale, useTranslate } from "./locale";
-import { resolveWorkspaceLocation, resolveWorkspaceName } from "./managed-workspace-identity";
 import { SearchSheet } from "./search-sheet";
 import { useTheme, type Theme } from "./theme";
 import { triggerClickFeedback } from "./press-feedback";
+import { editableNoteName, noteRenameTargetPath } from "./note-rename";
 import { useEditorWorkspace, type EditorWorkspaceController } from "./use-editor-workspace";
-import { WorkspaceDrawer } from "./workspace-drawer";
 import { WorkspaceHeader } from "./workspace-header";
 
 type EditorWorkspaceScreenProps = Readonly<{
   services?: AppServices;
   clickVibration?: boolean;
   /**
-   * The app shell hands its primary navigation to this screen so the workspace
-   * drawer overlay, which is mounted after it in this subtree, can paint above
-   * the tab bar. React Native orders siblings only, so a shell-level tab bar
-   * could never be covered by an overlay nested inside this screen.
+   * The app shell hands its primary navigation to this screen so the editor and
+   * overview can each own one stable bottom-nav position without remounting the
+   * editor WebView when switching surfaces.
    */
   bottomNavigation?: ReactNode;
-  onChooseWorkspace?: () => void;
+  onOpenSidebar?: () => void;
+  onExitToNotes?: () => void;
   initialPath?: string;
   initialSearchResult?: SearchResult;
 }>;
@@ -82,7 +79,8 @@ export function EditorWorkspaceView({
   controller,
   clickVibration = true,
   bottomNavigation,
-  onChooseWorkspace,
+  onOpenSidebar,
+  onExitToNotes,
   initialPath,
   initialSearchResult,
 }: EditorWorkspaceScreenProps & Readonly<{ controller: EditorWorkspaceController }>) {
@@ -90,9 +88,13 @@ export function EditorWorkspaceView({
   const locale = useLocale();
   const t = useTranslate();
   const styles = createStyles(theme);
-  const [drawerVisible, setDrawerVisible] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPage, setMenuPage] = useState<"note" | "backup">("note");
+  const [renameVisible, setRenameVisible] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameBusy, setRenameBusy] = useState(false);
   const [quickAssistantVisible, setQuickAssistantVisible] = useState(false);
   const [command, setCommand] = useState<EditorCommand | null>(null);
   const [editableCodeDocuments, setEditableCodeDocuments] = useState<ReadonlySet<string>>(
@@ -154,10 +156,6 @@ export function EditorWorkspaceView({
     () => acknowledgeEditorRendererReady(rendererRecovery, controller.editorReadyVersion),
     [controller.editorReadyVersion, rendererRecovery],
   );
-  const outline = useMemo(
-    () => extractMarkdownOutline(activeDocument?.markdown ?? ""),
-    [activeDocument?.markdown],
-  );
   const documentOpenTransfer = useMemo(
     () =>
       activeDocument && controller.state
@@ -194,6 +192,91 @@ export function EditorWorkspaceView({
     setCommand((current) =>
       Object.freeze({ id: (current?.id ?? 0) + 1, name, ...(content ? { content } : {}) }),
     );
+  }
+
+  function closeMenu(): void {
+    setMenuVisible(false);
+    setMenuPage("note");
+  }
+
+  function beginRename(): void {
+    if (!activeDocument || !controller.services.browser.capabilities.rename) return;
+    closeMenu();
+    Keyboard.dismiss();
+    setRenameValue(editableNoteName(activeDocument.path));
+    setRenameError(null);
+    setRenameVisible(true);
+  }
+
+  function cancelRename(): void {
+    if (renameBusy) return;
+    Keyboard.dismiss();
+    setRenameVisible(false);
+    setRenameValue("");
+    setRenameError(null);
+  }
+
+  async function submitRename(conflict: WorkspaceConflictPolicy = "fail"): Promise<void> {
+    if (!activeDocument || renameBusy) return;
+    const target = noteRenameTargetPath(activeDocument.path, renameValue);
+    if (!target.ok) {
+      const key =
+        target.code === "EMPTY"
+          ? "header.renameEmpty"
+          : target.code === "PATH_SYMBOL"
+            ? "header.renamePathSymbol"
+            : "header.renameInvalid";
+      setRenameError(t(key));
+      return;
+    }
+    if (target.path === activeDocument.path) {
+      cancelRename();
+      return;
+    }
+
+    setRenameBusy(true);
+    setRenameError(null);
+    let result: Awaited<ReturnType<typeof controller.renameActiveDocument>>;
+    try {
+      result = await controller.renameActiveDocument(target.path, conflict);
+    } catch {
+      setRenameBusy(false);
+      setRenameError(t("header.renameFailed"));
+      return;
+    }
+    setRenameBusy(false);
+    if (result.ok) {
+      Keyboard.dismiss();
+      setRenameVisible(false);
+      setRenameValue("");
+      return;
+    }
+    if (result.errorCode === "ALREADY_EXISTS" && conflict === "fail") {
+      setRenameError(t("header.renameExists"));
+      const capabilities = controller.services.browser.capabilities;
+      Alert.alert(t("header.renameExists"), target.path, [
+        { text: t("header.cancel"), style: "cancel" },
+        ...(capabilities.renameKeepBoth
+          ? [
+              {
+                text: t("header.keepBoth"),
+                onPress: () => void submitRename("keep-both"),
+              },
+            ]
+          : []),
+        ...(capabilities.renameReplace
+          ? [
+              {
+                text: t("header.replace"),
+                style: "destructive" as const,
+                onPress: () => void submitRename("replace"),
+              },
+            ]
+          : []),
+      ]);
+      return;
+    }
+    setRenameError(t("header.renameFailed"));
   }
 
   function confirmStructuredFormatting(): void {
@@ -293,42 +376,6 @@ export function EditorWorkspaceView({
     return null;
   }
 
-  function confirmHistoryRestore(snapshot: HistorySnapshot): void {
-    const preview = snapshot.markdown.trim().slice(0, 220) || "(empty note)";
-    Alert.alert(
-      "Restore this version?",
-      `${new Date(snapshot.createdAt).toLocaleString()}\n\n${preview}`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Restore",
-          onPress: () => {
-            setDrawerVisible(false);
-            void controller.restoreHistory(snapshot.snapshotId);
-          },
-        },
-      ],
-    );
-  }
-
-  function confirmHistoryRemove(snapshot: HistorySnapshot): void {
-    Alert.alert("Delete this version?", "This history snapshot cannot be recovered.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => void controller.removeHistory(snapshot.snapshotId),
-      },
-    ]);
-  }
-
-  function confirmHistoryClear(): void {
-    Alert.alert("Delete all history?", "Saved files are kept, but version history is permanent.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete all", style: "destructive", onPress: () => void controller.clearHistory() },
-    ]);
-  }
-
   function openConflictResolution(): void {
     const external = controller.state?.conflictSnapshot;
     if (!external || !activeDocument) return;
@@ -346,7 +393,7 @@ export function EditorWorkspaceView({
   }
 
   async function exportBackup(): Promise<void> {
-    setMenuVisible(false);
+    closeMenu();
     const prepared = await controller.prepareWorkspaceSwitch();
     if (!prepared) {
       Alert.alert("Backup paused", "Save or resolve the current file before creating a backup.");
@@ -364,7 +411,7 @@ export function EditorWorkspaceView({
   }
 
   async function importBackup(): Promise<void> {
-    setMenuVisible(false);
+    closeMenu();
     const prepared = await controller.prepareWorkspaceSwitch();
     if (!prepared) {
       Alert.alert("Restore paused", "Save or resolve the current file before restoring a backup.");
@@ -420,7 +467,7 @@ export function EditorWorkspaceView({
   }
 
   async function configureAutomaticBackup(): Promise<void> {
-    setMenuVisible(false);
+    closeMenu();
     const configured = await controller.services.automaticBackup.configure();
     if (configured === "cancelled") return;
     try {
@@ -433,18 +480,6 @@ export function EditorWorkspaceView({
         "The selected folder could not accept a verified backup. Workspace files are unchanged.",
       );
     }
-  }
-
-  async function chooseWorkspace(): Promise<void> {
-    if (!onChooseWorkspace) return;
-    if (await controller.prepareWorkspaceSwitch()) {
-      onChooseWorkspace();
-      return;
-    }
-    Alert.alert(
-      "Workspace switch paused",
-      "The latest editor changes could not be confirmed. Your current workspace remains open.",
-    );
   }
 
   if (!controller.state || !activeDocument || !documentOpenTransfer?.ok) {
@@ -474,6 +509,7 @@ export function EditorWorkspaceView({
   return (
     <View style={styles.screen}>
       <WorkspaceHeader
+        canRename={controller.services.browser.capabilities.rename}
         dirty={activeDocument.dirty}
         editorMode={activeDocument.mode}
         nextEditorMode={nextEditorMode(activeDocument.mode, activeDocument.formatId)}
@@ -481,9 +517,13 @@ export function EditorWorkspaceView({
         onOpenDrawer={() => {
           triggerClickFeedback(clickVibration);
           Keyboard.dismiss();
-          setDrawerVisible(true);
+          onOpenSidebar?.();
         }}
-        onOpenMenu={() => setMenuVisible((visible) => !visible)}
+        onBeginRename={beginRename}
+        onOpenMenu={() => {
+          setMenuPage("note");
+          setMenuVisible((visible) => !visible);
+        }}
         onOpenSearch={() => {
           Keyboard.dismiss();
           setSearchVisible(true);
@@ -494,6 +534,21 @@ export function EditorWorkspaceView({
           controller.requestMode(nextEditorMode(activeDocument.mode, activeDocument.formatId));
         }}
         saveState={controller.state.saveState}
+        rename={
+          renameVisible
+            ? {
+                value: renameValue,
+                error: renameError,
+                busy: renameBusy,
+                onChange: (value) => {
+                  setRenameValue(value);
+                  setRenameError(null);
+                },
+                onCancel: cancelRename,
+                onSubmit: () => void submitRename(),
+              }
+            : null
+        }
         showEditorMode={
           activeDocument.formatId === "markdown" ||
           activeDocument.formatId === "json" ||
@@ -508,6 +563,15 @@ export function EditorWorkspaceView({
         onAdd={() => {
           Keyboard.dismiss();
           void controller.addDocument();
+        }}
+        onClose={(documentId) => {
+          Keyboard.dismiss();
+          void controller.closeDocument(documentId).then((result) => {
+            if (result === "last") onExitToNotes?.();
+            if (result === "failed") {
+              Alert.alert("暂时无法关闭笔记", "请先确认当前修改已经保存，再关闭这个标签。");
+            }
+          });
         }}
         onSelect={(documentId) => {
           Keyboard.dismiss();
@@ -693,72 +757,80 @@ export function EditorWorkspaceView({
         <>
           <Pressable
             accessibilityLabel={t("editor.closeActions")}
-            onPress={() => setMenuVisible(false)}
+            onPress={closeMenu}
             style={styles.menuScrim}
           />
           <View accessibilityRole="menu" style={styles.menu}>
-            <MenuAction
-              icon={Sparkles}
-              label={t("menu.aiAssistant")}
-              onPress={() => {
-                Keyboard.dismiss();
-                setMenuVisible(false);
-                setQuickAssistantVisible(true);
-              }}
-            />
-            <MenuAction
-              icon={Save}
-              label={t("menu.saveNow")}
-              onPress={() => {
-                setMenuVisible(false);
-                void controller.saveNow();
-              }}
-            />
-            <MenuAction
-              icon={SearchIcon}
-              label={t("menu.findReplace")}
-              onPress={() => {
-                setMenuVisible(false);
-                controller.requestMode("source");
-                issueCommand("find");
-              }}
-            />
-            {activeDocument.formatId === "json" ||
-            activeDocument.formatId === "yaml" ||
-            activeDocument.formatId === "toml" ? (
-              <MenuAction
-                icon={GitCompareArrows}
-                label={t("menu.formatDocument")}
-                onPress={() => {
-                  setMenuVisible(false);
-                  confirmStructuredFormatting();
-                }}
-              />
-            ) : null}
-            <MenuAction
-              icon={FilePlus2}
-              label={t("menu.newNote")}
-              onPress={() => {
-                setMenuVisible(false);
-                void controller.addDocument();
-              }}
-            />
-            <MenuAction
-              icon={Download}
-              label={t("menu.exportBackup")}
-              onPress={() => void exportBackup()}
-            />
-            <MenuAction
-              icon={ArchiveRestore}
-              label={t("menu.restoreBackup")}
-              onPress={() => void importBackup()}
-            />
-            <MenuAction
-              icon={CalendarClock}
-              label={t("menu.automaticBackup")}
-              onPress={() => void configureAutomaticBackup()}
-            />
-            <MenuAction icon={X} label={t("menu.close")} onPress={() => setMenuVisible(false)} />
+            {menuPage === "note" ? (
+              <>
+                <Text numberOfLines={1} style={styles.menuTitle}>
+                  {editableNoteName(activeDocument.path)}
+                </Text>
+                {controller.services.browser.capabilities.rename ? (
+                  <MenuAction icon={Pencil} label={t("menu.renameNote")} onPress={beginRename} />
+                ) : null}
+                <MenuAction
+                  icon={Sparkles}
+                  label={t("menu.aiAssistant")}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    closeMenu();
+                    setQuickAssistantVisible(true);
+                  }}
+                />
+                <MenuAction
+                  icon={SearchIcon}
+                  label={t("menu.findReplace")}
+                  onPress={() => {
+                    closeMenu();
+                    controller.requestMode("source");
+                    issueCommand("find");
+                  }}
+                />
+                {activeDocument.formatId === "json" ||
+                activeDocument.formatId === "yaml" ||
+                activeDocument.formatId === "toml" ? (
+                  <MenuAction
+                    icon={GitCompareArrows}
+                    label={t("menu.formatDocument")}
+                    onPress={() => {
+                      closeMenu();
+                      confirmStructuredFormatting();
+                    }}
+                  />
+                ) : null}
+                <View style={styles.menuDivider} />
+                <MenuAction
+                  icon={ArchiveRestore}
+                  label={t("menu.backup")}
+                  onPress={() => setMenuPage("backup")}
+                />
+              </>
+            ) : (
+              <>
+                <MenuAction
+                  icon={ChevronLeft}
+                  label={t("menu.back")}
+                  onPress={() => setMenuPage("note")}
+                />
+                <View style={styles.menuDivider} />
+                <MenuAction
+                  icon={Download}
+                  label={t("menu.exportBackup")}
+                  onPress={() => void exportBackup()}
+                />
+                <MenuAction
+                  icon={ArchiveRestore}
+                  label={t("menu.restoreBackup")}
+                  onPress={() => void importBackup()}
+                />
+                <MenuAction
+                  icon={CalendarClock}
+                  label={t("menu.automaticBackup")}
+                  onPress={() => void configureAutomaticBackup()}
+                />
+              </>
+            )}
           </View>
         </>
       ) : null}
@@ -768,38 +840,6 @@ export function EditorWorkspaceView({
         visible={quickAssistantVisible}
       />
 
-      <WorkspaceDrawer
-        activeDocumentId={activeDocument.documentId}
-        browserCapabilities={controller.services.browser.capabilities}
-        browserEntries={controller.browserEntries}
-        browserError={controller.browserError}
-        browserLoading={controller.browserLoading}
-        fileActivity={controller.fileActivity}
-        fileActivityError={controller.fileActivityError}
-        documents={controller.state.documents}
-        history={controller.history}
-        historyError={controller.historyError}
-        onClose={() => setDrawerVisible(false)}
-        onCreateDirectory={controller.createBrowserDirectory}
-        onCreateFile={controller.createBrowserFile}
-        onCopyEntry={controller.copyBrowserEntry}
-        {...(onChooseWorkspace ? { onChooseWorkspace: () => void chooseWorkspace() } : {})}
-        onOpenBrowserFile={controller.openBrowserFile}
-        onMoveEntry={controller.moveBrowserEntry}
-        onRefreshBrowser={controller.refreshBrowser}
-        onRemoveEntry={controller.removeBrowserEntry}
-        onRenameEntry={controller.renameBrowserEntry}
-        onSelectDocument={(documentId) => void controller.selectDocument(documentId)}
-        onSetFavorite={controller.setFavorite}
-        onShareEntry={controller.shareBrowserEntry}
-        onRestoreHistory={confirmHistoryRestore}
-        onRemoveHistory={confirmHistoryRemove}
-        onClearHistory={confirmHistoryClear}
-        outline={outline}
-        visible={drawerVisible}
-        workspaceLocation={resolveWorkspaceLocation(controller.services.activeWorkspace.grant, t)}
-        workspaceName={resolveWorkspaceName(controller.services.activeWorkspace.grant, t)}
-      />
       <SearchSheet
         onClose={() => setSearchVisible(false)}
         onSelect={(result) => {
@@ -987,25 +1027,40 @@ function createStyles(theme: Theme) {
       zIndex: 11,
       top: 52,
       right: 8,
-      width: 190,
-      paddingVertical: 5,
+      width: 218,
+      padding: 7,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: 16,
       backgroundColor: theme.colors.canvas,
       elevation: 8,
     },
     menuAction: {
-      minHeight: 48,
+      minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 14,
+      paddingHorizontal: 11,
+      borderRadius: 10,
     },
     menuLabel: {
       color: theme.colors.text,
       fontSize: 14,
       fontWeight: "600",
+    },
+    menuTitle: {
+      marginHorizontal: 11,
+      marginTop: 5,
+      marginBottom: 6,
+      color: theme.colors.mutedText,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    menuDivider: {
+      height: StyleSheet.hairlineWidth,
+      marginVertical: 5,
+      marginHorizontal: 10,
+      backgroundColor: theme.colors.divider,
     },
     pressed: {
       backgroundColor: theme.colors.surfaceMuted,

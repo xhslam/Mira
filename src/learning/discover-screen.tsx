@@ -1,512 +1,427 @@
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { Check, Plus, RefreshCw, Rss, X } from "lucide-react-native";
+  FileText,
+  FolderOpen,
+  Link,
+  LockKeyhole,
+  Plus,
+  Subtitles,
+  Volume2,
+} from "lucide-react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import type { Theme } from "../app/theme";
-import { providerForUrl, RECOMMENDED_CHANNELS } from "./learning-content-sources";
-import type { DiscoverFeedEntry, DiscoverSubscription, LearningSnapshot } from "./learning-types";
-import { fetchYoutubeCaptions } from "./youtube-learning";
+import {
+  discoverResourceKind,
+  listDiscoverResources,
+  type DiscoverResourceFilter,
+} from "./discover-resources";
+import { resourceProgress } from "./learning-session";
+import type { LearningImportIntent, LearningResource, LearningSnapshot } from "./learning-types";
 
 type Props = Readonly<{
   snapshot: LearningSnapshot;
   theme: Theme;
   onChange: (next: LearningSnapshot) => void;
+  onOpenImport: () => void;
+  onOpenResource: (resource: LearningResource) => void;
 }>;
 
-export function DiscoverScreen({ snapshot, theme, onChange }: Props) {
+type LocalImportIntent = Exclude<LearningImportIntent, null>;
+
+const FILTERS: readonly Readonly<{
+  id: DiscoverResourceFilter;
+  label: string;
+}>[] = Object.freeze([
+  Object.freeze({ id: "all", label: "全部" }),
+  Object.freeze({ id: "video", label: "视频" }),
+  Object.freeze({ id: "audio", label: "音频" }),
+  Object.freeze({ id: "text", label: "文字" }),
+]);
+
+export function DiscoverScreen({ snapshot, theme, onChange, onOpenImport, onOpenResource }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [managerVisible, setManagerVisible] = useState(false);
-  const [url, setUrl] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [selectedSource, setSelectedSource] = useState<string | null>(null);
-  const subscriptions = snapshot.subscriptions;
-  const entries = snapshot.discoverEntries
-    .filter((entry) => !selectedSource || entry.subscriptionId === selectedSource)
-    .sort((a, b) => (b.publishedAt ?? b.updatedAt).localeCompare(a.publishedAt ?? a.updatedAt));
-  async function addSubscription(value = url) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      const provider = providerForUrl(value);
-      if (!provider)
-        throw new Error(
-          "当前仅支持真实可用的 YouTube 频道、@handle 或播放列表订阅；B 站请使用一次性 URL 导入。",
-        );
-      const normalized = provider.normalizeSubscription(value);
-      const duplicate = snapshot.subscriptions.some(
-        (item) => item.provider === provider.id && item.sourceId === normalized.sourceId,
-      );
-      if (duplicate) throw new Error("这个频道已经订阅。 ");
-      const now = new Date().toISOString();
-      const subscription: DiscoverSubscription = Object.freeze({
-        id: `source-${Date.now()}`,
-        provider: provider.id,
-        sourceId: normalized.sourceId,
-        sourceUrl: normalized.sourceUrl,
-        title: normalized.title,
-        avatarUrl: null,
-        language: null,
-        createdAt: now,
-        updatedAt: now,
-        lastFetchedAt: null,
-        lastError: null,
-      });
-      const next = Object.freeze({
-        ...snapshot,
-        subscriptions: Object.freeze([subscription, ...snapshot.subscriptions]),
-      });
-      onChange(next);
-      setUrl("");
-      await refreshSubscription(subscription, next);
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : "无法添加频道。 ");
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function refreshSubscription(subscription: DiscoverSubscription, base = snapshot) {
-    const provider = providerForUrl(subscription.sourceUrl);
-    if (!provider) return;
-    setBusy(true);
-    try {
-      const entries = await provider.fetchFeed(subscription);
-      const now = new Date().toISOString();
-      onChange(
-        Object.freeze({
-          ...base,
-          subscriptions: Object.freeze(
-            base.subscriptions.map((item) =>
-              item.id === subscription.id
-                ? Object.freeze({ ...item, lastFetchedAt: now, lastError: null, updatedAt: now })
-                : item,
-            ),
-          ),
-          discoverEntries: Object.freeze([
-            ...entries,
-            ...base.discoverEntries.filter((item) => item.subscriptionId !== subscription.id),
-          ]),
-        }),
-      );
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "频道刷新失败。";
-      setNotice(message);
-      const updatedSubscriptions = base.subscriptions.map((item) =>
-        item.id === subscription.id
-          ? Object.freeze({ ...item, lastError: message, updatedAt: new Date().toISOString() })
-          : item,
-      );
-      onChange(Object.freeze({ ...base, subscriptions: Object.freeze(updatedSubscriptions) }));
-    } finally {
-      setBusy(false);
-    }
-  }
-  function removeSubscription(id: string) {
+  const [filter, setFilter] = useState<DiscoverResourceFilter>("all");
+  const resources = useMemo(
+    () => listDiscoverResources(snapshot.resources, filter, 2),
+    [filter, snapshot.resources],
+  );
+
+  function openLibrary(intent: LocalImportIntent) {
     onChange(
       Object.freeze({
         ...snapshot,
-        subscriptions: Object.freeze(snapshot.subscriptions.filter((item) => item.id !== id)),
-        discoverEntries: Object.freeze(
-          snapshot.discoverEntries.filter((item) => item.subscriptionId !== id),
-        ),
+        ui: Object.freeze({ ...snapshot.ui, section: "library", importIntent: intent }),
       }),
     );
-    if (selectedSource === id) setSelectedSource(null);
   }
 
-  async function addEntry(entry: DiscoverFeedEntry) {
-    if (snapshot.resources.some((resource) => resource.sourceUrl === entry.sourceUrl)) {
-      setNotice("这条外部来源已经在资料库中。 ");
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
-    try {
-      const captions = await fetchYoutubeCaptions(entry.sourceUrl);
-      const now = new Date().toISOString();
-      const id = `youtube-${entry.externalId}`;
-      const resource = Object.freeze({
-        id,
-        title: entry.title,
-        description: entry.description ?? "来自已订阅 YouTube 频道的学习视频。",
-        language: "en",
-        source: "youtube" as const,
-        provider: "discover" as const,
-        content: captions.map((cue) => cue.text).join("\n"),
-        sentences: Object.freeze(
-          captions.map((cue) =>
-            Object.freeze({
-              id: `${id}-caption-${cue.index}`,
-              resourceId: id,
-              order: cue.index,
-              text: cue.text,
-              translation: null,
-              startMs: cue.startMs,
-              endMs: cue.endMs,
-              sourceAudioUri: null,
-            }),
-          ),
-        ),
-        mediaKind: "youtube" as const,
-        sourceUrl: entry.sourceUrl,
-        durationMs: entry.durationMs,
-        thumbnailUri: entry.thumbnailUrl,
-        createdAt: now,
-        updatedAt: now,
-      });
-      onChange(
-        Object.freeze({
-          ...snapshot,
-          resources: Object.freeze([resource, ...snapshot.resources]),
-        }),
-      );
-      setNotice(`已加入资料库并导入 ${captions.length} 条英文字幕；现在可在资料库进入逐句学习。`);
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : "无法获取此视频的公开英文字幕。 ");
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>发现</Text>
-          <Text style={styles.subtitle}>订阅长期内容来源；一次性链接仍通过导入处理。</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setManagerVisible(true)}
-          style={styles.manageButton}
-        >
-          <Text style={styles.manageText}>管理频道</Text>
-        </Pressable>
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-      >
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setSelectedSource(null)}
-          style={[styles.filter, !selectedSource && styles.filterActive]}
-        >
-          <Text style={[styles.filterText, !selectedSource && styles.filterTextActive]}>全部</Text>
-        </Pressable>
-        {subscriptions.map((item) => (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            onPress={() => setSelectedSource(item.id)}
-            style={[styles.filter, selectedSource === item.id && styles.filterActive]}
-          >
-            <Text
-              numberOfLines={1}
-              style={[styles.filterText, selectedSource === item.id && styles.filterTextActive]}
-            >
-              {item.title}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-      {entries.length ? (
-        <View style={styles.feed}>
-          {entries.map((entry) => {
-            const exists = snapshot.resources.some(
-              (resource) => resource.sourceUrl === entry.sourceUrl,
-            );
+      <View style={styles.intro}>
+        <Text style={styles.heading}>选择下一段想听的内容</Text>
+        <View accessibilityRole="tablist" style={styles.filters}>
+          {FILTERS.map((item) => {
+            const selected = item.id === filter;
             return (
-              <View key={entry.id} style={styles.entry}>
-                <View style={styles.entryArtwork}>
-                  <Rss color={theme.colors.accent} size={20} />
-                </View>
-                <View style={styles.entryCopy}>
-                  <Text numberOfLines={2} style={styles.entryTitle}>
-                    {entry.title}
-                  </Text>
-                  <Text numberOfLines={2} style={styles.entryMeta}>
-                    {entry.description || "频道未提供文字摘要"}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={exists}
-                  onPress={() => void addEntry(entry)}
-                  style={[styles.addButton, exists && styles.addButtonDisabled]}
-                >
-                  {exists ? (
-                    <Check color={theme.colors.mutedText} size={17} />
-                  ) : (
-                    <Plus color={theme.colors.canvas} size={17} />
-                  )}
-                </Pressable>
-              </View>
+              <Pressable
+                key={item.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => setFilter(item.id)}
+                style={({ pressed }) => [
+                  styles.filter,
+                  selected && styles.filterSelected,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
+                  {item.label}
+                </Text>
+              </Pressable>
             );
           })}
         </View>
-      ) : (
-        <View style={styles.empty}>
-          <Rss color={theme.colors.accent} size={26} />
-          <Text style={styles.emptyTitle}>订阅后，这里会显示真实频道内容。</Text>
-          <Text style={styles.emptyCopy}>
-            当前不会生成演示 Feed。可先管理频道，或用首页的导入处理某一条链接。
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setManagerVisible(true)}
-            style={styles.emptyButton}
-          >
-            <Text style={styles.emptyButtonText}>添加频道</Text>
-          </Pressable>
-        </View>
-      )}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={managerVisible}
-        onRequestClose={() => setManagerVisible(false)}
-      >
-        <View style={styles.modal}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setManagerVisible(false)}
-            style={styles.backdrop}
-          />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>管理频道</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setManagerVisible(false)}
-                style={styles.close}
-              >
-                <X color={theme.colors.text} size={18} />
-              </Pressable>
-            </View>
-            <TextInput
-              value={url}
-              onChangeText={setUrl}
-              autoCapitalize="none"
-              placeholder="粘贴 YouTube 频道、@handle 或播放列表链接"
-              placeholderTextColor={theme.colors.mutedText}
-              style={styles.input}
+      </View>
+
+      <View style={styles.materials}>
+        {resources.length ? (
+          resources.map((resource, index) => (
+            <ResourceCard
+              key={resource.id}
+              resource={resource}
+              progress={resourceProgress(snapshot, resource)}
+              artworkIndex={index}
+              styles={styles}
+              onPress={() => onOpenResource(resource)}
             />
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={() => void addSubscription()}
-              style={styles.subscribe}
-            >
-              {busy ? (
-                <ActivityIndicator color={theme.colors.canvas} />
-              ) : (
-                <Text style={styles.subscribeText}>订阅</Text>
-              )}
-            </Pressable>
-            <Text style={styles.label}>推荐频道</Text>
-            {RECOMMENDED_CHANNELS.map((item) => (
-              <Pressable
-                key={item.url}
-                accessibilityRole="button"
-                onPress={() => void addSubscription(item.url)}
-                style={styles.recommend}
-              >
-                <Text style={styles.recommendTitle}>{item.title}</Text>
-                <Text style={styles.recommendCopy}>{item.language}</Text>
-                <Plus color={theme.colors.accent} size={17} />
-              </Pressable>
-            ))}
-            <Text style={styles.label}>你的频道</Text>
-            {subscriptions.map((item) => (
-              <View key={item.id} style={styles.subscription}>
-                <View style={styles.subCopy}>
-                  <Text style={styles.recommendTitle}>{item.title}</Text>
-                  <Text style={styles.recommendCopy}>
-                    {item.lastError ?? (item.lastFetchedAt ? "已刷新" : "待刷新")}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => void refreshSubscription(item)}
-                  style={styles.icon}
-                >
-                  <RefreshCw color={theme.colors.accent} size={17} />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => removeSubscription(item.id)}
-                  style={styles.icon}
-                >
-                  <X color={theme.colors.mutedText} size={17} />
-                </Pressable>
-              </View>
-            ))}
+          ))
+        ) : (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>
+              {snapshot.resources.length ? "没有这一类学习材料" : "还没有学习材料"}
+            </Text>
+            <Text style={styles.emptyText}>
+              {snapshot.resources.length
+                ? "切换类型，或添加一段新的内容。"
+                : "添加视频、音频或文字后，就能从这里直接开始学习。"}
+            </Text>
           </View>
+        )}
+      </View>
+
+      <View style={styles.importArea}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="添加学习材料"
+          onPress={onOpenImport}
+          style={({ pressed }) => [styles.primaryAction, pressed && styles.primaryActionPressed]}
+        >
+          <View style={styles.primaryIcon}>
+            <Plus color="#FFFFFF" size={24} strokeWidth={2.25} />
+          </View>
+          <Text style={styles.primaryActionText}>添加学习材料</Text>
+        </Pressable>
+
+        <View style={styles.shortcuts}>
+          <ImportShortcut
+            icon={Link}
+            label="粘贴链接"
+            onPress={() => openLibrary("url")}
+            styles={styles}
+            theme={theme}
+          />
+          <ImportShortcut
+            icon={FolderOpen}
+            label="本地文件"
+            onPress={() => openLibrary("local")}
+            styles={styles}
+            theme={theme}
+          />
+          <ImportShortcut
+            icon={Subtitles}
+            label="导入字幕"
+            onPress={() => openLibrary("subtitle")}
+            styles={styles}
+            theme={theme}
+          />
         </View>
-      </Modal>
+
+        <View style={styles.trustNote}>
+          <LockKeyhole color="#69758A" size={14} strokeWidth={1.8} />
+          <Text style={styles.trustText}>资料与字幕仅保存在本机</Text>
+        </View>
+      </View>
     </View>
   );
 }
+
+function ResourceCard(
+  props: Readonly<{
+    resource: LearningResource;
+    progress: number;
+    artworkIndex: number;
+    styles: ReturnType<typeof createStyles>;
+    onPress: () => void;
+  }>,
+) {
+  const { resource, progress, artworkIndex, styles, onPress } = props;
+  const kind = discoverResourceKind(resource);
+  const kindLabel = kind === "video" ? "视频" : kind === "audio" ? "音频" : "文字";
+  const state = progress > 0 ? `已完成 ${progress}%` : "未开始";
+  const ArtworkIcon = kind === "audio" ? Volume2 : kind === "text" ? FileText : null;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${resource.title}，${kindLabel}，${resource.sentences.length} 句，${state}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      <View style={styles.artwork}>
+        {resource.thumbnailUri ? (
+          <Image resizeMode="cover" source={{ uri: resource.thumbnailUri }} style={styles.image} />
+        ) : (
+          <DiscoverArtwork variant={artworkIndex % 2} />
+        )}
+        <View style={styles.artworkBadge}>
+          {ArtworkIcon ? (
+            <ArtworkIcon color="#FFFFFF" size={18} strokeWidth={2.1} />
+          ) : (
+            <View style={styles.smallPlay} />
+          )}
+        </View>
+      </View>
+
+      <View style={styles.cardCopy}>
+        <Text numberOfLines={2} style={styles.cardTitle}>
+          {resource.title}
+        </Text>
+        <Text numberOfLines={1} style={styles.cardMeta}>
+          {kindLabel} · {resource.sentences.length} 句 · {state}
+        </Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        </View>
+      </View>
+
+      <View style={styles.playButton}>
+        <View style={styles.playTriangle} />
+      </View>
+    </Pressable>
+  );
+}
+
+function DiscoverArtwork({ variant }: Readonly<{ variant: number }>) {
+  return (
+    <Svg height="100%" viewBox="0 0 120 120" width="100%">
+      <Defs>
+        <LinearGradient id={`discover-sky-${variant}`} x1="0" x2="0" y1="0" y2="1">
+          <Stop offset="0" stopColor={variant === 0 ? "#DDE9F3" : "#716DAF"} />
+          <Stop offset="0.55" stopColor={variant === 0 ? "#91B8D2" : "#A67596"} />
+          <Stop offset="1" stopColor={variant === 0 ? "#29567C" : "#152F55"} />
+        </LinearGradient>
+      </Defs>
+      <Rect fill={`url(#discover-sky-${variant})`} height="120" width="120" />
+      {variant === 0 ? (
+        <>
+          <Path d="M0 76 L23 57 L39 67 L59 48 L78 65 L95 55 L120 73 V120 H0 Z" fill="#668FAF" />
+          <Path d="M0 91 L28 69 L48 85 L72 63 L93 81 L120 66 V120 H0 Z" fill="#315E82" />
+          <Path d="M0 104 L36 82 L63 99 L89 79 L120 96 V120 H0 Z" fill="#173B60" />
+        </>
+      ) : (
+        <>
+          <Path d="M0 73 Q28 68 61 74 T120 72 V120 H0 Z" fill="#26365D" />
+          <Path d="M59 120 L63 78 H67 L74 120 Z" fill="#0C1830" />
+          <Path d="M44 120 L57 83 H70 L86 120 Z" fill="#162542" />
+          <Path d="M47 97 H83 M43 107 H89" stroke="#697293" strokeWidth="1.4" />
+        </>
+      )}
+    </Svg>
+  );
+}
+
+function ImportShortcut(
+  props: Readonly<{
+    icon: typeof Link;
+    label: string;
+    onPress: () => void;
+    styles: ReturnType<typeof createStyles>;
+    theme: Theme;
+  }>,
+) {
+  const { icon: Icon, label, onPress, styles, theme } = props;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}
+    >
+      <Icon color={theme.colors.accent} size={20} strokeWidth={1.9} />
+      <Text numberOfLines={1} style={styles.shortcutText}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    screen: { gap: 16, paddingHorizontal: 20, paddingTop: 4 },
-    header: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-    title: { color: theme.colors.text, fontSize: 29, fontWeight: "600" },
-    subtitle: {
-      color: theme.colors.mutedText,
-      fontSize: 13,
-      lineHeight: 19,
-      marginTop: 4,
-      maxWidth: "76%",
+    screen: { gap: 26, paddingHorizontal: 18, paddingTop: 28 },
+    intro: { gap: 18 },
+    heading: {
+      color: "#F8FAFF",
+      fontSize: 23,
+      fontWeight: "700",
+      letterSpacing: -0.5,
+      lineHeight: 30,
     },
-    manageButton: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      minHeight: 38,
-      paddingHorizontal: 13,
-      paddingVertical: 10,
-    },
-    manageText: { color: theme.colors.accent, fontSize: 13, fontWeight: "600" },
-    filters: { gap: 8 },
+    filters: { flexDirection: "row", gap: 10 },
     filter: {
-      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: "center",
+      backgroundColor: "rgba(15, 24, 41, 0.88)",
+      borderColor: "rgba(130, 151, 188, 0.2)",
       borderRadius: 999,
-      maxWidth: 140,
-      minHeight: 36,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-    },
-    filterActive: { backgroundColor: theme.colors.accent },
-    filterText: { color: theme.colors.mutedText, fontSize: 13, fontWeight: "700" },
-    filterTextActive: { color: theme.colors.canvas },
-    notice: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 19 },
-    feed: { backgroundColor: theme.colors.surfaceMuted, borderRadius: 16, overflow: "hidden" },
-    entry: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 11,
-      minHeight: 88,
-      paddingHorizontal: 13,
-    },
-    entryArtwork: {
-      alignItems: "center",
-      backgroundColor: theme.colors.canvas,
-      borderRadius: 10,
-      height: 52,
+      borderWidth: StyleSheet.hairlineWidth,
       justifyContent: "center",
-      width: 52,
-    },
-    entryCopy: { flex: 1, gap: 5 },
-    entryTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-    entryMeta: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
-    addButton: {
-      alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      height: 38,
-      justifyContent: "center",
-      width: 38,
-    },
-    addButtonDisabled: { backgroundColor: theme.colors.canvas },
-    empty: {
-      alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 16,
-      gap: 10,
-      padding: 24,
-    },
-    emptyTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "600", textAlign: "center" },
-    emptyCopy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 19, textAlign: "center" },
-    emptyButton: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      marginTop: 4,
-      minHeight: 42,
+      minHeight: 44,
+      minWidth: 68,
       paddingHorizontal: 18,
-      paddingVertical: 11,
     },
-    emptyButtonText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
-    modal: { flex: 1, justifyContent: "flex-end" },
-    backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,.5)" },
-    sheet: {
-      backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 30,
-      borderTopRightRadius: 30,
-      gap: 10,
-      maxHeight: "85%",
+    filterSelected: { backgroundColor: "#347EFF", borderColor: "#347EFF" },
+    filterText: { color: "#8F9AAF", fontSize: 14, fontWeight: "600" },
+    filterTextSelected: { color: "#FFFFFF" },
+    materials: { gap: 12 },
+    card: {
+      alignItems: "center",
+      backgroundColor: "rgba(13, 23, 40, 0.94)",
+      borderColor: "rgba(125, 148, 187, 0.22)",
+      borderRadius: 15,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: "row",
+      gap: 14,
+      minHeight: 128,
+      padding: 13,
+    },
+    cardPressed: { opacity: 0.76, transform: [{ scale: 0.99 }] },
+    artwork: { borderRadius: 11, height: 98, overflow: "hidden", width: 98 },
+    image: { height: "100%", width: "100%" },
+    artworkBadge: {
+      alignItems: "center",
+      backgroundColor: "rgba(5, 14, 29, 0.62)",
+      borderRadius: 999,
+      bottom: 8,
+      height: 34,
+      justifyContent: "center",
+      left: 8,
+      position: "absolute",
+      width: 34,
+    },
+    smallPlay: {
+      borderBottomColor: "transparent",
+      borderBottomWidth: 6,
+      borderLeftColor: "#FFFFFF",
+      borderLeftWidth: 9,
+      borderTopColor: "transparent",
+      borderTopWidth: 6,
+      marginLeft: 2,
+    },
+    cardCopy: { flex: 1, gap: 10, minWidth: 0 },
+    cardTitle: {
+      color: "#F8FAFF",
+      fontSize: 18,
+      fontWeight: "700",
+      letterSpacing: -0.2,
+      lineHeight: 23,
+    },
+    cardMeta: { color: "#8E99AE", fontSize: 12, fontWeight: "500" },
+    progressTrack: {
+      backgroundColor: "rgba(125, 143, 171, 0.28)",
+      borderRadius: 999,
+      height: 5,
+      overflow: "hidden",
+    },
+    progressFill: { backgroundColor: "#347EFF", borderRadius: 999, height: "100%" },
+    playButton: {
+      alignItems: "center",
+      borderColor: "#347EFF",
+      borderRadius: 999,
+      borderWidth: 1.5,
+      height: 42,
+      justifyContent: "center",
+      width: 42,
+    },
+    playTriangle: {
+      borderBottomColor: "transparent",
+      borderBottomWidth: 7,
+      borderLeftColor: "#347EFF",
+      borderLeftWidth: 11,
+      borderTopColor: "transparent",
+      borderTopWidth: 7,
+      marginLeft: 3,
+    },
+    empty: {
+      backgroundColor: "rgba(13, 23, 40, 0.94)",
+      borderColor: "rgba(125, 148, 187, 0.22)",
+      borderRadius: 15,
+      borderWidth: StyleSheet.hairlineWidth,
+      gap: 6,
+      minHeight: 128,
       padding: 20,
-      paddingBottom: 32,
     },
-    sheetHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-    sheetTitle: { color: theme.colors.text, fontSize: 22, fontWeight: "600" },
-    close: {
+    emptyTitle: { color: "#F8FAFF", fontSize: 17, fontWeight: "700" },
+    emptyText: { color: "#8E99AE", fontSize: 13, lineHeight: 20 },
+    importArea: { gap: 14, paddingBottom: 12 },
+    primaryAction: {
       alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      height: 38,
-      justifyContent: "center",
-      width: 38,
-    },
-    input: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      color: theme.colors.text,
-      fontSize: 14,
-      minHeight: 48,
-      paddingHorizontal: 14,
-    },
-    subscribe: {
-      alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      justifyContent: "center",
-      minHeight: 46,
-    },
-    subscribeText: { color: theme.colors.canvas, fontSize: 15, fontWeight: "600" },
-    label: {
-      color: theme.colors.mutedText,
-      fontSize: 12,
-      fontWeight: "600",
-      letterSpacing: 0.4,
-      marginTop: 7,
-    },
-    recommend: {
-      alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      backgroundColor: "#347EFF",
+      borderRadius: 14,
       flexDirection: "row",
-      gap: 9,
-      minHeight: 50,
-      paddingHorizontal: 13,
+      gap: 10,
+      justifyContent: "center",
+      minHeight: 62,
+      paddingHorizontal: 18,
     },
-    recommendTitle: { color: theme.colors.text, flex: 1, fontSize: 14, fontWeight: "600" },
-    recommendCopy: { color: theme.colors.mutedText, fontSize: 12 },
-    subscription: {
+    primaryActionPressed: { backgroundColor: "#216BE9", transform: [{ scale: 0.985 }] },
+    primaryIcon: {
       alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      flexDirection: "row",
+      borderColor: "#FFFFFF",
+      borderRadius: 999,
+      borderWidth: 1.8,
+      height: 34,
+      justifyContent: "center",
+      width: 34,
+    },
+    primaryActionText: {
+      color: "#FFFFFF",
+      fontSize: 18,
+      fontWeight: "700",
+      letterSpacing: -0.2,
+    },
+    shortcuts: { flexDirection: "row", gap: 10 },
+    shortcut: {
+      alignItems: "center",
+      backgroundColor: "rgba(13, 23, 40, 0.94)",
+      borderColor: "rgba(125, 148, 187, 0.22)",
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      flex: 1,
       gap: 8,
-      minHeight: 54,
-      paddingHorizontal: 13,
-    },
-    subCopy: { flex: 1, gap: 2 },
-    icon: {
-      alignItems: "center",
-      borderRadius: 999,
-      height: 38,
       justifyContent: "center",
-      width: 38,
+      minHeight: 76,
+      paddingHorizontal: 6,
+      paddingVertical: 12,
     },
+    shortcutText: { color: "#A4AEC0", fontSize: 12, fontWeight: "600" },
+    trustNote: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 7,
+      justifyContent: "center",
+      minHeight: 36,
+    },
+    trustText: { color: "#69758A", fontSize: 12, fontWeight: "500" },
+    pressed: { opacity: 0.68, transform: [{ scale: 0.97 }] },
   });
 }
