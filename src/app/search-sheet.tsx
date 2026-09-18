@@ -223,10 +223,20 @@ export function WorkspaceSearchView({
           </View>
         ))}
         {status === "idle" && recentQueries.length === 0 ? (
-          <Text style={styles.empty}>{t("search.enterTerm")}</Text>
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconContainer}>
+              <Search color={theme.colors.mutedText} size={28} />
+            </View>
+            <Text style={styles.emptyTitle}>{t("search.enterTerm")}</Text>
+          </View>
         ) : null}
         {status === "ready" && results.length === 0 ? (
-          <Text style={styles.empty}>{t("search.noResults")}</Text>
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconContainer}>
+              <FileSearch color={theme.colors.mutedText} size={28} />
+            </View>
+            <Text style={styles.emptyTitle}>{t("search.noResults")}</Text>
+          </View>
         ) : null}
         {status === "error" ? (
           <Text accessibilityRole="alert" style={styles.error}>
@@ -263,7 +273,7 @@ function SearchResultRow({
       onPress={onPress}
       style={({ pressed }) => [styles.result, pressed && styles.pressed]}
     >
-      <Icon color={theme.colors.accent} size={18} />
+      <Icon color={theme.colors.primary} size={18} />
       <View style={styles.resultText}>
         <Text numberOfLines={1} style={styles.filename}>
           {result.title}
@@ -281,63 +291,73 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     sheet: { flex: 1, minHeight: 0, backgroundColor: theme.colors.background },
     searchLane: {
-      minHeight: 58,
+      minHeight: 56,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      marginHorizontal: 12,
-      marginTop: 6,
-      paddingHorizontal: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      gap: theme.spacing[2],
+      marginHorizontal: theme.spacing[3],
+      marginTop: theme.spacing[2],
+      paddingHorizontal: theme.spacing[3],
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.large,
       backgroundColor: theme.colors.canvas,
-      shadowColor: "#10131A",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: theme.mode === "dark" ? 0.2 : 0.06,
-      shadowRadius: 8,
-      elevation: 2,
+      ...theme.shadows.sm,
     },
-    input: { minWidth: 0, minHeight: 48, flex: 1, color: theme.colors.text, fontSize: 16 },
+    input: {
+      minWidth: 0,
+      minHeight: 48,
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: theme.typography.sizes.base,
+    },
     scopes: {
       flexDirection: "row",
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingBottom: 12,
-      paddingTop: 10,
+      gap: theme.spacing[2],
+      paddingHorizontal: theme.spacing[3],
+      paddingBottom: theme.spacing[3],
+      paddingTop: theme.spacing[2],
     },
     scope: {
-      minHeight: 36,
+      minHeight: 34,
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
     },
-    scopeSelected: { backgroundColor: theme.colors.accentSoft },
-    scopeText: { color: theme.colors.mutedText, fontSize: 13, fontWeight: "600" },
-    scopeTextSelected: { color: theme.colors.accent },
+    scopeSelected: { backgroundColor: theme.colors.primarySoft },
+    scopeText: {
+      color: theme.colors.mutedText,
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: "600",
+    },
+    scopeTextSelected: { color: theme.colors.primaryText },
     groupLabel: {
       color: theme.colors.mutedText,
       fontSize: 12,
       fontWeight: "700",
-      paddingHorizontal: 18,
-      paddingBottom: 6,
-      paddingTop: 16,
+      paddingHorizontal: theme.spacing[4],
+      paddingBottom: theme.spacing[1],
+      paddingTop: theme.spacing[4],
       textTransform: "uppercase",
     },
     recentHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingRight: 18,
+      paddingRight: theme.spacing[4],
     },
-    clearText: { color: theme.colors.accent, fontSize: 13, fontWeight: "600" },
+    clearText: {
+      color: theme.colors.primary,
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: "600",
+    },
     queryRow: {
       minHeight: 48,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      paddingHorizontal: 18,
+      gap: theme.spacing[2],
+      paddingHorizontal: theme.spacing[4],
     },
     queryScope: {
       marginLeft: "auto",
@@ -349,17 +369,51 @@ function createStyles(theme: Theme) {
       minHeight: 68,
       flexDirection: "row",
       alignItems: "flex-start",
-      gap: 12,
-      paddingHorizontal: 18,
-      paddingVertical: 13,
+      gap: theme.spacing[3],
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing[3],
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
     },
     resultText: { minWidth: 0, flex: 1 },
-    filename: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
-    snippet: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 18, marginTop: 3 },
-    empty: { color: theme.colors.mutedText, fontSize: 15, padding: 20, textAlign: "center" },
-    error: { color: theme.colors.error, fontSize: 14, lineHeight: 20, padding: 20 },
-    pressed: { backgroundColor: theme.colors.accentSoft },
+    filename: {
+      color: theme.colors.text,
+      fontSize: theme.typography.sizes.body,
+      fontWeight: "600",
+    },
+    snippet: {
+      color: theme.colors.mutedText,
+      fontSize: theme.typography.sizes.caption,
+      lineHeight: 18,
+      marginTop: 3,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing[8],
+      paddingHorizontal: theme.spacing[4],
+      gap: theme.spacing[3],
+    },
+    emptyIconContainer: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.radius.large,
+      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyTitle: {
+      color: theme.colors.mutedText,
+      fontSize: theme.typography.sizes.body,
+      textAlign: "center",
+      fontWeight: "500",
+    },
+    error: {
+      color: theme.colors.danger,
+      fontSize: theme.typography.sizes.caption,
+      lineHeight: 20,
+      padding: theme.spacing[4],
+    },
+    pressed: { backgroundColor: theme.colors.primarySoft },
   });
 }

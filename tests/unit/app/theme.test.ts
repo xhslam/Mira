@@ -33,4 +33,35 @@ describe("app theme", () => {
     expect(Object.isFrozen(DARK_THEME)).toBe(true);
     expect(Object.isFrozen(DARK_THEME.colors)).toBe(true);
   });
+
+  it("conforms to UI Design System Guide discrete tokens and elevation scale", () => {
+    // 2.1 Discrete Spacing scale
+    expect(theme.spacing[1]).toBe(4);
+    expect(theme.spacing[2]).toBe(8);
+    expect(theme.spacing[3]).toBe(12);
+    expect(theme.spacing[4]).toBe(16);
+    expect(theme.spacing[6]).toBe(24);
+    expect(theme.spacing[8]).toBe(32);
+    expect(theme.spacing[12]).toBe(48);
+    expect(theme.spacing[16]).toBe(64);
+    expect(theme.spacing[24]).toBe(96);
+
+    // 2.3 Color Architecture - Cool Slate & Brand Indigo
+    expect(theme.colors.palette.gray[50]).toBe("#F8FAFC");
+    expect(theme.colors.palette.gray[900]).toBe("#0F172A");
+    expect(theme.colors.palette.primary[500]).toBe("#6366F1");
+    expect(theme.colors.palette.primary[600]).toBe("#4F46E5");
+
+    // 2.4 Dual-layer elevation shadows
+    expect(theme.shadows.sm.elevation).toBe(1);
+    expect(theme.shadows.md.elevation).toBe(3);
+    expect(theme.shadows.lg.elevation).toBe(6);
+    expect(theme.shadows.xl.elevation).toBe(10);
+
+    // 2.2 Typography scale
+    expect(theme.typography.sizes.xs).toBe(12);
+    expect(theme.typography.sizes.base).toBe(16);
+    expect(theme.typography.sizes["2xl"]).toBe(24);
+    expect(theme.typography.lineHeights.base).toBe(24);
+  });
 });

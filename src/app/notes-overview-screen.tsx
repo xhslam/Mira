@@ -326,9 +326,24 @@ export function NotesOverviewScreen({
           }}
           ListEmptyComponent={
             <View style={styles.centered}>
-              <FileText color={theme.colors.mutedText} size={32} />
+              <View style={styles.emptyIconContainer}>
+                <FileText color={theme.colors.mutedText} size={28} />
+              </View>
               <Text style={styles.emptyTitle}>{query ? "没有匹配的笔记" : "这里还没有笔记"}</Text>
-              <Text style={styles.emptyCopy}>点击右上角加号开始记录。</Text>
+              <Text style={styles.emptyCopy}>
+                {query ? "尝试换一个关键词搜索。" : "开始写下你的第一篇想法，沉淀知识与灵感。"}
+              </Text>
+              {!query ? (
+                <Pressable
+                  accessibilityLabel="新建第一篇笔记"
+                  accessibilityRole="button"
+                  onPress={() => void createNote()}
+                  style={({ pressed }) => [styles.emptyCtaButton, pressed && styles.pressed]}
+                >
+                  <Plus color="#FFFFFF" size={17} strokeWidth={2.4} />
+                  <Text style={styles.emptyCtaButtonText}>新建第一篇笔记</Text>
+                </Pressable>
+              ) : null}
             </View>
           }
           showsVerticalScrollIndicator={false}
@@ -677,72 +692,130 @@ function createStyles(theme: Theme) {
       height: 42,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 21,
-      backgroundColor: theme.colors.accent,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.sm,
     },
     searchBar: {
       minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      marginHorizontal: 14,
-      marginBottom: 10,
-      paddingHorizontal: 13,
-      borderRadius: 14,
+      gap: theme.spacing[2],
+      marginHorizontal: theme.spacing[4],
+      marginBottom: theme.spacing[3],
+      paddingHorizontal: theme.spacing[3],
+      borderRadius: theme.radius.medium,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.surfaceMuted,
     },
     searchInput: { minWidth: 0, flex: 1, color: theme.colors.text, fontSize: 15 },
     error: {
-      marginHorizontal: 14,
-      marginBottom: 8,
-      padding: 10,
-      borderRadius: 10,
+      marginHorizontal: theme.spacing[4],
+      marginBottom: theme.spacing[2],
+      padding: theme.spacing[3],
+      borderRadius: theme.radius.medium,
       color: theme.colors.warningText,
       backgroundColor: theme.colors.warningSurface,
       fontSize: 12,
     },
-    grid: { flexGrow: 1, gap: 12, paddingHorizontal: 14, paddingBottom: 22 },
-    row: { gap: 12 },
+    grid: {
+      flexGrow: 1,
+      gap: theme.spacing[3],
+      paddingHorizontal: theme.spacing[4],
+      paddingBottom: 24,
+    },
+    row: { gap: theme.spacing[3] },
     card: {
       minWidth: 0,
-      minHeight: 190,
+      minHeight: 174,
       flex: 1,
-      padding: 15,
+      padding: theme.spacing[4],
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+      borderColor: theme.colors.borderSubtle,
       borderRadius: theme.radius.large,
       backgroundColor: theme.colors.surface,
+      ...theme.shadows.sm,
     },
     cardPlaceholder: {
       flex: 1,
       minWidth: 0,
       backgroundColor: "transparent",
     },
-    cardAlternate: { backgroundColor: theme.colors.surfaceMuted },
+    cardAlternate: { backgroundColor: theme.colors.surface },
     cardPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-    cardMark: { width: 5, height: 28, borderRadius: 3, backgroundColor: theme.colors.accent },
+    cardMark: {
+      width: 4,
+      height: 22,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.primary,
+    },
     cardMarkAlternate: { backgroundColor: theme.colors.success },
     cardTitle: {
-      minHeight: 46,
-      marginTop: 10,
+      minHeight: 44,
+      marginTop: theme.spacing[2],
       color: theme.colors.text,
-      fontSize: 17,
-      fontWeight: "700",
-      lineHeight: 23,
+      fontSize: 16,
+      fontWeight: "600",
+      lineHeight: 22,
     },
     cardPreview: {
       flex: 1,
-      marginTop: 7,
+      marginTop: 6,
       color: theme.colors.mutedText,
       fontSize: 13,
+      lineHeight: 18,
+    },
+    cardFooter: {
+      minHeight: 22,
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: theme.spacing[2],
+    },
+    cardMeta: {
+      minWidth: 0,
+      flex: 1,
+      color: theme.colors.mutedText,
+      fontSize: 11,
+      fontWeight: "500",
+    },
+    centered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing[2],
+      padding: theme.spacing[8],
+    },
+    emptyIconContainer: {
+      width: 58,
+      height: 58,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.large,
+      backgroundColor: theme.colors.surfaceMuted,
+      marginBottom: theme.spacing[1],
+    },
+    emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
+    emptyCopy: {
+      color: theme.colors.mutedText,
+      fontSize: 13,
+      textAlign: "center",
+      maxWidth: 280,
       lineHeight: 19,
     },
-    cardFooter: { minHeight: 22, flexDirection: "row", alignItems: "center", marginTop: 10 },
-    cardMeta: { minWidth: 0, flex: 1, color: theme.colors.mutedText, fontSize: 11 },
-    centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 30 },
-    emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
-    emptyCopy: { color: theme.colors.mutedText, fontSize: 13, textAlign: "center" },
-    pressed: { opacity: 0.68, transform: [{ scale: 0.96 }] },
+    emptyCtaButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing[2],
+      minHeight: 44,
+      paddingHorizontal: theme.spacing[4],
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
+      marginTop: theme.spacing[3],
+      ...theme.shadows.sm,
+    },
+    emptyCtaButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+    pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
     actionOverlay: {
       position: "absolute",
       inset: 0,
@@ -759,13 +832,14 @@ function createStyles(theme: Theme) {
       width: "100%",
       maxHeight: "84%",
       paddingTop: 8,
-      paddingBottom: 22,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      paddingBottom: 24,
+      borderTopLeftRadius: theme.radius.large,
+      borderTopRightRadius: theme.radius.large,
       borderWidth: StyleSheet.hairlineWidth,
       borderBottomWidth: 0,
-      borderColor: theme.colors.divider,
+      borderColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.surface,
+      ...theme.shadows.xl,
     },
     actionHandle: {
       alignSelf: "center",

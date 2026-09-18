@@ -78,20 +78,20 @@ export function DocumentTabs({
 function createStyles(theme: Theme) {
   return StyleSheet.create({
     lane: {
-      minHeight: 44,
+      minHeight: 42,
       flexDirection: "row",
       alignItems: "stretch",
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.headerBackground,
     },
     tabs: {
       alignItems: "stretch",
-      paddingLeft: 6,
+      paddingLeft: theme.spacing[2],
     },
     tab: {
       maxWidth: 180,
-      minHeight: 44,
+      minHeight: 42,
       flexDirection: "row",
       alignItems: "center",
       borderBottomWidth: 2,
@@ -99,32 +99,33 @@ function createStyles(theme: Theme) {
     },
     tabMain: {
       minWidth: 0,
-      minHeight: 42,
+      minHeight: 40,
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      gap: 7,
-      paddingLeft: 12,
-      paddingRight: 5,
+      gap: theme.spacing[2],
+      paddingLeft: theme.spacing[3],
+      paddingRight: 4,
     },
     activeTab: {
-      borderBottomColor: theme.colors.text,
-      backgroundColor: theme.colors.background,
+      borderBottomColor: theme.colors.primary,
+      backgroundColor: theme.colors.surface,
     },
     tabText: {
       color: theme.colors.mutedText,
       fontSize: 13,
-      fontWeight: "600",
+      fontWeight: "500",
     },
     activeTabText: {
       color: theme.colors.text,
+      fontWeight: "600",
     },
     closeButton: {
-      width: 30,
-      height: 30,
+      width: 26,
+      height: 26,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 8,
+      borderRadius: theme.radius.pill,
       marginRight: 4,
     },
     closePressed: {
@@ -132,16 +133,15 @@ function createStyles(theme: Theme) {
       transform: [{ scale: 0.94 }],
     },
     addButton: {
-      width: 48,
-      minHeight: 44,
+      width: 44,
+      minHeight: 42,
       alignItems: "center",
       justifyContent: "center",
       borderLeftWidth: StyleSheet.hairlineWidth,
-      borderLeftColor: theme.colors.divider,
+      borderLeftColor: theme.colors.borderSubtle,
     },
     pressed: {
-      opacity: 0.65,
-      backgroundColor: theme.colors.surfaceMuted,
+      opacity: 0.72,
     },
   });
 }

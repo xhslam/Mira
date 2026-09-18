@@ -207,6 +207,10 @@ export function DrawingsScreen({
             </View>
             <Text style={styles.emptyTitle}>{t("drawings.emptyTitle")}</Text>
             <Text style={styles.emptyBody}>{t("drawings.emptyBody")}</Text>
+            <View style={styles.emptyCtaButton}>
+              <Plus color="#FFFFFF" size={16} strokeWidth={2.4} />
+              <Text style={styles.emptyCtaButtonText}>{t("drawings.new")}</Text>
+            </View>
           </Pressable>
         )}
       </ScrollView>
@@ -373,12 +377,13 @@ function createStyles(theme: Theme, width: number) {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 14,
+      paddingHorizontal: theme.spacing[4],
       paddingVertical: 9,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.sm,
     },
-    newButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+    newButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
     pressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
     sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     sectionTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "600" },
@@ -387,10 +392,11 @@ function createStyles(theme: Theme, width: number) {
     card: {
       width: cardWidth,
       overflow: "hidden",
-      borderRadius: 10,
-      backgroundColor: theme.colors.background,
+      borderRadius: theme.radius.large,
+      backgroundColor: theme.colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+      borderColor: theme.colors.borderSubtle,
+      ...theme.shadows.sm,
     },
     cardPressed: { opacity: 0.64 },
     preview: {
@@ -398,6 +404,8 @@ function createStyles(theme: Theme, width: number) {
       position: "relative",
       overflow: "hidden",
       backgroundColor: theme.colors.surfaceMuted,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: "rgba(15, 23, 42, 0.08)",
     },
     previewStamp: { position: "absolute", left: 15, top: 15, width: 7, height: 7, borderRadius: 4 },
     previewRect: {
@@ -443,19 +451,20 @@ function createStyles(theme: Theme, width: number) {
     emptyCard: {
       alignItems: "center",
       gap: 8,
-      padding: 28,
-      borderRadius: 10,
+      padding: theme.spacing[8],
+      borderRadius: theme.radius.large,
       borderWidth: StyleSheet.hairlineWidth,
       borderStyle: "dashed",
-      borderColor: theme.colors.divider,
-      backgroundColor: theme.colors.background,
+      borderColor: theme.colors.borderSubtle,
+      backgroundColor: theme.colors.surface,
+      ...theme.shadows.sm,
     },
     emptyCanvas: {
       width: 150,
       height: 92,
       position: "relative",
       marginBottom: 8,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     emptyShapeA: {
@@ -496,6 +505,18 @@ function createStyles(theme: Theme, width: number) {
       lineHeight: 19,
       textAlign: "center",
     },
+    emptyCtaButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: 9,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
+      marginTop: theme.spacing[2],
+      ...theme.shadows.sm,
+    },
+    emptyCtaButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
     modalScrim: {
       position: "absolute",
       top: 0,
@@ -514,17 +535,18 @@ function createStyles(theme: Theme, width: number) {
       maxWidth: 440,
       gap: 12,
       padding: 24,
-      borderRadius: 12,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.divider,
+      borderRadius: theme.radius.large,
+      backgroundColor: theme.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      ...theme.shadows.xl,
     },
     modalIcon: {
       width: 44,
       height: 44,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accentSoft,
     },
     modalTitle: { color: theme.colors.text, fontSize: 21, fontWeight: "600" },
@@ -533,9 +555,9 @@ function createStyles(theme: Theme, width: number) {
       marginTop: 4,
       paddingHorizontal: 14,
       paddingVertical: 12,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: theme.colors.divider,
+      borderRadius: theme.radius.medium,
+      borderWidth: 1.5,
+      borderColor: theme.colors.borderDefault,
       color: theme.colors.text,
       backgroundColor: theme.colors.background,
       fontSize: 15,
