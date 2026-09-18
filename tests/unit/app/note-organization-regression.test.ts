@@ -33,4 +33,13 @@ describe("note organization regression", () => {
     expect(shell).toContain("onCreateFolder={editorController.createBrowserDirectory}");
     expect(shell).toContain("onMoveFile={editorController.moveBrowserEntry}");
   });
+
+  it("keeps a balanced two-column grid so a single note never expands across full width", () => {
+    const overview = readSource("src/app/notes-overview-screen.tsx");
+
+    expect(overview).toContain("numColumns={2}");
+    expect(overview).toContain('items.push({ kind: "placeholder"');
+    expect(overview).toContain('item.kind === "placeholder"');
+    expect(overview).toContain("cardPlaceholder");
+  });
 });

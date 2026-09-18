@@ -52,6 +52,6 @@ describe("learning library visual hierarchy", () => {
     expect(learningScreen).toContain("LEARNING_MAIN_TABS.map");
     expect(learningScreen).not.toContain("<DiscoverScreen");
     expect(learningScreen).toContain("key={section}");
-    expect(appShell).toContain('selected ? "#3B82FF" : "#858D9E"');
+    expect(appShell).toContain("selected ? theme.colors.accent : theme.colors.mutedText");
   });
 });

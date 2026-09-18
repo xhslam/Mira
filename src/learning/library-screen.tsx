@@ -589,7 +589,7 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                   ]}
                 >
                   <View style={styles.resourceArtwork}>
-                    <LibraryResourceIcon resource={resource} />
+                    <LibraryResourceIcon resource={resource} theme={theme} />
                   </View>
                   <View style={styles.resourceText}>
                     <Text numberOfLines={1} style={styles.resourceTitle}>
@@ -717,18 +717,21 @@ function safeFileName(value: string): string {
   );
 }
 
-function LibraryResourceIcon({ resource }: Readonly<{ resource: LearningResource }>) {
+function LibraryResourceIcon({
+  resource,
+  theme,
+}: Readonly<{ resource: LearningResource; theme: Theme }>) {
   if (resource.mediaKind === "audio") {
-    return <Volume2 color="#C8D7F3" size={21} strokeWidth={1.8} />;
+    return <Volume2 color={theme.colors.text} size={21} strokeWidth={1.8} />;
   }
   if (
     resource.mediaKind === "video" ||
     resource.mediaKind === "youtube" ||
     resource.mediaKind === "bilibili"
   ) {
-    return <Video color="#C8D7F3" size={21} strokeWidth={1.8} />;
+    return <Video color={theme.colors.text} size={21} strokeWidth={1.8} />;
   }
-  return <FileText color="#C8D7F3" size={21} strokeWidth={1.8} />;
+  return <FileText color={theme.colors.text} size={21} strokeWidth={1.8} />;
 }
 
 function ProcessingAction({
@@ -763,7 +766,7 @@ function ProcessingAction({
         pressed && styles.pressed,
       ]}
     >
-      <Icon color="#3988FF" size={21} strokeWidth={1.9} />
+      <Icon color={theme.colors.text} size={21} strokeWidth={1.9} />
       <View style={styles.processingCopyBlock}>
         <Text style={styles.processingLabel}>{label}</Text>
         <Text numberOfLines={1} style={styles.processingDetail}>
@@ -798,8 +801,8 @@ function createStyles(theme: Theme) {
     filterRow: { flexDirection: "row", gap: 8, marginBottom: 2 },
     filterChip: {
       alignItems: "center",
-      backgroundColor: "rgba(18, 25, 40, 0.76)",
-      borderColor: "rgba(130, 151, 188, 0.17)",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.divider,
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: 999,
       justifyContent: "center",
@@ -808,10 +811,10 @@ function createStyles(theme: Theme) {
       paddingVertical: 8,
     },
     filterChipActive: {
-      backgroundColor: "#0867E8",
-      borderColor: "#1B7BFF",
+      backgroundColor: theme.colors.accent,
+      borderColor: theme.colors.accent,
     },
-    filterText: { color: "#8D94A3", fontSize: 12, fontWeight: "600" },
+    filterText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
     filterTextActive: { color: "#FFFFFF" },
     empty: {
       alignItems: "center",
@@ -825,7 +828,7 @@ function createStyles(theme: Theme) {
     emptyTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     resourceList: {
       backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.2)",
+      borderColor: theme.colors.divider,
       borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
       overflow: "hidden",
@@ -843,11 +846,11 @@ function createStyles(theme: Theme) {
       paddingVertical: 9,
     },
     resourceSelected: {
-      backgroundColor: "#0B1A34",
+      backgroundColor: theme.colors.accentSoft,
     },
     resourceArtwork: {
       alignItems: "center",
-      backgroundColor: "#17233A",
+      backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 10,
       height: 52,
       justifyContent: "center",
@@ -857,16 +860,16 @@ function createStyles(theme: Theme) {
     resourceTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     resourceMeta: { color: theme.colors.mutedText, fontSize: 11, lineHeight: 16 },
     resourceActions: {
-      backgroundColor: "rgba(10, 18, 32, 0.62)",
-      borderTopColor: "rgba(115, 139, 181, 0.16)",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderTopColor: theme.colors.divider,
       borderTopWidth: StyleSheet.hairlineWidth,
       gap: 10,
       padding: 10,
     },
     processingGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     processingAction: {
-      backgroundColor: "rgba(18, 24, 38, 0.92)",
-      borderColor: "rgba(110, 130, 168, 0.18)",
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.divider,
       borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
       flexBasis: "47%",
@@ -879,21 +882,21 @@ function createStyles(theme: Theme) {
       position: "relative",
     },
     processingActionFeatured: {
-      backgroundColor: "#101C35",
-      borderColor: "#2075F4",
+      backgroundColor: theme.colors.accentSoft,
+      borderColor: theme.colors.accent,
     },
     processingCopyBlock: { gap: 1, paddingRight: 29 },
     processingLabel: {
-      color: "#F7F9FF",
+      color: theme.colors.text,
       fontSize: 13,
       fontWeight: "700",
       letterSpacing: -0.25,
       lineHeight: 17,
     },
-    processingDetail: { color: "#858D9D", fontSize: 10, lineHeight: 14 },
+    processingDetail: { color: theme.colors.mutedText, fontSize: 10, lineHeight: 14 },
     actionArrow: {
       alignItems: "center",
-      backgroundColor: "rgba(40, 48, 65, 0.72)",
+      backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 999,
       bottom: 11,
       height: 32,
@@ -902,7 +905,7 @@ function createStyles(theme: Theme) {
       right: 11,
       width: 32,
     },
-    actionArrowFeatured: { backgroundColor: "#2A7CF2" },
+    actionArrowFeatured: { backgroundColor: theme.colors.accent },
     resourceActionFooter: { alignItems: "flex-end" },
     deleteAction: {
       alignItems: "center",

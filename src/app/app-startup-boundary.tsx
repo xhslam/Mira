@@ -24,7 +24,7 @@ export class AppStartupBoundary extends Component<
   }
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error("Inkstone startup failed", error, errorInfo.componentStack);
+    console.error("Mira startup failed", error, errorInfo.componentStack);
   }
 
   private readonly retry = (): void => {
@@ -36,7 +36,7 @@ export class AppStartupBoundary extends Component<
 
     return (
       <View accessibilityRole="alert" style={styles.container}>
-        <Text style={styles.title}>Inkstone couldn’t start</Text>
+        <Text style={styles.title}>Mira couldn’t start</Text>
         <Text style={styles.message}>
           Your files are safe. Retry startup; if the problem continues, restart the app and keep
           this screen available for diagnostics.

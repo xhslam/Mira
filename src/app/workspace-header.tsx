@@ -1,4 +1,4 @@
-import { Check, Eye, MoreVertical, Pencil, Search, X } from "lucide-react-native";
+import { Check, ChevronLeft, Eye, MoreVertical, Pencil, Search, X } from "lucide-react-native";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { EditorMode } from "../session/document-session";
@@ -34,7 +34,8 @@ type WorkspaceHeaderProps = Readonly<{
   nextEditorMode: EditorMode;
   showEditorMode: boolean;
   saveState: WorkspaceSaveState;
-  onOpenDrawer: () => void;
+  onBack?: () => void;
+  onOpenDrawer?: () => void;
   onOpenSearch: () => void;
   onOpenMenu: () => void;
   onBeginRename: () => void;
@@ -57,6 +58,7 @@ export function WorkspaceHeader({
   nextEditorMode,
   showEditorMode,
   saveState,
+  onBack,
   onOpenDrawer,
   onOpenSearch,
   onOpenMenu,
@@ -71,9 +73,15 @@ export function WorkspaceHeader({
   const failing = saveState === "conflict" || saveState === "error";
   return (
     <View accessibilityRole="header" style={styles.header}>
-      <IconButton label={t("header.openWorkspace")} onPress={onOpenDrawer}>
-        <SidebarToggleIcon color={theme.colors.text} expanded={false} size={22} />
-      </IconButton>
+      {onBack ? (
+        <IconButton label={t("header.backToOverview")} onPress={onBack}>
+          <ChevronLeft color={theme.colors.text} size={22} strokeWidth={2.2} />
+        </IconButton>
+      ) : onOpenDrawer ? (
+        <IconButton label={t("header.openWorkspace")} onPress={onOpenDrawer}>
+          <SidebarToggleIcon color={theme.colors.text} expanded={false} size={22} />
+        </IconButton>
+      ) : null}
       <View accessibilityElementsHidden style={styles.fileMark} />
       {rename ? (
         <View style={styles.renameBlock}>
@@ -219,7 +227,7 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.divider,
-      backgroundColor: theme.colors.canvas,
+      backgroundColor: theme.colors.headerBackground,
       shadowColor: "#10131A",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: theme.mode === "dark" ? 0.22 : 0.06,

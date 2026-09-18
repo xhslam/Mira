@@ -38,6 +38,10 @@ import { useTheme, type Theme } from "./theme";
 
 type NoteActionPage = "menu" | "rename" | "move" | "delete";
 
+type NotesGridItem =
+  | Readonly<{ kind: "document"; document: WorkspaceDocumentSnapshot; index: number }>
+  | Readonly<{ kind: "placeholder"; id: string }>;
+
 type NotesOverviewScreenProps = Readonly<{
   controller: EditorWorkspaceController;
   folder: string | null;
@@ -114,6 +118,18 @@ export function NotesOverviewScreen({
       return inFolder && matchesQuery;
     });
   }, [documents, folder, query]);
+
+  const gridItems = useMemo<readonly NotesGridItem[]>(() => {
+    const items: NotesGridItem[] = visibleDocuments.map((document, index) => ({
+      kind: "document",
+      document,
+      index,
+    }));
+    if (items.length % 2 === 1) {
+      items.push({ kind: "placeholder", id: "__notes_grid_placeholder__" });
+    }
+    return Object.freeze(items);
+  }, [visibleDocuments]);
 
   async function open(document: WorkspaceDocumentSnapshot): Promise<void> {
     if (openingPath !== null) return;
@@ -255,7 +271,7 @@ export function NotesOverviewScreen({
           onPress={() => void createNote()}
           style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
         >
-          <Plus color={theme.colors.canvas} size={23} strokeWidth={2.4} />
+          <Plus color="#FFFFFF" size={23} strokeWidth={2.4} />
         </Pressable>
       </View>
 
@@ -288,21 +304,26 @@ export function NotesOverviewScreen({
         <FlatList
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.grid}
-          data={visibleDocuments}
-          keyExtractor={(document) => document.documentId}
+          data={gridItems}
+          keyExtractor={(item) => (item.kind === "document" ? item.document.documentId : item.id)}
           keyboardShouldPersistTaps="handled"
           numColumns={2}
-          renderItem={({ item, index }) => (
-            <NoteCard
-              busy={openingPath === item.path}
-              document={item}
-              index={index}
-              onLongPress={() => openActions(item)}
-              onPress={() => void open(item)}
-              styles={styles}
-              theme={theme}
-            />
-          )}
+          renderItem={({ item }) => {
+            if (item.kind === "placeholder") {
+              return <View pointerEvents="none" style={styles.cardPlaceholder} />;
+            }
+            return (
+              <NoteCard
+                busy={openingPath === item.document.path}
+                document={item.document}
+                index={item.index}
+                onLongPress={() => openActions(item.document)}
+                onPress={() => void open(item.document)}
+                styles={styles}
+                theme={theme}
+              />
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.centered}>
               <FileText color={theme.colors.mutedText} size={32} />
@@ -629,12 +650,17 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, minHeight: 0, backgroundColor: theme.colors.background },
     header: {
-      minHeight: 86,
+      minHeight: 74,
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
-      paddingHorizontal: 10,
+      paddingHorizontal: 12,
       paddingTop: 8,
+      paddingBottom: 10,
+      backgroundColor: theme.colors.headerBackground,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.divider,
+      marginBottom: 10,
     },
     headerCopy: { minWidth: 0, flex: 1, gap: 2, paddingLeft: 3 },
     title: { color: theme.colors.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.7 },
@@ -687,7 +713,12 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.large,
       backgroundColor: theme.colors.surface,
     },
-    cardAlternate: { backgroundColor: "#151922" },
+    cardPlaceholder: {
+      flex: 1,
+      minWidth: 0,
+      backgroundColor: "transparent",
+    },
+    cardAlternate: { backgroundColor: theme.colors.surfaceMuted },
     cardPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
     cardMark: { width: 5, height: 28, borderRadius: 3, backgroundColor: theme.colors.accent },
     cardMarkAlternate: { backgroundColor: theme.colors.success },
@@ -826,7 +857,7 @@ function createStyles(theme: Theme) {
       borderRadius: 16,
       backgroundColor: theme.colors.accent,
     },
-    actionPrimaryText: { color: theme.colors.canvas, fontSize: 15, fontWeight: "700" },
+    actionPrimaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
     actionEmpty: {
       color: theme.colors.mutedText,
       fontSize: 13,

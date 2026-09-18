@@ -183,7 +183,6 @@ export function LearningScreen({
           }
           theme={theme}
         />
-        <FloatingSidebarButton onPress={onOpenSidebar} styles={styles} theme={theme} />
       </View>
     );
   }
@@ -205,91 +204,119 @@ export function LearningScreen({
             )
           }
         />
-        <FloatingSidebarButton onPress={onOpenSidebar} styles={styles} theme={theme} />
       </View>
     );
   }
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        <View style={styles.headerIdentity}>
-          <Pressable
-            accessibilityLabel="打开全局侧边栏"
-            accessibilityRole="button"
-            onPress={onOpenSidebar}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <SidebarToggleIcon color={theme.colors.text} expanded={false} />
-          </Pressable>
-          {section === "practice" || section === "settings" || section === "url-import" ? (
-            <Pressable
-              accessibilityLabel={
-                section === "practice"
-                  ? lastMainSection === "library"
-                    ? "返回资料"
-                    : "返回今天"
-                  : section === "url-import"
+      <View style={styles.topBar}>
+        <View style={styles.header}>
+          <View style={styles.headerIdentity}>
+            {section === "home" ? (
+              <Pressable
+                accessibilityLabel="打开全局侧边栏"
+                accessibilityRole="button"
+                onPress={onOpenSidebar}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              >
+                <SidebarToggleIcon color={theme.colors.text} expanded={false} />
+              </Pressable>
+            ) : null}
+            {section === "practice" || section === "settings" || section === "url-import" ? (
+              <Pressable
+                accessibilityLabel={
+                  section === "practice"
                     ? lastMainSection === "library"
                       ? "返回资料"
                       : "返回今天"
-                    : "返回学习"
+                    : section === "url-import"
+                      ? lastMainSection === "library"
+                        ? "返回资料"
+                        : "返回今天"
+                      : "返回学习"
+                }
+                accessibilityRole="button"
+                onPress={() => navigate(lastMainSection)}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              >
+                <ChevronLeft color={theme.colors.text} size={25} />
+              </Pressable>
+            ) : null}
+            <Text
+              style={
+                section === "practice" || section === "settings" || section === "url-import"
+                  ? styles.headerTitle
+                  : styles.brand
               }
-              accessibilityRole="button"
-              onPress={() => navigate(lastMainSection)}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
-              <ChevronLeft color={theme.colors.text} size={25} />
-            </Pressable>
-          ) : null}
-          <Text
-            style={
-              section === "practice" || section === "settings" || section === "url-import"
-                ? styles.headerTitle
-                : styles.brand
-            }
-          >
-            {section === "practice"
-              ? "逐句学习"
-              : section === "settings"
-                ? "学习设置"
-                : section === "url-import"
-                  ? "通过 URL 导入"
-                  : "学习"}
-          </Text>
+              {section === "practice"
+                ? "逐句学习"
+                : section === "settings"
+                  ? "学习设置"
+                  : section === "url-import"
+                    ? "通过 URL 导入"
+                    : "学习"}
+            </Text>
+          </View>
+          <View style={styles.headerActions}>
+            {section === "library" ? (
+              <Pressable
+                accessibilityLabel="搜索资料"
+                accessibilityRole="button"
+                onPress={() => setShowResourceSearch(true)}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              >
+                <Search color={theme.colors.text} size={23} />
+              </Pressable>
+            ) : null}
+            {section === "library" ? (
+              <Pressable
+                accessibilityLabel="导入资料"
+                accessibilityRole="button"
+                onPress={() => setShowImportSheet(true)}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              >
+                <PlusSquare color={theme.colors.text} size={23} />
+              </Pressable>
+            ) : null}
+            {isLearningMainSection(section) ? (
+              <Pressable
+                accessibilityLabel="学习设置"
+                accessibilityRole="button"
+                onPress={openSettings}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              >
+                <Settings2 color={theme.colors.mutedText} size={22} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
-        <View style={styles.headerActions}>
-          {section === "library" ? (
-            <Pressable
-              accessibilityLabel="搜索资料"
-              accessibilityRole="button"
-              onPress={() => setShowResourceSearch(true)}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-            >
-              <Search color={theme.colors.text} size={23} />
-            </Pressable>
-          ) : null}
-          {section === "library" ? (
-            <Pressable
-              accessibilityLabel="导入资料"
-              accessibilityRole="button"
-              onPress={() => setShowImportSheet(true)}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-            >
-              <PlusSquare color={theme.colors.text} size={23} />
-            </Pressable>
-          ) : null}
-          {isLearningMainSection(section) ? (
-            <Pressable
-              accessibilityLabel="学习设置"
-              accessibilityRole="button"
-              onPress={openSettings}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-            >
-              <Settings2 color={theme.colors.mutedText} size={22} />
-            </Pressable>
-          ) : null}
-        </View>
+
+        {isLearningMainSection(section) ? (
+          <View accessibilityRole="tablist" style={styles.sectionRail}>
+            {LEARNING_MAIN_TABS.map((tab) => {
+              const selected = section === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  onPress={() => navigate(tab.id)}
+                  style={({ pressed }) => [
+                    styles.sectionPill,
+                    selected && styles.sectionPillActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.sectionPillText, selected && styles.sectionPillTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
 
       {error ? (
@@ -297,30 +324,6 @@ export function LearningScreen({
           <Text style={styles.errorText}>{error}</Text>
           <Text style={styles.errorDismiss}>关闭</Text>
         </Pressable>
-      ) : null}
-      {isLearningMainSection(section) ? (
-        <View accessibilityRole="tablist" style={styles.sectionRail}>
-          {LEARNING_MAIN_TABS.map((tab) => {
-            const selected = section === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                onPress={() => navigate(tab.id)}
-                style={({ pressed }) => [
-                  styles.sectionPill,
-                  selected && styles.sectionPillActive,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.sectionPillText, selected && styles.sectionPillTextActive]}>
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
       ) : null}
 
       {section === "practice" ? (
@@ -409,27 +412,6 @@ export function LearningScreen({
         onOpenResource={openResource}
       />
     </View>
-  );
-}
-
-function FloatingSidebarButton({
-  onPress,
-  styles,
-  theme,
-}: Readonly<{
-  onPress: () => void;
-  styles: ReturnType<typeof createStyles>;
-  theme: Theme;
-}>) {
-  return (
-    <Pressable
-      accessibilityLabel="打开全局侧边栏"
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.floatingMenu, pressed && styles.pressed]}
-    >
-      <SidebarToggleIcon color={theme.colors.text} expanded={false} size={23} />
-    </Pressable>
   );
 }
 
@@ -691,20 +673,7 @@ function SettingRow({
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    root: { backgroundColor: "#020817", flex: 1 },
-    floatingMenu: {
-      position: "absolute",
-      top: 8,
-      left: 8,
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 12,
-      backgroundColor: "rgba(11, 18, 32, 0.9)",
-      zIndex: 10,
-      elevation: 10,
-    },
+    root: { backgroundColor: theme.colors.background, flex: 1 },
     loading: {
       alignItems: "center",
       backgroundColor: theme.colors.background,
@@ -726,34 +695,39 @@ function createStyles(theme: Theme) {
       paddingVertical: 11,
     },
     loadingRetryText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
-    sectionRail: {
-      alignSelf: "flex-start",
+    topBar: {
+      backgroundColor: theme.colors.headerBackground,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.divider,
+      paddingTop: 8,
+    },
+    header: {
+      alignItems: "center",
+      backgroundColor: "transparent",
       flexDirection: "row",
-      gap: 24,
-      marginHorizontal: 18,
+      justifyContent: "space-between",
+      paddingBottom: 8,
+      paddingHorizontal: 20,
+    },
+    sectionRail: {
+      flexDirection: "row",
+      gap: 16,
+      paddingHorizontal: 20,
+      backgroundColor: "transparent",
     },
     sectionPill: {
-      alignItems: "center",
       borderBottomColor: "transparent",
       borderBottomWidth: 2,
       justifyContent: "center",
-      minHeight: 40,
-      paddingHorizontal: 2,
+      minHeight: 38,
+      paddingHorizontal: 4,
+      paddingBottom: 6,
     },
     sectionPillActive: {
-      borderBottomColor: "#3C84FF",
+      borderBottomColor: theme.colors.text,
     },
-    sectionPillText: { color: "#7D8492", fontSize: 14, fontWeight: "600" },
-    sectionPillTextActive: { color: "#F7F9FF", fontWeight: "700" },
-    header: {
-      alignItems: "center",
-      backgroundColor: "#020817",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingBottom: 12,
-      paddingHorizontal: 20,
-      paddingTop: 18,
-    },
+    sectionPillText: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "600" },
+    sectionPillTextActive: { color: theme.colors.text, fontWeight: "700" },
     brand: {
       color: theme.colors.text,
       fontSize: 30,

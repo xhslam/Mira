@@ -4,10 +4,10 @@ import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-c
 import { AppSafeArea } from "./src/app/app-safe-area";
 import { AppShellScreen } from "./src/app/app-shell-screen";
 import { AppStartupBoundary } from "./src/app/app-startup-boundary";
-import { DARK_THEME } from "./src/app/theme";
+import { LIGHT_THEME } from "./src/app/theme";
 
 export default function App() {
-  const theme = DARK_THEME;
+  const theme = LIGHT_THEME;
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <AppSafeArea style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>

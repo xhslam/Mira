@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
   type ViewStyle,
 } from "react-native";
@@ -34,10 +35,10 @@ import { LocaleContext, useTranslate } from "./locale";
 import { SettingsScreen } from "./settings-screen";
 import { DrawingsScreen } from "./drawings-screen";
 import { triggerClickFeedback } from "./press-feedback";
-import { DARK_THEME, useTheme, type Theme, ThemeContext } from "./theme";
+import { DARK_THEME, LIGHT_THEME, useTheme, type Theme, ThemeContext } from "./theme";
 import { WorkspacePicker } from "./workspace-picker";
 import { openStartupWorkspace } from "./workspace-startup";
-import { DEFAULT_SETTINGS } from "./settings-store";
+import { DEFAULT_SETTINGS, resolveThemeMode } from "./settings-store";
 import { UiSoundProvider, useUiSound } from "./ui-sound-context";
 import { GlobalSidebar } from "./global-sidebar";
 import { NotesOverviewScreen } from "./notes-overview-screen";
@@ -100,7 +101,8 @@ function NativeAppShellScreen() {
     });
     return () => subscription.remove();
   }, [indexReadyVersion, services, state.startup]);
-  const [themeContext, setThemeContext] = useState<Theme>(DARK_THEME);
+  const systemDark = useColorScheme() === "dark";
+  const [themeContext, setThemeContext] = useState<Theme>(LIGHT_THEME);
   const [settingsRevision, setSettingsRevision] = useState(0);
   const [locale] = useState<AppLocale>("zh-CN");
   const [clickVibration, setClickVibration] = useState(true);
@@ -112,7 +114,6 @@ function NativeAppShellScreen() {
     let active = true;
     void baseServices.settingsStore.load().then((result) => {
       if (!active) return;
-      // 发布版本统一为简体中文与深色画布。
       setClickVibration(result.ok ? result.value.interaction.clickVibration : true);
       setSoundEnabled(
         result.ok
@@ -122,12 +123,14 @@ function NativeAppShellScreen() {
       setSoundVolume(
         result.ok ? result.value.interaction.soundVolume : DEFAULT_SETTINGS.interaction.soundVolume,
       );
-      setThemeContext(DARK_THEME);
+      const pref = result.ok ? result.value.themePreference : DEFAULT_SETTINGS.themePreference;
+      const resolved = resolveThemeMode(pref, systemDark);
+      setThemeContext(resolved === "dark" ? DARK_THEME : LIGHT_THEME);
     });
     return () => {
       active = false;
     };
-  }, [baseServices, settingsRevision]);
+  }, [baseServices, settingsRevision, systemDark]);
 
   useEffect(() => {
     if (state.startup !== "checking-workspace") return;
@@ -268,7 +271,7 @@ function NativeAppShellScreen() {
   function removeWorkspace(record: WorkspaceRecord): void {
     Alert.alert(
       "Remove workspace?",
-      "This removes only the Inkstone workspace record. Files in the linked folder will not be deleted.",
+      "This removes only the Mira workspace record. Files in the linked folder will not be deleted.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -630,7 +633,7 @@ function PrimaryNavigation({
               pressed && styles.tabPressed,
             ]}
           >
-            <Icon color={selected ? "#3B82FF" : "#858D9E"} size={20} />
+            <Icon color={selected ? theme.colors.accent : theme.colors.mutedText} size={20} />
             <Text style={[styles.tabLabel, selected && styles.selectedTabLabel]}>{label}</Text>
           </Pressable>
         );
@@ -853,9 +856,9 @@ function createStyles(theme: Theme) {
       marginTop: 2,
       paddingHorizontal: 8,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: "rgba(124, 145, 181, 0.24)",
+      borderColor: theme.colors.divider,
       borderRadius: 14,
-      backgroundColor: "#0B1220",
+      backgroundColor: theme.colors.surface,
       overflow: "hidden",
     },
     tab: {
@@ -867,17 +870,17 @@ function createStyles(theme: Theme) {
       gap: 3,
       paddingHorizontal: 4,
     },
-    selectedTab: { backgroundColor: "rgba(31, 86, 174, 0.05)" },
+    selectedTab: { backgroundColor: theme.colors.accentSoft },
     tabPressed: {
       opacity: 0.78,
     },
     tabLabel: {
-      color: "#858D9E",
+      color: theme.colors.mutedText,
       fontSize: 11,
       fontWeight: "600",
     },
     selectedTabLabel: {
-      color: "#3B82FF",
+      color: theme.colors.accent,
     },
   });
 }

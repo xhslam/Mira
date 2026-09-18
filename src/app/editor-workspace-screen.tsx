@@ -382,7 +382,7 @@ export function EditorWorkspaceView({
     const localPreview = activeDocument.markdown.trim().slice(0, 160) || "(empty)";
     const externalPreview = external.markdown.trim().slice(0, 160) || "(empty)";
     Alert.alert(
-      "File changed outside Inkstone",
+      "File changed outside Mira",
       `LOCAL EDITS\n${localPreview}\n\nEXTERNAL FILE\n${externalPreview}`,
       [
         { text: "Keep editing", style: "cancel" },
@@ -442,7 +442,7 @@ export function EditorWorkspaceView({
       if (!reloaded.ok) {
         Alert.alert(
           "Restore completed",
-          "Files were restored, but the editor could not reload the workspace. Reopen Inkstone to refresh it.",
+          "Files were restored, but the editor could not reload the workspace. Reopen Mira to refresh it.",
         );
         return;
       }
@@ -514,10 +514,10 @@ export function EditorWorkspaceView({
         editorMode={activeDocument.mode}
         nextEditorMode={nextEditorMode(activeDocument.mode, activeDocument.formatId)}
         filename={activeDocument.path}
-        onOpenDrawer={() => {
+        onBack={() => {
           triggerClickFeedback(clickVibration);
           Keyboard.dismiss();
-          onOpenSidebar?.();
+          onExitToNotes?.();
         }}
         onBeginRename={beginRename}
         onOpenMenu={() => {

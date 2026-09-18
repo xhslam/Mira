@@ -136,45 +136,45 @@ export function DrawingsScreen({
 
   return (
     <View style={styles.screen}>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityLabel="打开全局侧边栏"
+          accessibilityRole="button"
+          onPress={onOpenSidebar}
+          style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+        >
+          <SidebarToggleIcon color={theme.colors.text} expanded={false} />
+        </Pressable>
+        <View style={styles.headerMark}>
+          <Paintbrush color={theme.colors.text} size={22} strokeWidth={1.8} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text accessibilityRole="header" style={styles.eyebrow}>
+            MIRA · 画板
+          </Text>
+          <Text style={styles.title}>{t("drawings.title")}</Text>
+        </View>
+        <Pressable
+          accessibilityLabel={t("drawings.new")}
+          accessibilityRole="button"
+          onPress={() => {
+            triggerClickFeedback(clickVibration);
+            setError(null);
+            setCreateVisible(true);
+          }}
+          style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
+        >
+          <Plus color="#FFFFFF" size={19} />
+          <Text style={styles.newButtonText}>{t("drawings.new")}</Text>
+        </Pressable>
+      </View>
+
       <ScrollView
         accessibilityElementsHidden={createVisible}
         contentContainerStyle={styles.content}
         importantForAccessibility={createVisible ? "no-hide-descendants" : "auto"}
         pointerEvents={createVisible ? "none" : "auto"}
       >
-        <View style={styles.hero}>
-          <Pressable
-            accessibilityLabel="打开全局侧边栏"
-            accessibilityRole="button"
-            onPress={onOpenSidebar}
-            style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
-          >
-            <SidebarToggleIcon color={theme.colors.text} expanded={false} />
-          </Pressable>
-          <View style={styles.heroMark}>
-            <Paintbrush color="#000000" size={27} strokeWidth={1.8} />
-          </View>
-          <View style={styles.heroCopy}>
-            <Text accessibilityRole="header" style={styles.eyebrow}>
-              MIRA · 画板
-            </Text>
-            <Text style={styles.title}>{t("drawings.title")}</Text>
-          </View>
-          <Pressable
-            accessibilityLabel={t("drawings.new")}
-            accessibilityRole="button"
-            onPress={() => {
-              triggerClickFeedback(clickVibration);
-              setError(null);
-              setCreateVisible(true);
-            }}
-            style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
-          >
-            <Plus color="#000000" size={21} />
-            <Text style={styles.newButtonText}>{t("drawings.new")}</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t("drawings.recent")}</Text>
           {busy ? <ActivityIndicator color={theme.colors.accent} size="small" /> : null}
@@ -253,9 +253,9 @@ export function DrawingsScreen({
               </Pressable>
               <Pressable disabled={busy} onPress={() => void create()} style={styles.createButton}>
                 {busy ? (
-                  <ActivityIndicator color="#000000" size="small" />
+                  <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Plus color="#000000" size={19} />
+                  <Plus color="#FFFFFF" size={19} />
                 )}
                 <Text style={styles.createText}>{t("drawings.create")}</Text>
               </Pressable>
@@ -334,13 +334,17 @@ function createStyles(theme: Theme, width: number) {
       paddingTop: wide ? 24 : 16,
       paddingBottom: 34,
     },
-    hero: {
-      flexDirection: wide ? "row" : "column",
-      alignItems: wide ? "center" : "flex-start",
-      gap: 15,
-      paddingBottom: 22,
+    header: {
+      minHeight: 74,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 10,
+      backgroundColor: theme.colors.headerBackground,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+      borderBottomColor: theme.colors.divider,
     },
     menuButton: {
       width: 44,
@@ -349,32 +353,32 @@ function createStyles(theme: Theme, width: number) {
       justifyContent: "center",
       borderRadius: 10,
     },
-    heroMark: {
-      width: 54,
-      height: 54,
+    headerMark: {
+      width: 40,
+      height: 40,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 10,
-      backgroundColor: theme.colors.text,
+      backgroundColor: theme.colors.surfaceMuted,
     },
-    heroCopy: { flex: 1, gap: 4 },
+    headerCopy: { flex: 1, minWidth: 0, gap: 1 },
     eyebrow: { color: theme.colors.mutedText, fontSize: 10, fontWeight: "700", letterSpacing: 1.1 },
     title: {
       color: theme.colors.text,
-      fontSize: wide ? 28 : 25,
-      fontWeight: "600",
-      letterSpacing: -0.6,
+      fontSize: 18,
+      fontWeight: "700",
+      letterSpacing: -0.4,
     },
     newButton: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 7,
-      paddingHorizontal: 17,
-      paddingVertical: 12,
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
       borderRadius: 10,
-      backgroundColor: theme.colors.text,
+      backgroundColor: theme.colors.accent,
     },
-    newButtonText: { color: theme.colors.background, fontSize: 14, fontWeight: "700" },
+    newButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
     pressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
     sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     sectionTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "600" },
@@ -551,6 +555,6 @@ function createStyles(theme: Theme, width: number) {
       borderRadius: 10,
       backgroundColor: theme.colors.accent,
     },
-    createText: { color: theme.colors.background, fontSize: 14, fontWeight: "700" },
+    createText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   });
 }

@@ -57,7 +57,7 @@ export function LearningHomeScreen(props: HomeProps) {
             style={({ pressed }) => [styles.continueItem, pressed && styles.pressed]}
           >
             <View style={styles.continueArtwork}>
-              <ResourceMediaIcon color="#DCE8FF" resource={currentResource} size={27} />
+              <ResourceMediaIcon color={theme.colors.text} resource={currentResource} size={27} />
             </View>
             <View style={styles.continueCopy}>
               <Text numberOfLines={1} style={styles.continueTitle}>
@@ -383,7 +383,7 @@ function createStyles(theme: Theme) {
     continueItem: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.22)",
+      borderColor: theme.colors.divider,
       borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
@@ -394,7 +394,7 @@ function createStyles(theme: Theme) {
     },
     continueArtwork: {
       alignItems: "center",
-      backgroundColor: "#17233A",
+      backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 10,
       height: 88,
       justifyContent: "center",
@@ -428,7 +428,7 @@ function createStyles(theme: Theme) {
     goal: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.18)",
+      borderColor: theme.colors.divider,
       borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
@@ -459,7 +459,7 @@ function createStyles(theme: Theme) {
     libraryActionText: { color: theme.colors.accent, fontSize: 14, fontWeight: "500" },
     list: {
       backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.18)",
+      borderColor: theme.colors.divider,
       borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
       overflow: "hidden",
@@ -516,7 +516,7 @@ function createStyles(theme: Theme) {
       minHeight: 42,
       paddingHorizontal: 16,
     },
-    emptyActionText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
+    emptyActionText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
     modalRoot: { flex: 1, justifyContent: "flex-end" },
     backdrop: { ...StyleSheet.absoluteFill, backgroundColor: theme.colors.overlay },
     sheet: {

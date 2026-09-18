@@ -9,6 +9,7 @@ const en = Object.freeze({
   "nav.settings": "Settings",
 
   "header.openWorkspace": "Open workspace",
+  "header.backToOverview": "Back to notes",
   "header.searchNotes": "Search notes",
   "header.moreActions": "More actions",
   "header.unsavedChanges": "Unsaved changes",
@@ -63,7 +64,7 @@ const en = Object.freeze({
   "drawer.recent": "Recent",
   "drawer.favorites": "Favorites",
   "workspace.managedName": "App-managed workspace",
-  "workspace.managedLocation": "Private Inkstone storage on this device",
+  "workspace.managedLocation": "Private Mira storage on this device",
   "drawer.new": "New",
   "drawer.noFiles": "No files in this workspace",
   "drawer.noMatchingFiles": "No matching files",
@@ -155,7 +156,7 @@ const en = Object.freeze({
   "picker.subtitle": "Local folders and app-managed storage",
   "picker.close": "Close workspace picker",
   "picker.localFirst":
-    "Inkstone works without an account. File content stays in the selected location unless you explicitly share it.",
+    "Mira works without an account. File content stays in the selected location unless you explicitly share it.",
   "picker.managedTitle": "App-managed workspace",
   "picker.managedBody": "Private storage with save and recovery",
   "picker.linkedTitle": "Add linked folder",
@@ -197,7 +198,7 @@ const en = Object.freeze({
   "settings.wrapLongLines": "Wrap long lines",
   "settings.storage": "Storage",
   "settings.workspaceLocation": "Workspace location",
-  "settings.privateStorage": "Private Inkstone storage on this device",
+  "settings.privateStorage": "Private Mira storage on this device",
   "settings.security": "Security & privacy",
   "settings.interaction": "Interaction",
   "settings.clickVibration": "Click vibration",
@@ -230,7 +231,7 @@ const en = Object.freeze({
   "settings.cancel": "Cancel",
   "settings.clear": "Clear",
 
-  "web.title": "Open Inkstone on mobile",
+  "web.title": "Open Mira on mobile",
   "web.body":
     "Local workspace authorization and app-private recovery storage require the Android or iOS application. Browser storage is not used as a substitute for your files.",
 } as const);
@@ -245,6 +246,7 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "nav.settings": "设置",
 
   "header.openWorkspace": "打开文件浏览器",
+  "header.backToOverview": "返回笔记",
   "header.searchNotes": "搜索笔记",
   "header.moreActions": "更多操作",
   "header.unsavedChanges": "有未保存的更改",
@@ -299,7 +301,7 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "drawer.recent": "最近",
   "drawer.favorites": "收藏",
   "workspace.managedName": "应用管理的工作区",
-  "workspace.managedLocation": "本机 Inkstone 私有存储",
+  "workspace.managedLocation": "本机 Mira 私有存储",
   "drawer.new": "新建",
   "drawer.noFiles": "此工作区暂无文件",
   "drawer.noMatchingFiles": "没有匹配的文件",
@@ -387,7 +389,7 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "picker.title": "选择工作区",
   "picker.subtitle": "本地文件夹与应用管理存储",
   "picker.close": "关闭工作区选择",
-  "picker.localFirst": "Inkstone 无需账号即可使用。除你主动分享外，文件内容只保留在所选位置。",
+  "picker.localFirst": "Mira 无需账号即可使用。除你主动分享外，文件内容只保留在所选位置。",
   "picker.managedTitle": "应用管理工作区",
   "picker.managedBody": "带保存与恢复的私有存储",
   "picker.linkedTitle": "添加关联文件夹",
@@ -429,7 +431,7 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "settings.wrapLongLines": "长行自动换行",
   "settings.storage": "存储",
   "settings.workspaceLocation": "工作区位置",
-  "settings.privateStorage": "本机 Inkstone 私有存储",
+  "settings.privateStorage": "本机 Mira 私有存储",
   "settings.security": "安全与隐私",
   "settings.interaction": "交互",
   "settings.clickVibration": "点击震动",
@@ -462,7 +464,7 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "settings.cancel": "取消",
   "settings.clear": "清除",
 
-  "web.title": "请在手机上打开 Inkstone",
+  "web.title": "请在手机上打开 Mira",
   "web.body":
     "本地工作区授权与应用私有恢复存储需要 Android 或 iOS 应用。浏览器存储不会用来替代你的文件。",
 });

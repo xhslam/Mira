@@ -83,7 +83,7 @@ function createStyles(theme: Theme) {
       alignItems: "stretch",
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.divider,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.headerBackground,
     },
     tabs: {
       alignItems: "stretch",
@@ -108,8 +108,8 @@ function createStyles(theme: Theme) {
       paddingRight: 5,
     },
     activeTab: {
-      borderBottomColor: theme.colors.accent,
-      backgroundColor: theme.colors.canvas,
+      borderBottomColor: theme.colors.text,
+      backgroundColor: theme.colors.background,
     },
     tabText: {
       color: theme.colors.mutedText,

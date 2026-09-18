@@ -9,6 +9,7 @@ export type ThemeMode = "light" | "dark";
 
 export type ThemeColors = Readonly<{
   background: string;
+  headerBackground: string;
   canvas: string;
   surface: string;
   surfaceMuted: string;
@@ -61,17 +62,48 @@ export type Theme = Readonly<{
   }>;
 }>;
 
-const APPLE_COLORS: ThemeColors = Object.freeze({
+const LIGHT_COLORS: ThemeColors = Object.freeze({
+  background: "#FFFFFF",
+  headerBackground: "#F4F5F7",
+  canvas: "#F8F9FA",
+  surface: "#FFFFFF",
+  surfaceMuted: "#F1F3F5",
+  text: "#111827",
+  mutedText: "#64748B",
+  divider: "rgba(0, 0, 0, 0.08)",
+  accent: "#111827",
+  accentPressed: "#27272A",
+  accentSoft: "#F1F3F5",
+  overlay: "rgba(0, 0, 0, 0.45)",
+  success: "#16A34A",
+  warning: "#D97706",
+  warningSurface: "#FEF3C7",
+  warningText: "#92400E",
+  danger: "#DC2626",
+  error: "#DC2626",
+  fileTypes: Object.freeze({
+    markdown: "#111827",
+    yaml: "#4B5563",
+    json: "#4B5563",
+    toml: "#4B5563",
+    mermaid: "#2563EB",
+    code: "#4B5563",
+    other: "#64748B",
+  }),
+});
+
+const DARK_COLORS: ThemeColors = Object.freeze({
   background: "#0B0B0F",
+  headerBackground: "#16161D",
   canvas: "#101015",
   surface: "#17171D",
   surfaceMuted: "#202027",
   text: "#F2F2F7",
   mutedText: "#98989F",
   divider: "rgba(255, 255, 255, 0.13)",
-  accent: "#0A84FF",
-  accentPressed: "#0071D8",
-  accentSoft: "#132B49",
+  accent: "#F2F2F7",
+  accentPressed: "#D8D8DE",
+  accentSoft: "#202027",
   overlay: "rgba(0, 0, 0, 0.68)",
   success: "#64D2FF",
   warning: "#FF9F0A",
@@ -93,7 +125,7 @@ const APPLE_COLORS: ThemeColors = Object.freeze({
 function buildTheme(mode: ThemeMode): Theme {
   return Object.freeze({
     mode,
-    colors: APPLE_COLORS,
+    colors: mode === "dark" ? DARK_COLORS : LIGHT_COLORS,
     spacing: Object.freeze({
       xSmall: 4,
       small: 8,
@@ -108,13 +140,13 @@ function buildTheme(mode: ThemeMode): Theme {
   });
 }
 
-/** 视觉使用同一套深色阅读环境，模式字段仅保留作兼容层。 */
+/** 默认采用高可读性的白底黑字明亮设计，深色模式按需切换。 */
 export const LIGHT_THEME = buildTheme("light");
 export const DARK_THEME = buildTheme("dark");
-export const ThemeContext = createContext<Theme>(DARK_THEME);
+export const ThemeContext = createContext<Theme>(LIGHT_THEME);
 
 export function useTheme(): Theme {
   return useContext(ThemeContext);
 }
 
-export const theme: Theme = DARK_THEME;
+export const theme: Theme = LIGHT_THEME;

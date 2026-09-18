@@ -48,7 +48,6 @@ import {
 } from "../learning/english-coach-storage";
 import type { LearningSnapshot } from "../learning/learning-types";
 import { createSerializedStateQueue } from "../learning/serialized-state-queue";
-import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 type CoachProps = Readonly<{
   services: AppServices;
@@ -56,7 +55,7 @@ type CoachProps = Readonly<{
   onSnapshotChange: (next: LearningSnapshot) => Promise<void>;
   onSelectMarkdown: () => void;
   onOpenPractice: () => void;
-  onOpenSidebar: () => void;
+  onOpenSidebar?: () => void;
 }>;
 
 function now(): string {
@@ -492,16 +491,7 @@ export function EnglishCoachScreen({
       style={styles.screen}
     >
       <View style={styles.header}>
-        <View style={styles.headerSlot}>
-          <Pressable
-            accessibilityLabel="打开全局侧边栏"
-            accessibilityRole="button"
-            onPress={onOpenSidebar}
-            style={styles.headerMenu}
-          >
-            <SidebarToggleIcon color={theme.colors.text} expanded={false} size={23} />
-          </Pressable>
-        </View>
+        <View style={styles.headerSlot} />
         <View accessibilityRole="tablist" style={styles.modeSwitch}>
           <Pressable
             accessibilityRole="tab"
