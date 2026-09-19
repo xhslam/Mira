@@ -126,6 +126,10 @@
 - 2026-09-19 全页面视觉设计与交互规范全量重构后，`npm test`：130 个测试文件、704 项测试通过；
   `npm run lint`、`npm run typecheck`、`npm run format:check` 与 `git diff --check` 全部通过。
   离线完整源码备份存档于分支 `backup/pre-ui-guide-full-refactor-20260919` 与标签 `backup-pre-ui-guide-full-refactor-20260919`。
+- 2026-09-19 12:59 执行 `npm run android:release` 构建成功，正式 `app-release.apk` 为 117,269,214 字节，
+  SHA-256 `f5f4e4b5321246fd1c7f5488c8c302b51a922f4c0f08c52fb076c85fc4ca88df`。`adb install -r`
+  在真机 REP-AN00（`AXVVUT3707007264`）上覆盖安装返回 `Success`，用户历史数据与工作区完整保留；
+  冷启动耗时 284 ms，前台聚焦 `MainActivity`，Logcat 无运行时异常。
 - 2026-08-31 18:02 从全局侧栏图标动画的最终源码执行 `npm run android:release` 成功，正式
   `app-release.apk` 为 117,110,330 字节，SHA-256
   `bb45cc9375f511a55bd8a8f724e3955a011d58c180b49b66fdac8191de6d1f23`，正式证书 SHA-256
