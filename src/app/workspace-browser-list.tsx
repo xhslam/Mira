@@ -168,7 +168,7 @@ function BrowserEntryRow({
           <View style={styles.chevronSpace} />
         )}
         <EntryIcon
-          color={entry.kind === "directory" ? theme.colors.mutedText : theme.colors.accent}
+          color={entry.kind === "directory" ? theme.colors.mutedText : theme.colors.primary}
           size={18}
         />
         <View style={styles.entryText}>
@@ -182,7 +182,9 @@ function BrowserEntryRow({
       </Pressable>
       {actionable ? (
         <>
-          {favorite ? <Star color={theme.colors.accent} size={15} /> : null}
+          {favorite ? (
+            <Star color={theme.colors.primary} fill={theme.colors.primary} size={15} />
+          ) : null}
           <IconButton
             label={`${providerActionable ? "Actions" : "Favorite options"} for ${entry.name}`}
             onPress={() => onAction(entry)}

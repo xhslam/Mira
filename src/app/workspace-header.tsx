@@ -248,7 +248,7 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.surface,
       flexDirection: "row",
-      gap: 5,
+      gap: theme.spacing[1],
       ...theme.shadows.sm,
     },
     modeButtonText: {
@@ -266,7 +266,7 @@ function createStyles(theme: Theme) {
     fileMark: {
       width: 4,
       height: 24,
-      marginLeft: 4,
+      marginLeft: theme.spacing[1],
       marginRight: theme.spacing[3],
       borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.primary,
@@ -290,19 +290,19 @@ function createStyles(theme: Theme) {
       minWidth: 0,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: theme.spacing[2],
     },
     saveState: {
       color: theme.colors.mutedText,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: "500",
     },
     saveStateError: {
       color: theme.colors.error,
     },
     dirtyDot: {
-      width: 7,
-      height: 7,
+      width: 6,
+      height: 6,
       borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.primary,
     },
@@ -310,7 +310,7 @@ function createStyles(theme: Theme) {
       minWidth: 0,
       flex: 1,
       justifyContent: "center",
-      gap: 2,
+      gap: theme.spacing[1],
     },
     renameInput: {
       minWidth: 0,

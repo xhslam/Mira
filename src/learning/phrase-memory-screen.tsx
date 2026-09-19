@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import {
   ArrowLeft,
+  Bookmark,
   Check,
   ChevronDown,
   Copy,
@@ -417,7 +418,7 @@ export function PhraseMemoryScreen({ snapshot, onChange, onClose, theme }: Props
                   style={[styles.filterButton, phraseFilter !== "all" && styles.filterButtonActive]}
                 >
                   <SlidersHorizontal
-                    color={phraseFilter === "all" ? theme.colors.mutedText : theme.colors.accent}
+                    color={phraseFilter === "all" ? theme.colors.mutedText : theme.colors.primary}
                     size={18}
                   />
                 </Pressable>
@@ -452,6 +453,7 @@ export function PhraseMemoryScreen({ snapshot, onChange, onClose, theme }: Props
               setComposerVisible(true);
             }}
             styles={styles}
+            theme={theme}
           />
         }
         renderItem={({ item }) =>
@@ -625,8 +627,8 @@ function PhraseCard({
               onPress={onFavorite}
             >
               <Star
-                color={card.isFavorite ? theme.colors.accent : theme.colors.mutedText}
-                fill={card.isFavorite ? theme.colors.accent : "transparent"}
+                color={card.isFavorite ? theme.colors.primary : theme.colors.mutedText}
+                fill={card.isFavorite ? theme.colors.primary : "transparent"}
                 size={18}
               />
             </Pressable>
@@ -677,7 +679,7 @@ function MemoryCard({
         style={({ pressed }) => [styles.memoryCardPressable, pressed && styles.pressed]}
       >
         <View style={styles.memoryIcon}>
-          <Icon color={theme.colors.accent} size={21} />
+          <Icon color={theme.colors.primary} size={21} />
         </View>
         <View style={styles.memoryCopy}>
           <Text numberOfLines={2} style={styles.memoryText}>
@@ -759,8 +761,8 @@ function PhraseDetail({
           style={styles.heroFavorite}
         >
           <Star
-            color={card.isFavorite ? theme.colors.accent : theme.colors.mutedText}
-            fill={card.isFavorite ? theme.colors.accent : "transparent"}
+            color={card.isFavorite ? theme.colors.primary : theme.colors.mutedText}
+            fill={card.isFavorite ? theme.colors.primary : "transparent"}
             size={25}
           />
         </Pressable>
@@ -1081,7 +1083,7 @@ function CategoryPicker({
             style={[styles.categoryChip, value === item && styles.categoryChipActive]}
           >
             <Text
-              style={[styles.categoryChipText, value === item && { color: theme.colors.accent }]}
+              style={[styles.categoryChipText, value === item && { color: theme.colors.primary }]}
             >
               {MEMORY_CATEGORY_LABELS[item]}
             </Text>
@@ -1124,7 +1126,7 @@ function SelectionModal({
               style={styles.menuRow}
             >
               <Text style={styles.menuText}>{option.label}</Text>
-              {selected === option.value ? <Check color={theme.colors.accent} size={18} /> : null}
+              {selected === option.value ? <Check color={theme.colors.primary} size={18} /> : null}
             </Pressable>
           ))}
         </View>
@@ -1192,14 +1194,19 @@ function EmptyState({
   copy,
   onAdd,
   styles,
+  theme,
 }: Readonly<{
   title: string;
   copy: string;
   onAdd: () => void;
   styles: ReturnType<typeof stylesFor>;
+  theme: Theme;
 }>) {
   return (
     <View style={styles.empty}>
+      <View style={styles.emptyIconContainer}>
+        <Bookmark color={theme.colors.mutedText} size={28} />
+      </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyCopy}>{copy}</Text>
       <Pressable accessibilityRole="button" onPress={onAdd} style={styles.emptyAction}>
@@ -1248,110 +1255,130 @@ function stylesFor(theme: Theme) {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingTop: 14,
+      paddingHorizontal: theme.spacing.md,
+      paddingTop: theme.spacing.md,
     },
-    iconButton: { alignItems: "center", height: 40, justifyContent: "center", width: 40 },
-    title: { color: theme.colors.text, fontSize: 23, fontWeight: "700" },
+    iconButton: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
+    title: { color: theme.colors.text, fontSize: 22, fontWeight: "700" },
     tabs: {
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
       justifyContent: "space-around",
-      marginHorizontal: 20,
-      marginTop: 12,
+      marginHorizontal: theme.spacing.lg,
+      marginTop: theme.spacing.md,
     },
-    tab: { alignItems: "center", flex: 1, paddingBottom: 12 },
-    tabActive: { borderBottomColor: theme.colors.accent, borderBottomWidth: 2 },
+    tab: { alignItems: "center", flex: 1, paddingBottom: theme.spacing.md },
+    tabActive: { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
     tabText: { color: theme.colors.mutedText, fontSize: 15, fontWeight: "600" },
-    tabTextActive: { color: theme.colors.accent },
-    listContent: { flexGrow: 1, padding: 20, paddingBottom: 42 },
-    searchRow: { flexDirection: "row", gap: 10 },
+    tabTextActive: { color: theme.colors.primary },
+    listContent: { flexGrow: 1, padding: theme.spacing.lg, paddingBottom: theme.spacing.xxxl },
+    searchRow: { flexDirection: "row", gap: theme.spacing.sm },
     searchBox: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flex: 1,
       flexDirection: "row",
-      gap: 8,
-      paddingHorizontal: 12,
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
     },
-    searchInput: { color: theme.colors.text, flex: 1, fontSize: 14, paddingVertical: 11 },
+    searchInput: {
+      color: theme.colors.text,
+      flex: 1,
+      fontSize: 14,
+      paddingVertical: theme.spacing.sm,
+    },
     filterButton: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       justifyContent: "center",
-      width: 46,
+      minHeight: 44,
+      width: 44,
     },
     filterButtonActive: {
-      borderColor: theme.colors.accent,
-      backgroundColor: theme.colors.accentSoft,
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primarySoft,
     },
     toolbar: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingVertical: 15,
+      paddingVertical: theme.spacing.md,
     },
     listCount: { color: theme.colors.mutedText, fontSize: 13 },
     sortButton: { alignItems: "center", flexDirection: "row", gap: 2 },
     sortText: { color: theme.colors.mutedText, fontSize: 12 },
     card: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 16,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      marginBottom: 10,
+      marginBottom: theme.spacing.sm,
       overflow: "hidden",
     },
-    cardPressable: { gap: 7, padding: 15 },
+    cardPressable: { gap: theme.spacing.xs, padding: theme.spacing.md },
     cardTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-    cardActions: { alignItems: "center", flexDirection: "row", gap: 13 },
-    phraseTerm: { color: theme.colors.accent, flex: 1, fontSize: 19, fontWeight: "700" },
+    cardActions: { alignItems: "center", flexDirection: "row", gap: theme.spacing.md },
+    phraseTerm: { color: theme.colors.primary, flex: 1, fontSize: 19, fontWeight: "700" },
     phraseMeaning: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
     context: { color: theme.colors.mutedText, fontSize: 13, fontStyle: "italic" },
     meta: { color: theme.colors.mutedText, fontSize: 11, marginTop: 3 },
-    memoryCardPressable: { alignItems: "flex-start", flexDirection: "row", gap: 12, padding: 15 },
+    memoryCardPressable: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: theme.spacing.md,
+      padding: theme.spacing.md,
+    },
     memoryIcon: {
       alignItems: "center",
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 18,
-      height: 36,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.full,
+      height: 40,
       justifyContent: "center",
-      width: 36,
+      width: 40,
     },
     memoryCopy: { flex: 1, gap: 6 },
     memoryText: { color: theme.colors.text, fontSize: 16, fontWeight: "700", lineHeight: 22 },
     memoryDetail: { color: theme.colors.text, fontSize: 21, fontWeight: "700", lineHeight: 30 },
-    memoryMeta: { color: theme.colors.accent, fontSize: 12, fontWeight: "600" },
+    memoryMeta: { color: theme.colors.primary, fontSize: 12, fontWeight: "600" },
     empty: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 16,
-      gap: 8,
-      marginTop: 18,
-      padding: 28,
+      borderRadius: theme.radius.md,
+      gap: theme.spacing.sm,
+      marginTop: theme.spacing.lg,
+      padding: theme.spacing.xl,
+    },
+    emptyIconContainer: {
+      alignItems: "center",
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.full,
+      height: 56,
+      justifyContent: "center",
+      width: 56,
+      marginBottom: theme.spacing.xs,
     },
     emptyTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20, textAlign: "center" },
     emptyAction: {
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 9,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.sm,
       marginTop: 4,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
     },
-    emptyActionText: { color: theme.colors.accent, fontSize: 13, fontWeight: "700" },
+    emptyActionText: { color: theme.colors.primary, fontSize: 13, fontWeight: "700" },
     detailContent: {
       backgroundColor: theme.colors.canvas,
-      gap: 17,
+      gap: theme.spacing.md,
       minHeight: "100%",
-      padding: 20,
-      paddingBottom: 42,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
     },
     detailHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
     detailTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
@@ -1359,18 +1386,18 @@ function stylesFor(theme: Theme) {
       alignItems: "flex-start",
       flexDirection: "row",
       justifyContent: "space-between",
-      marginTop: 10,
+      marginTop: theme.spacing.sm,
     },
-    detailTerm: { color: theme.colors.accent, fontSize: 32, fontWeight: "700" },
+    detailTerm: { color: theme.colors.primary, fontSize: 32, fontWeight: "700" },
     detailMeaning: { color: theme.colors.text, fontSize: 17, fontWeight: "600", marginTop: 8 },
     heroFavorite: { padding: 6 },
     detailSection: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 14,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 9,
-      padding: 14,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
     },
     detailSectionHeader: {
       alignItems: "center",
@@ -1383,48 +1410,51 @@ function stylesFor(theme: Theme) {
     copyNotice: { color: theme.colors.success, fontSize: 12 },
     statusChip: {
       alignSelf: "flex-start",
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 99,
-      paddingHorizontal: 11,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.full,
+      paddingHorizontal: theme.spacing.md,
       paddingVertical: 6,
     },
-    statusChipText: { color: theme.colors.accent, fontSize: 12, fontWeight: "700" },
-    detailActions: { flexDirection: "row", gap: 10, marginTop: 4 },
+    statusChipText: { color: theme.colors.primary, fontSize: 12, fontWeight: "700" },
+    detailActions: { flexDirection: "row", gap: theme.spacing.sm, marginTop: 4 },
     secondaryButton: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 11,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flex: 1,
-      padding: 12,
+      minHeight: 44,
+      justifyContent: "center",
+      padding: theme.spacing.md,
     },
     secondaryButtonText: { color: theme.colors.text, fontSize: 14, fontWeight: "700" },
     deleteButton: {
       alignItems: "center",
       borderColor: theme.colors.danger,
-      borderRadius: 11,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flex: 1,
       flexDirection: "row",
       gap: 6,
+      minHeight: 44,
       justifyContent: "center",
-      padding: 12,
+      padding: theme.spacing.md,
     },
     deleteText: { color: theme.colors.danger, fontSize: 14, fontWeight: "700" },
-    sheetBackdrop: { backgroundColor: "rgba(0,0,0,0.32)", flex: 1, justifyContent: "flex-end" },
+    sheetBackdrop: { backgroundColor: theme.colors.overlay, flex: 1, justifyContent: "flex-end" },
     sheet: {
       backgroundColor: theme.colors.canvas,
-      borderTopLeftRadius: 22,
-      borderTopRightRadius: 22,
-      gap: 14,
+      borderTopLeftRadius: theme.radius.xl,
+      borderTopRightRadius: theme.radius.xl,
+      gap: theme.spacing.md,
       maxHeight: "85%",
-      padding: 20,
-      paddingBottom: 30,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
     },
     sheetHandle: {
       alignSelf: "center",
       backgroundColor: theme.colors.divider,
-      borderRadius: 99,
+      borderRadius: theme.radius.full,
       height: 4,
       width: 40,
     },
@@ -1433,66 +1463,68 @@ function stylesFor(theme: Theme) {
     field: { gap: 7 },
     fieldLabel: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
     input: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       color: theme.colors.text,
       fontSize: 14,
-      padding: 11,
+      padding: theme.spacing.md,
     },
     multilineInput: { minHeight: 74, textAlignVertical: "top" },
     primaryButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 11,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
+      minHeight: 48,
+      justifyContent: "center",
       marginTop: 4,
-      padding: 13,
+      padding: theme.spacing.md,
     },
-    primaryButtonText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "700" },
+    primaryButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
     categoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
     categoryChip: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 99,
-      paddingHorizontal: 10,
+      borderRadius: theme.radius.full,
+      paddingHorizontal: theme.spacing.sm,
       paddingVertical: 7,
     },
-    categoryChipActive: { backgroundColor: theme.colors.accentSoft },
+    categoryChipActive: { backgroundColor: theme.colors.primarySoft },
     categoryChipText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
     menuBackdrop: {
       alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.18)",
+      backgroundColor: theme.colors.overlay,
       flex: 1,
       justifyContent: "center",
-      padding: 28,
+      padding: theme.spacing.xl,
     },
     selectionMenu: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.lg,
       maxWidth: 340,
-      padding: 8,
+      padding: theme.spacing.xs,
       width: "100%",
     },
     menuTitle: {
       color: theme.colors.mutedText,
       fontSize: 12,
       fontWeight: "700",
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
     menuRow: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingHorizontal: 12,
-      paddingVertical: 13,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
     },
     menuText: { color: theme.colors.text, fontSize: 15 },
     toast: {
       alignSelf: "center",
       backgroundColor: theme.colors.text,
-      borderRadius: 99,
+      borderRadius: theme.radius.full,
       bottom: 30,
-      paddingHorizontal: 14,
+      paddingHorizontal: theme.spacing.md,
       paddingVertical: 9,
       position: "absolute",
     },

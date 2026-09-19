@@ -138,9 +138,9 @@ export function WorkspacePicker({
                 >
                   <View style={styles.cardIcon}>
                     {record.grant.provider === "managed" ? (
-                      <FileText color={theme.colors.accent} size={23} />
+                      <FileText color={theme.colors.primary} size={23} />
                     ) : (
-                      <FolderOpen color={theme.colors.accent} size={23} />
+                      <FolderOpen color={theme.colors.primary} size={23} />
                     )}
                   </View>
                   <View style={styles.cardText}>
@@ -148,7 +148,7 @@ export function WorkspacePicker({
                       <Text numberOfLines={1} style={styles.workspaceName}>
                         {resolveWorkspaceName(record.grant, t)}
                       </Text>
-                      {record.pinned ? <Pin color={theme.colors.accent} size={14} /> : null}
+                      {record.pinned ? <Pin color={theme.colors.primary} size={14} /> : null}
                     </View>
                     <Text numberOfLines={2} style={styles.location}>
                       {resolveWorkspaceLocation(record.grant, t)}
@@ -204,7 +204,7 @@ export function WorkspacePicker({
               onPress={onOpenManaged}
               style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}
             >
-              <FileText color={theme.colors.accent} size={24} />
+              <FileText color={theme.colors.primary} size={24} />
               <View style={styles.addText}>
                 <Text style={styles.addTitle}>{t("picker.managedTitle")}</Text>
                 <Text style={styles.addBody}>{t("picker.managedBody")}</Text>
@@ -220,7 +220,7 @@ export function WorkspacePicker({
               onPress={onAddLinked}
               style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}
             >
-              <Link color={theme.colors.accent} size={24} />
+              <Link color={theme.colors.primary} size={24} />
               <View style={styles.addText}>
                 <Text style={styles.addTitle}>{t("picker.linkedTitle")}</Text>
                 <Text style={styles.addBody}>{t("picker.linkedBody")}</Text>
@@ -239,7 +239,7 @@ export function WorkspacePicker({
 
         {busy ? (
           <View accessibilityLiveRegion="polite" pointerEvents="none" style={styles.busyOverlay}>
-            <ActivityIndicator color={theme.colors.accent} size="large" />
+            <ActivityIndicator color={theme.colors.primary} size="large" />
             <Text style={styles.busyText}>{t("picker.checkingAccess")}</Text>
           </View>
         ) : null}
@@ -471,7 +471,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       gap: theme.spacing[3],
-      backgroundColor: "rgba(248, 250, 252, 0.92)",
+      backgroundColor: theme.colors.overlay,
     },
     busyText: {
       color: theme.colors.text,
@@ -509,9 +509,9 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.background,
       fontSize: theme.typography.sizes.body,
     },
-    renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: theme.spacing[2] },
+    renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: theme.spacing[3] },
     secondaryButton: {
-      minHeight: 40,
+      minHeight: 44,
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: theme.spacing[4],
@@ -523,12 +523,13 @@ function createStyles(theme: Theme) {
       fontWeight: "600",
     },
     confirmButton: {
-      minHeight: 40,
+      minHeight: 44,
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: theme.spacing[4],
       borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.primary,
+      ...theme.shadows.sm,
     },
     confirmButtonText: {
       color: "#FFFFFF",

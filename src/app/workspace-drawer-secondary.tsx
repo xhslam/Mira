@@ -117,7 +117,7 @@ function createLocalStyles(theme: Theme) {
       flexDirection: "row",
       alignItems: "stretch",
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
     },
     restore: {
       minWidth: 0,
@@ -128,7 +128,7 @@ function createLocalStyles(theme: Theme) {
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
-    delete: { width: 48, alignItems: "center", justifyContent: "center" },
+    delete: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
   });
 }
 

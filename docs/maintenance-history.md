@@ -1,6 +1,6 @@
 # Inkstone 修缮历史与防回归账本
 
-**最后更新：** 2026-09-11
+**最后更新：** 2026-09-19
 **事实来源：** Git 提交、当前源码、自动化测试、架构文档与已记录的真机验证
 
 本文记录当前仓库中能够由代码或设备证据确认的修缮历史。功能开发记录仍以
@@ -45,6 +45,7 @@
 | FIX-2026-09-01-003 | 2026-09-01 | CI 设备证据与 Android 导出   | `quality` 在干净 checkout 中运行设备基线与无障碍测试时，所需 manifest、四张截图和 hierarchy XML 被宽泛的 `artifacts/` 规则忽略，CI 以 `ENOENT` 失败；后续导出步骤还绕过仓库封装，触发 Expo 57 共享分块缺失且错误退出码为 0。 | `artifacts/` 默认继续忽略，仅显式纳入六个稳定测试夹具；截图 manifest 保留 SHA-256 校验，无障碍 hierarchy 继续验证标签和 48 dp 触控目标；工作流固定调用 `npm run export:android -- --clear`，由封装禁用不兼容的 bundle splitting 并校验离线 DOM 资产。缺少夹具或导出资产时必须失败。                   | 已修复       |
 | FIX-2026-09-11-001 | 2026-09-11 | 侧栏按钮可见性收敛           | 侧栏展开按钮在笔记编辑器、英语陪练、学习次级页面（逐句学习、设置、URL导入）与悬浮遮罩（短语速记、造句工坊）重复出现，出现频次过高且干扰任务。                                                                                | 侧栏展开按钮限定仅在各模块首页展示（学习首页“今天”、笔记总览、AI Markdown助手、画板首页、设置首页）；次级页面移除侧栏按钮，笔记编辑器使用“返回笔记”替换，学习次级页面统一使用返回键并移除悬浮侧栏按钮；`sidebar-visibility-regression` 测试常驻。                                                     | 已修缮       |
 | FIX-2026-09-18-001 | 2026-09-18 | 全局视觉设计系统重构         | 样式散落硬编码数值、缺乏统一语义阶梯、卡片与浅底存在融边隐患、空状态缺乏层级引导；严格按 `UI_DESIGN_SYSTEM_GUIDE` 规范全局重构。                                                                                             | `theme` 注入 Cool Slate 灰阶、Brand Indigo、离散间距 (4-96px)、双层立体阴影与字号阶梯；核心视图全量应用卡片微边框/抗融边、Pill形态/Action金字塔与引导型空状态；130 个套件、704 项测试全绿。                                                                                                           | 已重构       |
+| FIX-2026-09-19-001 | 2026-09-19 | 全页面视觉与交互规范重构     | 用户要求“每个页面都需要重构”；全应用所有页面（App Shell、学习/笔记/AI/画板/设置全域、各次级抽屉与弹窗）彻底贯彻 `UI_DESIGN_SYSTEM_GUIDE` 规范（离散令牌、层级排版、操作金字塔、防御空状态、44+ dp 触控靶）。                 | 离散间距 (xs~~4xl)、圆角 (xs~~full/card/modal)、双层阴影全量落地；全套 45+ 页面/弹窗重构并通过无损回归；130 个套件、704 项测试全绿，typecheck/lint/format:check 零错误；备份保留在 `backup/pre-ui-guide-full-refactor-20260919`。                                                                     | 已重构       |
 
 ## 长期不变量
 
@@ -122,6 +123,9 @@
   与 `npm run export:android -- --clear` 全部通过。
   离线完整源码备份存档于分支 `backup/pre-ui-redesign-20260918` 与
   `/Users/apple/Desktop/Mira_backup_pre_ui_redesign_20260918.tar.gz`。
+- 2026-09-19 全页面视觉设计与交互规范全量重构后，`npm test`：130 个测试文件、704 项测试通过；
+  `npm run lint`、`npm run typecheck`、`npm run format:check` 与 `git diff --check` 全部通过。
+  离线完整源码备份存档于分支 `backup/pre-ui-guide-full-refactor-20260919` 与标签 `backup-pre-ui-guide-full-refactor-20260919`。
 - 2026-08-31 18:02 从全局侧栏图标动画的最终源码执行 `npm run android:release` 成功，正式
   `app-release.apk` 为 117,110,330 字节，SHA-256
   `bb45cc9375f511a55bd8a8f724e3955a011d58c180b49b66fdac8191de6d1f23`，正式证书 SHA-256

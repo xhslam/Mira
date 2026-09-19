@@ -320,7 +320,7 @@ export function AiQuickAssistant(
                     style={styles.actionRow}
                   >
                     <View style={styles.actionIcon}>
-                      <Sparkles color={theme.colors.accent} size={16} />
+                      <Sparkles color={theme.colors.primary} size={16} />
                     </View>
                     <View style={styles.actionCopy}>
                       <Text style={styles.actionName}>{labelFor(item).name}</Text>
@@ -389,13 +389,13 @@ export function AiQuickAssistant(
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.42)" },
+    backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: theme.colors.overlay },
     sheet: {
       height: "86%",
-      gap: 12,
-      padding: 16,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      gap: theme.spacing[3],
+      padding: theme.spacing[4],
+      borderTopLeftRadius: theme.radius.modal,
+      borderTopRightRadius: theme.radius.modal,
       backgroundColor: theme.colors.background,
     },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -403,22 +403,24 @@ function createStyles(theme: Theme) {
     scope: { marginTop: 3, color: theme.colors.mutedText, fontSize: 11 },
     iconButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     error: { color: theme.colors.error, fontSize: 12 },
-    quickRow: { flexDirection: "row", gap: 7 },
+    quickRow: { flexDirection: "row", gap: theme.spacing[2] },
     quickChip: {
       minHeight: 34,
       justifyContent: "center",
-      paddingHorizontal: 10,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accentSoft,
+      paddingHorizontal: 12,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.primarySoft,
     },
-    quickText: { color: theme.colors.accent, fontSize: 11, fontWeight: "600" },
+    quickText: { color: theme.colors.primaryText, fontSize: 11, fontWeight: "600" },
     searchBox: {
       minHeight: 45,
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 12,
-      borderRadius: 10,
+      gap: theme.spacing[2],
+      paddingHorizontal: theme.spacing[3],
+      borderRadius: theme.radius.medium,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.surface,
     },
     searchInput: { flex: 1, color: theme.colors.text, fontSize: 13 },
@@ -428,7 +430,7 @@ function createStyles(theme: Theme) {
       maxWidth: 120,
       paddingHorizontal: 8,
       paddingVertical: 6,
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.surfaceMuted,
     },
     historyText: { color: theme.colors.text, fontSize: 10 },
@@ -446,8 +448,8 @@ function createStyles(theme: Theme) {
       height: 34,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
-      backgroundColor: theme.colors.accentSoft,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primarySoft,
     },
     actionCopy: { minWidth: 0, flex: 1 },
     actionName: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
@@ -457,7 +459,9 @@ function createStyles(theme: Theme) {
       gap: 7,
       overflow: "hidden",
       padding: 10,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.surface,
     },
     previewLabel: {
@@ -483,11 +487,12 @@ function createStyles(theme: Theme) {
     },
     secondaryText: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     primary: {
-      minHeight: 46,
+      minHeight: 44,
       justifyContent: "center",
       paddingHorizontal: 16,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.sm,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
   });

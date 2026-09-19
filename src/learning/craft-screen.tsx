@@ -369,9 +369,9 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
           style={[styles.primary, working !== null && styles.disabled]}
         >
           {working === "rewrite" || working === "transcribe" ? (
-            <ActivityIndicator color={theme.colors.canvas} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <RefreshCcw color={theme.colors.canvas} size={18} />
+            <RefreshCcw color="#FFFFFF" size={18} />
           )}
           <Text style={styles.primaryText}>
             {working === "transcribe"
@@ -417,9 +417,9 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
               style={[styles.secondary, working !== null && styles.disabled]}
             >
               {working === "speech" ? (
-                <ActivityIndicator color={theme.colors.accent} />
+                <ActivityIndicator color={theme.colors.primary} />
               ) : (
-                <Volume2 color={theme.colors.accent} size={18} />
+                <Volume2 color={theme.colors.primary} size={18} />
               )}
               <Text style={styles.secondaryText}>{previewUri ? "重新合成试听" : "生成试听"}</Text>
             </Pressable>
@@ -449,7 +449,7 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
               onPress={() => saveAndPractice(false)}
               style={[styles.primary, styles.savePrimary, working !== null && styles.disabled]}
             >
-              <Save color={theme.colors.canvas} size={18} />
+              <Save color="#FFFFFF" size={18} />
               <Text style={styles.primaryText}>保存并练习</Text>
             </Pressable>
             <Pressable
@@ -492,53 +492,53 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.md,
     },
-    headerSpacer: { height: 42, width: 42 },
-    title: { color: theme.colors.text, fontSize: 19, fontWeight: "600" },
+    headerSpacer: { height: 44, width: 44 },
+    title: { color: theme.colors.text, fontSize: 18, fontWeight: "600" },
     roundIcon: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      height: 42,
+      borderRadius: theme.radius.full,
+      height: 44,
       justifyContent: "center",
-      width: 42,
+      width: 44,
     },
     segment: {
       alignSelf: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
-      marginTop: 14,
+      marginTop: theme.spacing.md,
       padding: 4,
       width: 210,
     },
     segmentItem: {
       alignItems: "center",
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flex: 1,
       justifyContent: "center",
-      minHeight: 34,
+      minHeight: 36,
     },
     segmentItemActive: { backgroundColor: theme.colors.canvas },
     segmentLabel: { color: theme.colors.mutedText, fontSize: 13, fontWeight: "600" },
     segmentLabelActive: { color: theme.colors.text },
-    content: { gap: 14, padding: 20, paddingBottom: 56 },
+    content: { gap: theme.spacing.md, padding: theme.spacing.lg, paddingBottom: 56 },
     kicker: {
-      color: theme.colors.accent,
-      fontSize: 12,
+      color: theme.colors.primary,
+      fontSize: 11,
       fontWeight: "600",
-      letterSpacing: 0.8,
-      marginTop: 10,
+      letterSpacing: 1,
+      marginTop: theme.spacing.sm,
     },
     intro: { color: theme.colors.mutedText, fontSize: 15, lineHeight: 22 },
     captureCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 16,
-      gap: 8,
-      padding: 24,
+      borderRadius: theme.radius.lg,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.xl,
     },
     captureLabel: { color: theme.colors.text, fontSize: 20, fontWeight: "600" },
     captureHint: {
@@ -549,84 +549,89 @@ function createStyles(theme: Theme) {
     },
     micButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      height: 82,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
+      height: 80,
       justifyContent: "center",
-      marginTop: 10,
-      width: 82,
+      marginTop: theme.spacing.sm,
+      width: 80,
     },
     micButtonActive: { backgroundColor: theme.colors.error },
-    recordingHint: { color: theme.colors.accent, fontSize: 12, marginTop: 2 },
-    languageRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+    recordingHint: { color: theme.colors.primary, fontSize: 12, marginTop: 2 },
+    languageRow: { alignItems: "center", flexDirection: "row", gap: theme.spacing.sm },
     languageChip: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       justifyContent: "center",
-      minHeight: 38,
-      paddingHorizontal: 15,
+      minHeight: 40,
+      paddingHorizontal: theme.spacing.md,
     },
     languageLabel: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
-    fieldLabel: { color: theme.colors.text, fontSize: 14, fontWeight: "600", marginTop: 4 },
+    fieldLabel: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: "600",
+      marginTop: theme.spacing.xs,
+    },
     input: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       color: theme.colors.text,
       fontSize: 15,
       lineHeight: 22,
       minHeight: 120,
-      padding: 15,
+      padding: theme.spacing.md,
     },
-    styleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    styleRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
     styleChip: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 999,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.full,
       borderWidth: 1,
       justifyContent: "center",
-      minHeight: 34,
-      paddingHorizontal: 13,
+      minHeight: 36,
+      paddingHorizontal: theme.spacing.md,
     },
-    styleChipActive: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+    styleChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
     styleLabel: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
-    styleLabelActive: { color: theme.colors.canvas },
+    styleLabelActive: { color: "#FFFFFF" },
     primary: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
       minHeight: 48,
-      paddingHorizontal: 18,
+      paddingHorizontal: theme.spacing.lg,
     },
-    primaryText: { color: theme.colors.canvas, fontSize: 15, fontWeight: "600" },
+    primaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
     secondary: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
       minHeight: 46,
-      paddingHorizontal: 18,
+      paddingHorizontal: theme.spacing.lg,
     },
-    secondaryText: { color: theme.colors.accent, fontSize: 14, fontWeight: "600" },
+    secondaryText: { color: theme.colors.primary, fontSize: 14, fontWeight: "600" },
     disabled: { opacity: 0.45 },
     previewCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 12,
-      padding: 13,
+      gap: theme.spacing.md,
+      padding: theme.spacing.md,
     },
-    previewCopy: { flex: 1, gap: 3 },
+    previewCopy: { flex: 1, gap: theme.spacing.xs },
     previewTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     previewDescription: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
     notice: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20, textAlign: "center" },
-    saveRow: { gap: 9 },
+    saveRow: { gap: theme.spacing.sm },
     savePrimary: { flex: 1 },
     saveSecondary: { flex: 1 },
   });

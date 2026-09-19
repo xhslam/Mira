@@ -143,7 +143,7 @@ export function UrlImportScreen({ snapshot, onChange, theme }: Props) {
     <View style={styles.page}>
       <View style={styles.intro}>
         <View style={styles.icon}>
-          <Link2 color={theme.colors.accent} size={22} strokeWidth={1.9} />
+          <Link2 color={theme.colors.primary} size={22} strokeWidth={1.9} />
         </View>
         <Text style={styles.title}>从链接创建资料</Text>
         <Text style={styles.description}>
@@ -185,7 +185,7 @@ export function UrlImportScreen({ snapshot, onChange, theme }: Props) {
           ]}
         >
           {working ? (
-            <ActivityIndicator color={theme.colors.canvas} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.primaryText}>导入到资料</Text>
           )}
@@ -199,12 +199,16 @@ export function UrlImportScreen({ snapshot, onChange, theme }: Props) {
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    page: { gap: 22, paddingHorizontal: 20, paddingTop: 18 },
-    intro: { gap: 8 },
+    page: {
+      gap: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+    },
+    intro: { gap: theme.spacing.sm },
     icon: {
       alignItems: "center",
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 12,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.md,
       height: 44,
       justifyContent: "center",
       marginBottom: 4,
@@ -220,32 +224,32 @@ function createStyles(theme: Theme) {
     description: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 21 },
     form: {
       backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.2)",
-      borderRadius: 16,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.lg,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 12,
-      padding: 16,
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
     },
     label: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     input: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       color: theme.colors.text,
       fontSize: 15,
-      minHeight: 50,
-      paddingHorizontal: 14,
+      minHeight: 48,
+      paddingHorizontal: theme.spacing.md,
     },
     message: { color: theme.colors.danger, fontSize: 12, lineHeight: 18 },
     primary: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 12,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       justifyContent: "center",
       minHeight: 48,
     },
-    primaryText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "700" },
+    primaryText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
     disabled: { opacity: 0.55 },
     pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
     note: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 18 },

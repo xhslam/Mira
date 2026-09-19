@@ -6,7 +6,6 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
-  type ViewStyle,
 } from "react-native";
 
 import { useReducedMotion } from "./use-reduced-motion";
@@ -113,7 +112,10 @@ export function OverlaySideSheet({
     >
       <Animated.View
         pointerEvents={visible ? "auto" : "none"}
-        style={[StyleSheet.absoluteFill, styles.scrim, { opacity: scrimOpacity }]}
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: theme.colors.overlay, opacity: scrimOpacity },
+        ]}
       >
         <Pressable
           accessibilityLabel={t("drawer.close")}
@@ -126,9 +128,11 @@ export function OverlaySideSheet({
         {...panResponder.panHandlers}
         style={[
           styles.sheet,
-          sheetStyleShadow,
+          theme.shadows.xl,
           {
             backgroundColor: theme.colors.canvas,
+            borderTopRightRadius: theme.radius.modal,
+            borderBottomRightRadius: theme.radius.modal,
             width,
             transform: [{ translateX: sheetTranslateX }],
           },
@@ -140,21 +144,10 @@ export function OverlaySideSheet({
   );
 }
 
-const sheetStyleShadow: ViewStyle = {
-  elevation: 10,
-  shadowColor: "#10131A",
-  shadowOffset: { width: 2, height: 0 },
-  shadowOpacity: 0.2,
-  shadowRadius: 12,
-};
-
 const styles = StyleSheet.create({
-  scrim: { backgroundColor: "rgba(10, 14, 20, 0.34)" },
   overlayLayer: { zIndex: 30, elevation: 30 },
   sheet: {
     height: "100%",
-    borderTopRightRadius: 26,
-    borderBottomRightRadius: 26,
     overflow: "hidden",
   },
 });

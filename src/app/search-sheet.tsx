@@ -154,7 +154,7 @@ export function WorkspaceSearchView({
           value={query}
         />
         {status === "loading" ? (
-          <ActivityIndicator color={theme.colors.accent} size="small" />
+          <ActivityIndicator color={theme.colors.primary} size="small" />
         ) : null}
         {onClose ? (
           <IconButton label={t("search.close")} onPress={onClose}>

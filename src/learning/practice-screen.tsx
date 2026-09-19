@@ -813,7 +813,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   if (!resource || !sentence) {
     return (
       <View style={styles.empty}>
-        <Headphones color={theme.colors.accent} size={34} />
+        <View style={styles.emptyIconContainer}>
+          <Headphones color={theme.colors.primary} size={28} />
+        </View>
         <Text style={styles.emptyTitle}>先放进一段你愿意反复听的内容。</Text>
         <Text style={styles.emptyCopy}>
           语料进入后会自动切成一句一句，之后所有听读、点词与复习都从这里开始。
@@ -954,9 +956,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
           style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
         >
           {playing ? (
-            <Pause color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
+            <Pause color="#FFFFFF" fill="#FFFFFF" size={26} />
           ) : (
-            <Play color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
+            <Play color="#FFFFFF" fill="#FFFFFF" size={26} />
           )}
         </Pressable>
         <Pressable
@@ -1063,7 +1065,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
             <Text style={styles.echoLiveTitle}>正在收录你的跟读</Text>
             <Text style={styles.echoLiveMeta}>{echoElapsedLabel} · 再读一遍完整句子后点击结束</Text>
           </View>
-          <Mic color={theme.colors.accent} size={19} />
+          <Mic color={theme.colors.primary} size={19} />
         </View>
       ) : null}
       {latestEchoRecording ? (
@@ -1075,11 +1077,11 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
               onPress={() => void replayEchoRecording()}
               style={styles.echoActionPill}
             >
-              <Play color={theme.colors.accent} size={15} />
+              <Play color={theme.colors.primary} size={15} />
               <Text style={styles.echoActionText}>回放我的录音</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={retryEcho} style={styles.echoActionPill}>
-              <RotateCcw color={theme.colors.accent} size={15} />
+              <RotateCcw color={theme.colors.primary} size={15} />
               <Text style={styles.echoActionText}>重录</Text>
             </Pressable>
             <Pressable
@@ -1087,7 +1089,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
               onPress={deleteLatestEchoRecording}
               style={styles.echoActionPill}
             >
-              <Trash2 color={theme.colors.accent} size={15} />
+              <Trash2 color={theme.colors.error} size={15} />
               <Text style={styles.echoActionText}>删除</Text>
             </Pressable>
           </View>
@@ -1105,7 +1107,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
           {echoRecordings.slice(0, 3).map((recording, index) => (
             <View key={recording.id} style={styles.echoHistoryRow}>
               <View style={styles.echoHistoryIcon}>
-                <Mic color={theme.colors.accent} size={14} />
+                <Mic color={theme.colors.primary} size={14} />
               </View>
               <Text style={styles.echoHistoryText}>第 {echoRecordings.length - index} 次跟读</Text>
               <Text style={styles.echoHistoryMeta}>
@@ -1183,11 +1185,11 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
           onPress={() => setTrackSheetVisible(true)}
           style={styles.trackPill}
         >
-          <Captions color={theme.colors.accent} size={14} />
+          <Captions color={theme.colors.primary} size={14} />
           <Text numberOfLines={1} style={styles.trackPillText}>
             {activeTrack?.label ?? "主字幕"}
           </Text>
-          <ChevronRight color={theme.colors.accent} size={14} />
+          <ChevronRight color={theme.colors.primary} size={14} />
         </Pressable>
       </View>
       <TranscriptPanel
@@ -1253,10 +1255,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                       onPress={() => selectTranscriptTrack(track)}
                       style={[styles.trackOption, selected && styles.trackOptionSelected]}
                     >
-                      <Captions
-                        color={selected ? theme.colors.canvas : theme.colors.accent}
-                        size={17}
-                      />
+                      <Captions color={selected ? "#FFFFFF" : theme.colors.primary} size={17} />
                       <View style={styles.trackOptionCopy}>
                         <Text
                           style={[
@@ -1275,15 +1274,13 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                           {track.language} · {track.source}
                         </Text>
                       </View>
-                      {selected ? <Text style={styles.trackActiveText}>当前</Text> : null}
+                      {selected ? <Text style={styles.trackActiveText}>使用中</Text> : null}
                     </Pressable>
                   );
                 })}
               </View>
             ) : (
-              <Text style={styles.trackEmpty}>
-                当前材料只有主字幕轨道。导入或生成新的字幕后可在这里切换。
-              </Text>
+              <Text style={styles.trackEmpty}>当前材料没有更多字幕轨道可选。</Text>
             )}
           </View>
         </View>
@@ -1303,10 +1300,13 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
           <View style={styles.wordSheet}>
             <View style={styles.sheetHeader}>
               <View>
-                {wordSheet?.kind === "phrase" ? "这句里的短语" : "这句里的词"}
+                <Text style={styles.sheetKicker}>
+                  {wordSheet?.kind === "phrase" ? "短语" : "单词"}
+                </Text>
                 <Text style={styles.word}>{wordSheet?.word}</Text>
               </View>
               <Pressable
+                accessibilityLabel="关闭查词面板"
                 accessibilityRole="button"
                 onPress={() => setWordSheet(null)}
                 style={styles.closeButton}
@@ -1316,7 +1316,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
             </View>
             {lookingUp || !wordSheet?.lookup ? (
               <View style={styles.lookupLoading}>
-                <ActivityIndicator color={theme.colors.accent} />
+                <ActivityIndicator color={theme.colors.primary} />
                 <Text style={styles.lookupLoadingText}>正在查找这句里的意思</Text>
               </View>
             ) : (
@@ -1351,7 +1351,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                     style={styles.contextAction}
                   >
                     {contextBusy ? (
-                      <ActivityIndicator color={theme.colors.accent} />
+                      <ActivityIndicator color={theme.colors.primary} />
                     ) : (
                       <Text style={styles.contextActionText}>解释这个词在这句中的意思</Text>
                     )}
@@ -1362,7 +1362,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                   onPress={saveWord}
                   style={({ pressed }) => [styles.saveWordButton, pressed && styles.pressed]}
                 >
-                  <BookmarkPlus color={theme.colors.canvas} size={18} />
+                  <BookmarkPlus color="#FFFFFF" size={18} />
                   <Text style={styles.saveWordText}>收进记忆库</Text>
                 </Pressable>
               </>
@@ -1400,7 +1400,7 @@ function ToolButton({
         pressed && styles.pressed,
       ]}
     >
-      <Icon color={selected ? theme.colors.canvas : theme.colors.mutedText} size={16} />
+      <Icon color={selected ? "#FFFFFF" : theme.colors.mutedText} size={16} />
       <Text numberOfLines={1} style={[styles.toolLabel, selected && styles.toolLabelSelected]}>
         {label}
       </Text>
@@ -1490,9 +1490,9 @@ function ImmersiveListening({
             style={styles.immersivePlayButton}
           >
             {playing ? (
-              <Pause color={theme.colors.canvas} fill={theme.colors.canvas} size={30} />
+              <Pause color="#FFFFFF" fill="#FFFFFF" size={30} />
             ) : (
-              <Play color={theme.colors.canvas} fill={theme.colors.canvas} size={30} />
+              <Play color="#FFFFFF" fill="#FFFFFF" size={30} />
             )}
           </Pressable>
           <Pressable
@@ -1509,7 +1509,7 @@ function ImmersiveListening({
           onPress={onToggleRepeat}
           style={[styles.immersiveRepeat, repeat && styles.immersiveRepeatSelected]}
         >
-          <Repeat2 color={repeat ? theme.colors.canvas : theme.colors.mutedText} size={16} />
+          <Repeat2 color={repeat ? "#FFFFFF" : theme.colors.mutedText} size={16} />
           <Text style={[styles.immersiveRepeatText, repeat && styles.immersiveRepeatTextSelected]}>
             单句循环
           </Text>
@@ -1559,8 +1559,28 @@ function formatTime(value: number | null) {
 function createStyles(theme: Theme) {
   return StyleSheet.create({
     scroll: { flex: 1, minHeight: 0 },
-    content: { flexGrow: 1, gap: 18, paddingBottom: 30, paddingTop: 4 },
-    empty: { alignItems: "center", gap: 12, paddingHorizontal: 28, paddingTop: 90 },
+    content: {
+      flexGrow: 1,
+      gap: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
+      paddingTop: theme.spacing.xs,
+    },
+    empty: {
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.xl,
+      paddingTop: theme.spacing.xxxl,
+    },
+    emptyIconContainer: {
+      alignItems: "center",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radius.full,
+      height: 56,
+      justifyContent: "center",
+      width: 56,
+      marginBottom: theme.spacing.xs,
+    },
     emptyTitle: {
       color: theme.colors.text,
       fontFamily: "Georgia",
@@ -1569,20 +1589,20 @@ function createStyles(theme: Theme) {
       textAlign: "center",
     },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 21, textAlign: "center" },
-    mediaPreview: { marginHorizontal: 20 },
+    mediaPreview: { marginHorizontal: theme.spacing.lg },
     mediaStage: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 16,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.lg,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 14,
-      marginHorizontal: 20,
+      gap: theme.spacing.md,
+      marginHorizontal: theme.spacing.lg,
       minHeight: 266,
-      padding: 20,
+      padding: theme.spacing.lg,
     },
     stageTopline: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
     stageLabel: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 10,
       fontWeight: "700",
       letterSpacing: 1.35,
@@ -1596,25 +1616,25 @@ function createStyles(theme: Theme) {
       lineHeight: 50,
     },
     sentenceWords: { flexDirection: "row", flexWrap: "wrap", marginTop: -4 },
-    wordToken: { borderRadius: 10, paddingHorizontal: 1, paddingVertical: 1 },
+    wordToken: { borderRadius: theme.radius.sm, paddingHorizontal: 1, paddingVertical: 1 },
     analysisCard: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      gap: 7,
-      marginHorizontal: 20,
-      padding: 14,
+      borderRadius: theme.radius.md,
+      gap: theme.spacing.xs,
+      marginHorizontal: theme.spacing.lg,
+      padding: theme.spacing.md,
     },
     analysisTitle: { color: theme.colors.text, fontSize: 14, fontWeight: "700" },
     analysisSection: { color: theme.colors.text, fontSize: 12, fontWeight: "700", marginTop: 5 },
     analysisPhrase: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 10,
-      gap: 3,
-      padding: 10,
+      borderRadius: theme.radius.md,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.sm,
     },
     analysisPhraseTitle: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     analysisCopy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20 },
-    wordTokenPressed: { backgroundColor: theme.colors.accentSoft },
+    wordTokenPressed: { backgroundColor: theme.colors.primarySoft },
     wordTokenText: {
       color: theme.colors.text,
       fontFamily: "Georgia",
@@ -1636,78 +1656,95 @@ function createStyles(theme: Theme) {
       lineHeight: 18,
       marginTop: "auto",
     },
-    transport: { alignItems: "center", flexDirection: "row", gap: 16, justifyContent: "center" },
-    playbackControls: { gap: 8, marginHorizontal: 20 },
+    transport: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: theme.spacing.md,
+      justifyContent: "center",
+    },
+    playbackControls: { gap: theme.spacing.sm, marginHorizontal: theme.spacing.lg },
     progressTrack: {
       backgroundColor: theme.colors.divider,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       height: 6,
       overflow: "hidden",
     },
-    progressFill: { backgroundColor: theme.colors.accent, borderRadius: 999, height: "100%" },
+    progressFill: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
+      height: "100%",
+    },
     playbackMeta: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
     playbackTime: { color: theme.colors.mutedText, fontSize: 12, fontVariant: ["tabular-nums"] },
     rateRow: { flexDirection: "row", gap: 5 },
     rateChip: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
+      borderRadius: theme.radius.full,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: 6,
+      minHeight: 32,
+      justifyContent: "center",
     },
-    rateChipActive: { backgroundColor: theme.colors.accent },
+    rateChipActive: { backgroundColor: theme.colors.primary },
     rateText: { color: theme.colors.mutedText, fontSize: 11, fontWeight: "600" },
-    rateTextActive: { color: theme.colors.canvas },
+    rateTextActive: { color: "#FFFFFF" },
     transportButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
+      borderRadius: theme.radius.md,
       height: 44,
       justifyContent: "center",
       width: 44,
     },
     playButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 16,
-      height: 62,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.lg,
+      height: 60,
       justifyContent: "center",
-      width: 62,
+      width: 60,
     },
     disabled: { opacity: 0.28 },
-    utilityBar: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 20 },
+    utilityBar: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+    },
     toolButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flex: 1,
       flexDirection: "row",
       gap: 6,
       justifyContent: "center",
-      minHeight: 39,
-      paddingHorizontal: 7,
+      minHeight: 40,
+      paddingHorizontal: theme.spacing.sm,
     },
-    toolButtonSelected: { backgroundColor: theme.colors.accent },
+    toolButtonSelected: { backgroundColor: theme.colors.primary },
     toolLabel: { color: theme.colors.mutedText, fontSize: 11, fontWeight: "700" },
-    toolLabelSelected: { color: theme.colors.canvas },
+    toolLabelSelected: { color: "#FFFFFF" },
     notice: {
       alignItems: "center",
       backgroundColor: theme.colors.warningSurface,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "space-between",
-      marginHorizontal: 20,
-      padding: 12,
+      marginHorizontal: theme.spacing.lg,
+      padding: theme.spacing.md,
     },
     noticeText: { color: theme.colors.warningText, flex: 1, fontSize: 12, lineHeight: 18 },
     trajectoryHeader: {
       alignItems: "flex-end",
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
       justifyContent: "space-between",
-      marginHorizontal: 20,
-      paddingBottom: 12,
-      paddingTop: 8,
+      marginHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.md,
+      paddingTop: theme.spacing.sm,
     },
     trajectoryTitle: {
       color: theme.colors.text,
@@ -1716,28 +1753,33 @@ function createStyles(theme: Theme) {
       letterSpacing: -0.3,
     },
     trajectoryMeta: { color: theme.colors.mutedText, fontSize: 11, marginTop: 3 },
-    trajectoryIndex: { color: theme.colors.accent, fontSize: 28 },
+    trajectoryIndex: { color: theme.colors.primary, fontSize: 28 },
     trackPill: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
       gap: 5,
       maxWidth: 150,
       minHeight: 36,
-      paddingHorizontal: 11,
+      paddingHorizontal: theme.spacing.md,
     },
-    trackPillText: { color: theme.colors.accent, flexShrink: 1, fontSize: 12, fontWeight: "600" },
+    trackPillText: { color: theme.colors.primary, flexShrink: 1, fontSize: 12, fontWeight: "600" },
     echoLiveCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 11,
+      gap: theme.spacing.md,
       minHeight: 64,
-      paddingHorizontal: 16,
+      paddingHorizontal: theme.spacing.lg,
     },
-    echoPulse: { backgroundColor: theme.colors.accent, borderRadius: 999, height: 10, width: 10 },
+    echoPulse: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
+      height: 10,
+      width: 10,
+    },
     echoLiveCopy: { flex: 1, gap: 3 },
     echoLiveTitle: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
     echoLiveMeta: { color: theme.colors.mutedText, fontSize: 11 },
@@ -1745,24 +1787,29 @@ function createStyles(theme: Theme) {
       color: theme.colors.mutedText,
       fontSize: 12,
       lineHeight: 18,
-      marginHorizontal: 20,
+      marginHorizontal: theme.spacing.lg,
     },
-    echoActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginHorizontal: 20 },
+    echoActions: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: theme.spacing.sm,
+      marginHorizontal: theme.spacing.lg,
+    },
     echoActionPill: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
       gap: 6,
       minHeight: 36,
-      paddingHorizontal: 12,
+      paddingHorizontal: theme.spacing.md,
     },
     echoActionText: { color: theme.colors.text, fontSize: 12, fontWeight: "600" },
     echoHistory: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
-      gap: 8,
-      padding: 14,
+      borderRadius: theme.radius.md,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
     },
     echoHistoryHeader: {
       alignItems: "center",
@@ -1771,70 +1818,75 @@ function createStyles(theme: Theme) {
     },
     echoHistoryTitle: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
     echoHistoryCount: { color: theme.colors.mutedText, fontSize: 11 },
-    echoHistoryRow: { alignItems: "center", flexDirection: "row", gap: 9, minHeight: 30 },
+    echoHistoryRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: theme.spacing.sm,
+      minHeight: 30,
+    },
     echoHistoryIcon: {
       alignItems: "center",
       backgroundColor: theme.colors.canvas,
-      borderRadius: 999,
-      height: 27,
+      borderRadius: theme.radius.full,
+      height: 28,
       justifyContent: "center",
-      width: 27,
+      width: 28,
     },
     echoHistoryText: { color: theme.colors.text, flex: 1, fontSize: 12, fontWeight: "700" },
     echoHistoryMeta: { color: theme.colors.mutedText, fontSize: 11 },
-    trackOptionList: { gap: 9 },
+    trackOptionList: { gap: theme.spacing.sm },
     trackOption: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 11,
+      gap: theme.spacing.md,
       minHeight: 62,
-      paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
     },
-    trackOptionSelected: { backgroundColor: theme.colors.accent },
+    trackOptionSelected: { backgroundColor: theme.colors.primary },
     trackOptionCopy: { flex: 1, gap: 3 },
     trackOptionTitle: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
-    trackOptionTitleSelected: { color: theme.colors.canvas },
+    trackOptionTitleSelected: { color: "#FFFFFF" },
     trackOptionMeta: { color: theme.colors.mutedText, fontSize: 11 },
-    trackOptionMetaSelected: { color: theme.colors.canvas, opacity: 0.82 },
-    trackActiveText: { color: theme.colors.canvas, fontSize: 11, fontWeight: "700" },
+    trackOptionMetaSelected: { color: "#FFFFFF", opacity: 0.85 },
+    trackActiveText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
     trackEmpty: {
       color: theme.colors.mutedText,
       fontSize: 13,
       lineHeight: 20,
-      paddingVertical: 10,
+      paddingVertical: theme.spacing.sm,
     },
     sentenceList: { paddingBottom: 18 },
     sentenceRow: {
       alignItems: "center",
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
-      gap: 12,
+      gap: theme.spacing.md,
       height: 80,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
     },
     sentenceRowSelected: { backgroundColor: theme.colors.surface },
     rowRail: { backgroundColor: theme.colors.divider, height: 34, width: 2 },
-    rowRailSelected: { backgroundColor: theme.colors.accent, height: 44 },
+    rowRailSelected: { backgroundColor: theme.colors.primary, height: 44 },
     rowRailComplete: { backgroundColor: theme.colors.success },
     rowBody: { flex: 1, gap: 4 },
     rowSentence: { color: theme.colors.text, fontSize: 16, lineHeight: 22 },
     rowSentenceSelected: { color: theme.colors.text, fontWeight: "700" },
     rowTranslation: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
     rowIndex: { color: theme.colors.mutedText, fontSize: 11, fontVariant: ["tabular-nums"] },
-    modalOverlay: { backgroundColor: "rgba(0, 0, 0, 0.68)", flex: 1, justifyContent: "flex-end" },
+    modalOverlay: { backgroundColor: theme.colors.overlay, flex: 1, justifyContent: "flex-end" },
     wordSheet: {
       backgroundColor: theme.colors.canvas,
-      borderColor: theme.colors.divider,
-      borderTopLeftRadius: 26,
-      borderTopRightRadius: 26,
+      borderColor: theme.colors.borderSubtle,
+      borderTopLeftRadius: theme.radius.xl,
+      borderTopRightRadius: theme.radius.xl,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 14,
-      padding: 22,
+      gap: theme.spacing.md,
+      padding: theme.spacing.xl,
     },
     sheetHeader: {
       alignItems: "flex-start",
@@ -1842,7 +1894,7 @@ function createStyles(theme: Theme) {
       justifyContent: "space-between",
     },
     sheetKicker: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 10,
       fontWeight: "700",
       letterSpacing: 1.25,
@@ -1857,27 +1909,32 @@ function createStyles(theme: Theme) {
     contextAction: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       justifyContent: "center",
       marginTop: 6,
       minHeight: 40,
-      paddingHorizontal: 14,
+      paddingHorizontal: theme.spacing.md,
     },
-    contextActionText: { color: theme.colors.accent, fontSize: 13, fontWeight: "600" },
+    contextActionText: { color: theme.colors.primary, fontSize: 13, fontWeight: "600" },
     closeButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      height: 34,
+      borderRadius: theme.radius.md,
+      height: 36,
       justifyContent: "center",
-      width: 34,
+      width: 36,
     },
-    lookupLoading: { alignItems: "center", flexDirection: "row", gap: 9, paddingVertical: 22 },
+    lookupLoading: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: theme.spacing.sm,
+      paddingVertical: theme.spacing.xl,
+    },
     lookupLoadingText: { color: theme.colors.mutedText, fontSize: 13 },
     phonetic: { color: theme.colors.mutedText, fontSize: 14 },
-    definitionRow: { flexDirection: "row", gap: 10 },
+    definitionRow: { flexDirection: "row", gap: theme.spacing.sm },
     definitionNumber: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 12,
       fontWeight: "700",
       paddingTop: 2,
@@ -1885,7 +1942,7 @@ function createStyles(theme: Theme) {
     },
     definitionBody: { flex: 1, gap: 3 },
     partOfSpeech: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 12,
       fontStyle: "italic",
       fontWeight: "700",
@@ -1908,25 +1965,26 @@ function createStyles(theme: Theme) {
     },
     saveWordButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
-      marginTop: 4,
-      padding: 14,
+      minHeight: 48,
+      marginTop: theme.spacing.xs,
+      padding: theme.spacing.md,
     },
-    saveWordText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "700" },
+    saveWordText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
     immersiveOverlay: {
       backgroundColor: theme.colors.background,
       flex: 1,
       paddingBottom: 34,
-      paddingHorizontal: 24,
+      paddingHorizontal: theme.spacing.xl,
       paddingTop: 22,
     },
     immersiveTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
     immersiveKicker: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 10,
       fontWeight: "700",
       letterSpacing: 1.3,
@@ -1934,7 +1992,7 @@ function createStyles(theme: Theme) {
     immersiveClose: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       height: 36,
       justifyContent: "center",
       width: 36,
@@ -1948,7 +2006,12 @@ function createStyles(theme: Theme) {
       lineHeight: 43,
       textAlign: "center",
     },
-    hiddenCaption: { alignItems: "center", gap: 12, paddingHorizontal: 28, paddingVertical: 24 },
+    hiddenCaption: {
+      alignItems: "center",
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.xl,
+      paddingVertical: theme.spacing.xl,
+    },
     hiddenCaptionText: {
       color: theme.colors.mutedText,
       fontSize: 14,
@@ -1959,28 +2022,28 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       flexDirection: "row",
       gap: 6,
-      marginTop: 20,
-      padding: 8,
+      marginTop: theme.spacing.lg,
+      padding: theme.spacing.xs,
     },
     hideCaptionText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "700" },
     immersiveControls: {
       alignItems: "center",
       flexDirection: "row",
-      gap: 24,
+      gap: theme.spacing.xl,
       justifyContent: "center",
     },
     immersiveMinorButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 23,
-      height: 46,
+      borderRadius: theme.radius.full,
+      height: 48,
       justifyContent: "center",
-      width: 46,
+      width: 48,
     },
     immersivePlayButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 34,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
       height: 68,
       justifyContent: "center",
       width: 68,
@@ -1989,16 +2052,16 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       alignSelf: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 7,
-      marginTop: 22,
-      paddingHorizontal: 13,
-      paddingVertical: 10,
+      gap: theme.spacing.xs,
+      marginTop: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
-    immersiveRepeatSelected: { backgroundColor: theme.colors.accent },
+    immersiveRepeatSelected: { backgroundColor: theme.colors.primary },
     immersiveRepeatText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
-    immersiveRepeatTextSelected: { color: theme.colors.canvas },
+    immersiveRepeatTextSelected: { color: "#FFFFFF" },
     pressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   });
 }

@@ -105,7 +105,7 @@ export function LearningScreen({
           </>
         ) : (
           <>
-            <ActivityIndicator color={theme.colors.accent} />
+            <ActivityIndicator color={theme.colors.primary} />
             <Text style={styles.loadingText}>正在准备学习资料</Text>
           </>
         )}
@@ -689,16 +689,19 @@ function createStyles(theme: Theme) {
       textAlign: "center",
     },
     loadingRetry: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: theme.radius.medium,
-      paddingHorizontal: 18,
-      paddingVertical: 11,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
+      minHeight: 44,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
     },
-    loadingRetryText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
+    loadingRetryText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
     topBar: {
       backgroundColor: theme.colors.headerBackground,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       paddingTop: 8,
     },
     header: {
@@ -719,7 +722,7 @@ function createStyles(theme: Theme) {
       borderBottomColor: "transparent",
       borderBottomWidth: 2,
       justifyContent: "center",
-      minHeight: 38,
+      minHeight: 44,
       paddingHorizontal: 4,
       paddingBottom: 6,
     },
@@ -727,7 +730,7 @@ function createStyles(theme: Theme) {
       borderBottomColor: theme.colors.primary,
     },
     sectionPillText: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "500" },
-    sectionPillTextActive: { color: theme.colors.text, fontWeight: "700" },
+    sectionPillTextActive: { color: theme.colors.primary, fontWeight: "700" },
     brand: {
       color: theme.colors.text,
       fontSize: 28,
@@ -746,10 +749,12 @@ function createStyles(theme: Theme) {
     headerIdentity: { alignItems: "center", flexDirection: "row", gap: 2 },
     iconButton: {
       alignItems: "center",
-      height: 42,
+      height: 44,
       justifyContent: "center",
-      width: 40,
-      borderRadius: theme.radius.medium,
+      minHeight: 44,
+      minWidth: 44,
+      width: 44,
+      borderRadius: theme.radius.md,
     },
     contentScroll: { flex: 1, minHeight: 0 },
     content: { flexGrow: 1, paddingBottom: 64 },
@@ -809,7 +814,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: theme.radius.medium,
-      minHeight: 40,
+      minHeight: 44,
       justifyContent: "center",
       paddingHorizontal: 16,
     },
@@ -818,7 +823,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       backgroundColor: theme.colors.primary,
       borderRadius: theme.radius.medium,
-      minHeight: 40,
+      minHeight: 44,
       justifyContent: "center",
       paddingHorizontal: 16,
       ...theme.shadows.sm,

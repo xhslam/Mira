@@ -227,11 +227,7 @@ export function GeneratorScreen({
             pressed && styles.pressed,
           ]}
         >
-          {busy ? (
-            <ActivityIndicator color={theme.colors.canvas} />
-          ) : (
-            <FilePlus2 color={theme.colors.canvas} size={18} />
-          )}
+          {busy ? <ActivityIndicator color="#FFFFFF" /> : <FilePlus2 color="#FFFFFF" size={18} />}
           <Text style={styles.generateText}>
             {busy ? "Generating…" : "Generate structured resource"}
           </Text>
@@ -239,7 +235,7 @@ export function GeneratorScreen({
       </View>
       {draft?.state === "pending" ? (
         <View style={styles.processing}>
-          <ActivityIndicator color={theme.colors.accent} />
+          <ActivityIndicator color={theme.colors.primary} />
           <Text style={styles.processingText}>
             Asking your configured AI engine for structured learning content…
           </Text>
@@ -274,9 +270,9 @@ export function GeneratorScreen({
             onPress={saveResource}
             style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}
           >
-            <FilePlus2 color={theme.colors.canvas} size={18} />
+            <FilePlus2 color="#FFFFFF" size={18} />
             <Text style={styles.saveText}>Save and open in practice</Text>
-            <Play color={theme.colors.canvas} size={16} />
+            <Play color="#FFFFFF" size={16} />
           </Pressable>
         </View>
       ) : null}
@@ -306,119 +302,127 @@ function safeParse(raw: string) {
 }
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 16, padding: 20, paddingBottom: 36 },
+    content: {
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
+    },
     hero: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 6,
-      padding: 20,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.lg,
     },
-    kicker: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
+    kicker: { color: theme.colors.primary, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
     title: { color: theme.colors.text, fontSize: 24, fontWeight: "600" },
     copy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20 },
     form: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 9,
-      padding: 16,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.lg,
     },
     label: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600", marginTop: 2 },
     textarea: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       color: theme.colors.text,
       fontSize: 14,
       minHeight: 105,
-      padding: 12,
+      padding: theme.spacing.md,
       textAlignVertical: "top",
     },
     input: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       color: theme.colors.text,
       fontSize: 14,
-      padding: 11,
+      padding: theme.spacing.md,
     },
-    levels: { flexDirection: "row", gap: 8 },
+    levels: { flexDirection: "row", gap: theme.spacing.sm },
     level: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      paddingHorizontal: 10,
-      paddingVertical: 9,
+      justifyContent: "center",
+      minHeight: 40,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
     },
-    levelSelected: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+    levelSelected: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
     levelText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
-    levelTextSelected: { color: theme.colors.canvas },
+    levelTextSelected: { color: "#FFFFFF" },
     generateButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
-      marginTop: 5,
-      padding: 14,
+      minHeight: 48,
+      marginTop: theme.spacing.xs,
+      padding: theme.spacing.md,
     },
-    generateText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
+    generateText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
     processing: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
-      gap: 10,
-      padding: 16,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.lg,
     },
     processingText: { color: theme.colors.mutedText, flex: 1, fontSize: 13, lineHeight: 18 },
     preview: {
       backgroundColor: theme.colors.surface,
       borderColor: theme.colors.success,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 12,
-      padding: 17,
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
     },
     previewHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
     cardKicker: { color: theme.colors.success, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
     previewTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "600", marginTop: 3 },
     previewDescription: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 19 },
     previewContent: { color: theme.colors.text, fontSize: 14, lineHeight: 21 },
-    sentenceList: { gap: 7 },
+    sentenceList: { gap: theme.spacing.sm },
     sentence: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 9,
-      padding: 10,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
     },
-    sentenceIndex: { color: theme.colors.accent, fontSize: 12, fontWeight: "700", width: 15 },
+    sentenceIndex: { color: theme.colors.primary, fontSize: 12, fontWeight: "700", width: 16 },
     sentenceText: { flex: 1 },
     sentenceEnglish: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
     sentenceTranslation: { color: theme.colors.mutedText, fontSize: 12, marginTop: 3 },
     saveButton: {
       alignItems: "center",
       backgroundColor: theme.colors.success,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
-      padding: 13,
+      minHeight: 48,
+      padding: theme.spacing.md,
     },
-    saveText: { color: theme.colors.canvas, fontSize: 13, fontWeight: "600" },
+    saveText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
     errorCard: {
       backgroundColor: theme.colors.warningSurface,
-      borderRadius: 10,
-      gap: 6,
-      padding: 15,
+      borderRadius: theme.radius.md,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.md,
     },
     errorTitle: { color: theme.colors.warningText, fontSize: 15, fontWeight: "600" },
     errorText: { color: theme.colors.error, fontSize: 13, lineHeight: 19 },

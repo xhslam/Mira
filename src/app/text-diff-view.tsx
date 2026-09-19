@@ -64,8 +64,8 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     list: { flex: 1, backgroundColor: theme.colors.canvas },
     row: { minHeight: 28, flexDirection: "row", paddingHorizontal: 10, paddingVertical: 4 },
-    added: { backgroundColor: theme.mode === "dark" ? "#132D4A" : "#E8F3FF" },
-    removed: { backgroundColor: theme.mode === "dark" ? "#442421" : "#FDECEA" },
+    added: { backgroundColor: theme.colors.successSoft },
+    removed: { backgroundColor: theme.colors.dangerSoft },
     marker: { width: 20, color: theme.colors.mutedText, fontFamily: "monospace" },
     line: { flex: 1, color: theme.colors.text, fontFamily: "monospace", fontSize: 12 },
     empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },

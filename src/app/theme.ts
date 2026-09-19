@@ -157,11 +157,23 @@ export type ThemeSpacing = Readonly<{
   2: number;
   3: number;
   4: number;
+  5: number;
   6: number;
   8: number;
   12: number;
   16: number;
   24: number;
+  xs: number;
+  sm: number;
+  md: number;
+  lg: number;
+  xl: number;
+  "2xl": number;
+  "3xl": number;
+  "4xl": number;
+  xxl: number;
+  xxxl: number;
+  xxxxl: number;
 }>;
 
 export type ThemeRadius = Readonly<{
@@ -169,6 +181,16 @@ export type ThemeRadius = Readonly<{
   medium: number;
   large: number;
   pill: number;
+  none: number;
+  xs: number;
+  sm: number;
+  md: number;
+  lg: number;
+  xl: number;
+  "2xl": number;
+  full: number;
+  card: number;
+  modal: number;
 }>;
 
 export type ThemeFontSizes = Readonly<{
@@ -214,6 +236,13 @@ export type ThemeShadows = Readonly<{
   xl: ShadowToken;
 }>;
 
+export type ThemeElevation = Readonly<{
+  card: ShadowToken;
+  dialog: ShadowToken;
+  popover: ShadowToken;
+  modal: ShadowToken;
+}>;
+
 export type Theme = Readonly<{
   mode: ThemeMode;
   colors: ThemeColors;
@@ -222,6 +251,7 @@ export type Theme = Readonly<{
   fontSizes: ThemeFontSizes;
   typography: ThemeTypography;
   shadows: ThemeShadows;
+  elevation: ThemeElevation;
 }>;
 
 const LIGHT_COLORS: ThemeColors = Object.freeze({
@@ -414,6 +444,7 @@ const TYPOGRAPHY: ThemeTypography = Object.freeze({
 
 function buildTheme(mode: ThemeMode): Theme {
   const isDark = mode === "dark";
+  const shadows = isDark ? DARK_SHADOWS : LIGHT_SHADOWS;
   return Object.freeze({
     mode,
     colors: isDark ? DARK_COLORS : LIGHT_COLORS,
@@ -431,21 +462,49 @@ function buildTheme(mode: ThemeMode): Theme {
       2: 8,
       3: 12,
       4: 16,
+      5: 20,
       6: 24,
       8: 32,
       12: 48,
       16: 64,
       24: 96,
+      xs: 4,
+      sm: 8,
+      md: 16,
+      lg: 24,
+      xl: 32,
+      "2xl": 48,
+      "3xl": 64,
+      "4xl": 96,
+      xxl: 48,
+      xxxl: 64,
+      xxxxl: 96,
     }),
     radius: Object.freeze({
       small: 6, // rounded-md
       medium: 10, // rounded-lg / rounded-xl
       large: 16, // rounded-2xl
       pill: 9999, // rounded-full
+      none: 0,
+      xs: 2,
+      sm: 4,
+      md: 8,
+      lg: 12,
+      xl: 16,
+      "2xl": 24,
+      full: 9999,
+      card: 12,
+      modal: 16,
     }),
     fontSizes: TYPOGRAPHY.sizes,
     typography: TYPOGRAPHY,
-    shadows: isDark ? DARK_SHADOWS : LIGHT_SHADOWS,
+    shadows,
+    elevation: Object.freeze({
+      card: shadows.sm,
+      dialog: shadows.md,
+      popover: shadows.lg,
+      modal: shadows.xl,
+    }),
   });
 }
 

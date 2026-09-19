@@ -109,7 +109,7 @@ export function LearningHomeScreen(props: HomeProps) {
               style={styles.libraryAction}
             >
               <Text style={styles.libraryActionText}>查看全部</Text>
-              <ChevronRight color={theme.colors.accent} size={17} />
+              <ChevronRight color={theme.colors.primary} size={17} />
             </Pressable>
           </View>
           <View style={styles.list}>
@@ -130,6 +130,9 @@ export function LearningHomeScreen(props: HomeProps) {
 
       {!currentResource ? (
         <View style={styles.empty}>
+          <View style={styles.emptyIconContainer}>
+            <FolderOpen color={theme.colors.primary} size={28} />
+          </View>
           <Text style={styles.emptyTitle}>资料库还是空的</Text>
           <Text style={styles.emptyDescription}>导入后，你可以逐句阅读、查词、跟读和复习。</Text>
           <Pressable accessibilityRole="button" onPress={onOpenImport} style={styles.emptyAction}>
@@ -204,7 +207,7 @@ function ProgressRing({ percent, theme }: Readonly<{ percent: number; theme: The
           origin={`${size / 2}, ${size / 2}`}
           r={radius}
           rotation={-90}
-          stroke={theme.colors.accent}
+          stroke={theme.colors.primary}
           strokeDasharray={[circumference, circumference]}
           strokeDashoffset={circumference * (1 - percent / 100)}
           strokeLinecap="round"
@@ -294,7 +297,7 @@ export function LearningImportSheet(props: ImportSheetProps) {
               style={styles.option}
             >
               <View style={styles.optionIcon}>
-                <Sparkles color={theme.colors.accent} size={19} />
+                <Sparkles color={theme.colors.primary} size={19} />
               </View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>创建学习材料</Text>
@@ -522,6 +525,15 @@ function createStyles(theme: Theme) {
       gap: theme.spacing[2],
       paddingVertical: 24,
     },
+    emptyIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
     emptyTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "600" },
     emptyDescription: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20 },
     emptyAction: {
@@ -531,7 +543,7 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.medium,
       justifyContent: "center",
       marginTop: 8,
-      minHeight: 42,
+      minHeight: 44,
       paddingHorizontal: theme.spacing[4],
       ...theme.shadows.sm,
     },
@@ -566,8 +578,8 @@ function createStyles(theme: Theme) {
     sheetCopy: { flex: 1, gap: 4 },
     sheetTitle: { color: theme.colors.text, fontSize: 21, fontWeight: "600", letterSpacing: -0.3 },
     sheetDescription: { color: theme.colors.mutedText, fontSize: 13 },
-    doneButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 2 },
-    doneText: { color: theme.colors.accent, fontSize: 14, fontWeight: "500" },
+    doneButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 2 },
+    doneText: { color: theme.colors.primary, fontSize: 14, fontWeight: "600" },
     optionsScroll: { flexShrink: 1 },
     options: { paddingBottom: 4 },
     option: {

@@ -556,7 +556,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
       </View>
       {!filteredResources.length ? (
         <View style={styles.empty}>
-          <Upload color={theme.colors.mutedText} size={24} />
+          <View style={styles.emptyIconContainer}>
+            <Upload color={theme.colors.primary} size={24} />
+          </View>
           <Text style={styles.emptyTitle}>
             {snapshot.resources.length ? "没有这一类资料" : "还没有资料"}
           </Text>
@@ -601,7 +603,7 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                     </Text>
                   </View>
                   {resourceExpanded ? (
-                    <ChevronDown color={theme.colors.accent} size={18} />
+                    <ChevronDown color={theme.colors.primary} size={18} />
                   ) : (
                     <ChevronRight color={theme.colors.mutedText} size={18} />
                   )}
@@ -831,6 +833,15 @@ function createStyles(theme: Theme) {
       padding: theme.spacing[6],
       ...theme.shadows.sm,
     },
+    emptyIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
     emptyTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     resourceList: {
       backgroundColor: theme.colors.surface,
@@ -853,14 +864,14 @@ function createStyles(theme: Theme) {
       paddingVertical: 10,
     },
     resourceSelected: {
-      backgroundColor: theme.colors.accentSoft,
+      backgroundColor: theme.colors.primarySoft,
     },
     resourceArtwork: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: theme.radius.medium,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: "rgba(15, 23, 42, 0.08)",
+      borderColor: theme.colors.borderSubtle,
       height: 52,
       justifyContent: "center",
       width: 64,

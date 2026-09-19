@@ -334,7 +334,7 @@ export function WorkspaceDrawer(props: WorkspaceDrawerProps) {
               >
                 {props.browserLoading ? (
                   <View style={styles.loadingRow}>
-                    <ActivityIndicator color={theme.colors.accent} size="small" />
+                    <ActivityIndicator color={theme.colors.primary} size="small" />
                     <Text style={styles.meta}>{t("drawer.reading")}</Text>
                   </View>
                 ) : query.trim().length > 0 ? (
@@ -614,7 +614,7 @@ function DrawerViewButton({
         pressed && styles.pressed,
       ]}
     >
-      <Icon color={active ? theme.colors.accent : theme.colors.mutedText} size={17} />
+      <Icon color={active ? theme.colors.primary : theme.colors.mutedText} size={17} />
       <Text style={[styles.viewText, active && styles.activeViewText]}>{label}</Text>
     </Pressable>
   );

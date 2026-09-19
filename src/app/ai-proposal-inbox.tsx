@@ -78,7 +78,7 @@ export function AiProposalInbox(
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    screen: { flex: 1, padding: 16, backgroundColor: theme.colors.background },
+    screen: { flex: 1, padding: theme.spacing.md, backgroundColor: theme.colors.background },
     header: {
       minHeight: 66,
       flexDirection: "row",
@@ -88,11 +88,11 @@ function createStyles(theme: Theme) {
     title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     subtitle: { marginTop: 3, color: theme.colors.mutedText, fontSize: 11 },
     icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-    content: { gap: 18, paddingBottom: 32 },
+    content: { gap: theme.spacing.md, paddingBottom: theme.spacing["3xl"] },
     group: { gap: 5 },
     groupLabel: {
       marginBottom: 3,
-      color: theme.colors.mutedText,
+      color: theme.colors.primary,
       fontSize: 10,
       fontWeight: "700",
       letterSpacing: 0.8,
@@ -103,8 +103,11 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 10,
       paddingHorizontal: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.surface,
+      ...theme.shadows.sm,
     },
     rowCopy: { minWidth: 0, flex: 1 },
     path: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },

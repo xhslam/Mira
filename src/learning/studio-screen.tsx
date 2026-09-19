@@ -213,7 +213,7 @@ export function StudioScreen({ snapshot, onChange, services, theme }: Props) {
             onPress={saveManualTranslation}
             style={styles.primary}
           >
-            <Languages color={theme.colors.canvas} size={17} />
+            <Languages color="#FFFFFF" size={17} />
             <Text style={styles.primaryText}>Save</Text>
           </Pressable>
         </View>
@@ -264,7 +264,7 @@ export function StudioScreen({ snapshot, onChange, services, theme }: Props) {
           onPress={() => void sharePoster()}
           style={styles.primary}
         >
-          <ImageDown color={theme.colors.canvas} size={17} />
+          <ImageDown color="#FFFFFF" size={17} />
           <Text style={styles.primaryText}>Create & share</Text>
         </Pressable>
       </View>
@@ -273,62 +273,72 @@ export function StudioScreen({ snapshot, onChange, services, theme }: Props) {
 }
 function styleFor(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 16, padding: 20, paddingBottom: 40 },
+    content: {
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
+    },
     hero: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 7,
-      padding: 20,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.lg,
     },
-    kicker: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", letterSpacing: 1.1 },
+    kicker: { color: theme.colors.primary, fontSize: 11, fontWeight: "600", letterSpacing: 1.1 },
     title: { color: theme.colors.text, fontSize: 25, fontWeight: "600" },
     copy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20 },
-    notice: { backgroundColor: theme.colors.warningSurface, borderRadius: 10, padding: 12 },
+    notice: {
+      backgroundColor: theme.colors.warningSurface,
+      borderRadius: theme.radius.md,
+      padding: theme.spacing.md,
+    },
     noticeText: { color: theme.colors.warningText, fontSize: 13, lineHeight: 19 },
     card: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 10,
-      padding: 16,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.lg,
     },
     cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
     source: { color: theme.colors.text, fontSize: 17, fontWeight: "700", lineHeight: 24 },
     input: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       color: theme.colors.text,
       fontSize: 14,
       minHeight: 48,
-      padding: 11,
+      padding: theme.spacing.md,
       textAlignVertical: "top",
     },
-    row: { flexDirection: "row", gap: 9 },
+    row: { flexDirection: "row", gap: theme.spacing.sm },
     primary: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       flex: 1,
       flexDirection: "row",
-      gap: 7,
+      gap: theme.spacing.sm,
       justifyContent: "center",
-      padding: 12,
+      minHeight: 48,
+      padding: theme.spacing.md,
     },
-    primaryText: { color: theme.colors.canvas, fontSize: 13, fontWeight: "600" },
+    primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
     secondary: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flex: 1,
       flexDirection: "row",
-      gap: 7,
+      gap: theme.spacing.sm,
       justifyContent: "center",
-      padding: 12,
+      minHeight: 48,
+      padding: theme.spacing.md,
     },
     secondaryText: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
   });

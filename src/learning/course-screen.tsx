@@ -101,7 +101,9 @@ export function CourseScreen({
   if (!selected)
     return (
       <View style={styles.empty}>
-        <BookOpen color={theme.colors.mutedText} size={30} />
+        <View style={styles.emptyIconContainer}>
+          <BookOpen color={theme.colors.mutedText} size={28} />
+        </View>
         <Text style={styles.emptyTitle}>No courses yet</Text>
         <Text style={styles.emptyCopy}>
           Generated or imported learning resources can become lessons here.
@@ -210,7 +212,7 @@ export function CourseScreen({
                 onPress={() => openLesson(selected, lesson)}
                 style={({ pressed }) => [styles.openButton, pressed && styles.pressed]}
               >
-                <PlayCircle color={theme.colors.accent} size={17} />
+                <PlayCircle color={theme.colors.primary} size={17} />
                 <Text style={styles.openText}>{isCompleted ? "Review" : "Open"}</Text>
               </Pressable>
             ) : null}
@@ -262,79 +264,88 @@ function upsertProgress(
 }
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 14, padding: 20, paddingBottom: 36 },
+    content: {
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
+    },
     hero: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 6,
-      padding: 20,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.lg,
     },
-    kicker: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
+    kicker: { color: theme.colors.primary, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
     title: { color: theme.colors.text, fontSize: 24, fontWeight: "600" },
     copy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20 },
-    sectionTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "600", marginTop: 5 },
+    sectionTitle: {
+      color: theme.colors.text,
+      fontSize: 18,
+      fontWeight: "600",
+      marginTop: theme.spacing.xs,
+    },
     courseCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
-      gap: 12,
-      padding: 12,
+      gap: theme.spacing.md,
+      padding: theme.spacing.md,
     },
     courseCardSelected: {
-      borderColor: theme.colors.accent,
-      backgroundColor: theme.colors.accentSoft,
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primarySoft,
     },
     cover: {
       alignItems: "center",
-      borderRadius: 10,
-      height: 58,
+      borderRadius: theme.radius.md,
+      height: 56,
       justifyContent: "center",
-      width: 58,
+      width: 56,
     },
-    courseText: { flex: 1, gap: 3 },
+    courseText: { flex: 1, gap: theme.spacing.xs },
     courseName: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     courseDescription: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
-    courseMeta: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", marginTop: 2 },
+    courseMeta: { color: theme.colors.primary, fontSize: 11, fontWeight: "600", marginTop: 2 },
     detailCard: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 8,
-      padding: 18,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.lg,
     },
-    cardKicker: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
+    cardKicker: { color: theme.colors.primary, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
     detailTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "600" },
     detailCopy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 19 },
     progressTrack: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      height: 7,
-      marginTop: 5,
+      borderRadius: theme.radius.full,
+      height: 8,
+      marginTop: theme.spacing.xs,
       overflow: "hidden",
     },
-    progressFill: { backgroundColor: theme.colors.accent, height: "100%" },
+    progressFill: { backgroundColor: theme.colors.primary, height: "100%" },
     progressText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "700" },
     lessonRow: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
-      gap: 10,
-      padding: 12,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
     },
-    lessonRowActive: { borderColor: theme.colors.accent },
+    lessonRowActive: { borderColor: theme.colors.primary },
     lessonIndex: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.sm,
       height: 28,
       justifyContent: "center",
       width: 28,
@@ -346,22 +357,36 @@ function createStyles(theme: Theme) {
     lessonState: { color: theme.colors.mutedText, fontSize: 11, lineHeight: 16, marginTop: 2 },
     openButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.sm,
       flexDirection: "row",
-      gap: 4,
-      paddingHorizontal: 9,
-      paddingVertical: 8,
+      gap: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
     },
-    openText: { color: theme.colors.accent, fontSize: 12, fontWeight: "600" },
+    openText: { color: theme.colors.primary, fontSize: 12, fontWeight: "600" },
     completeButton: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
-      paddingHorizontal: 9,
-      paddingVertical: 8,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.sm,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
     },
-    completeText: { color: theme.colors.canvas, fontSize: 11, fontWeight: "600" },
-    empty: { alignItems: "center", gap: 10, padding: 36 },
+    completeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600" },
+    empty: {
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.sm,
+      padding: theme.spacing.xxxl,
+    },
+    emptyIconContainer: {
+      alignItems: "center",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radius.full,
+      height: 56,
+      justifyContent: "center",
+      width: 56,
+      marginBottom: theme.spacing.xs,
+    },
     emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "600" },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20, textAlign: "center" },
     pressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },

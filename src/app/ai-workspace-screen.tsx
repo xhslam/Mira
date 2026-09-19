@@ -549,7 +549,7 @@ export function AiWorkspaceScreen({
               </>
             ) : (
               <>
-                <ActivityIndicator color={theme.colors.accent} />
+                <ActivityIndicator color={theme.colors.primary} />
                 <Text style={styles.loadingModeText}>正在准备 Learning 数据</Text>
               </>
             )}
@@ -607,7 +607,7 @@ export function AiWorkspaceScreen({
       <View style={styles.header}>
         <View style={styles.identity}>
           <View style={styles.spark}>
-            <Bot color={theme.colors.accent} size={19} />
+            <Bot color={theme.colors.primary} size={19} />
           </View>
           <View>
             <Text accessibilityRole="header" style={styles.title}>
@@ -704,7 +704,7 @@ export function AiWorkspaceScreen({
             onPress={() => setContextSheetVisible(true)}
             style={styles.addContext}
           >
-            <Plus color={theme.colors.accent} size={16} />
+            <Plus color={theme.colors.primary} size={16} />
             <Text style={styles.addContextText}>Add</Text>
           </Pressable>
           {canSearch ? (
@@ -715,10 +715,7 @@ export function AiWorkspaceScreen({
               onPress={() => setWebSearch((current) => !current)}
               style={[styles.webToggle, webSearchEnabled && styles.webToggleActive]}
             >
-              <Globe2
-                color={webSearchEnabled ? theme.colors.accent : theme.colors.mutedText}
-                size={15}
-              />
+              <Globe2 color={webSearchEnabled ? "#FFFFFF" : theme.colors.mutedText} size={15} />
               <Text style={[styles.webToggleText, webSearchEnabled && styles.webToggleTextActive]}>
                 Web
               </Text>
@@ -730,7 +727,7 @@ export function AiWorkspaceScreen({
       {activeProfile === null ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Bot color={theme.colors.accent} size={28} />
+            <Bot color={theme.colors.primary} size={28} />
           </View>
           <Text style={styles.emptyTitle}>Connect your model</Text>
           <Pressable onPress={() => setProviderSheetVisible(true)} style={styles.primaryButton}>
@@ -847,7 +844,7 @@ export function AiWorkspaceScreen({
           </View>
         </View>
       ) : null}
-      {sending ? <ActivityIndicator color={theme.colors.accent} style={styles.activity} /> : null}
+      {sending ? <ActivityIndicator color={theme.colors.primary} style={styles.activity} /> : null}
 
       <AiProviderSheet
         connectionTester={services.aiConnectionTester}
@@ -996,7 +993,7 @@ function createStyles(theme: Theme) {
     bulletMark: { color: theme.colors.primary, fontSize: 15, lineHeight: 21 },
     providerStatus: { marginTop: 2, color: theme.colors.mutedText, fontSize: 11 },
     headerActions: { flexDirection: "row", alignItems: "center", gap: 2 },
-    iconAction: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+    iconAction: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     badge: {
       position: "absolute",
       top: 8,
@@ -1147,10 +1144,10 @@ function createStyles(theme: Theme) {
       textAlignVertical: "top",
     },
     composerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    composerAdd: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+    composerAdd: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     sendButton: {
-      width: 38,
-      height: 38,
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.pill,

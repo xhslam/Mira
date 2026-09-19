@@ -283,7 +283,7 @@ export function ChatScreen({
           onPress={createPartner}
           style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
         >
-          <Plus color={theme.colors.canvas} size={16} />
+          <Plus color="#FFFFFF" size={16} />
           <Text style={styles.addText}>Add</Text>
         </Pressable>
       </View>
@@ -304,7 +304,7 @@ export function ChatScreen({
             ]}
           >
             <View style={styles.partnerAvatar}>
-              <UserRound color={theme.colors.accent} size={22} />
+              <UserRound color={theme.colors.primary} size={22} />
             </View>
             <Text numberOfLines={1} style={styles.partnerName}>
               {item.name}
@@ -330,7 +330,9 @@ export function ChatScreen({
       </View>
       {!conversation ? (
         <View style={styles.empty}>
-          <MessageCircle color={theme.colors.mutedText} size={30} />
+          <View style={styles.emptyIconContainer}>
+            <MessageCircle color={theme.colors.mutedText} size={28} />
+          </View>
           <Text style={styles.emptyTitle}>Choose a partner to begin</Text>
           <Text style={styles.emptyCopy}>
             A session starts with the partner’s opening message and is saved locally before the
@@ -376,11 +378,7 @@ export function ChatScreen({
                 pressed && styles.pressed,
               ]}
             >
-              {busy ? (
-                <ActivityIndicator color={theme.colors.canvas} />
-              ) : (
-                <Send color={theme.colors.canvas} size={18} />
-              )}
+              {busy ? <ActivityIndicator color="#FFFFFF" /> : <Send color="#FFFFFF" size={18} />}
             </Pressable>
           </View>
         </View>
@@ -438,7 +436,7 @@ export function ChatScreen({
               onPress={() => setEditingPartnerId(null)}
               style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}
             >
-              <Save color={theme.colors.canvas} size={16} />
+              <Save color="#FFFFFF" size={16} />
               <Text style={styles.addText}>Done</Text>
             </Pressable>
             <Pressable
@@ -446,7 +444,7 @@ export function ChatScreen({
               onPress={removePartner}
               style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
             >
-              <Trash2 color={theme.colors.danger} size={17} />
+              <Trash2 color={theme.colors.error} size={17} />
               <Text style={styles.deleteText}>Delete</Text>
             </Pressable>
           </View>
@@ -481,9 +479,9 @@ function LabelInput({
       <TextInput
         multiline={multiline}
         onChangeText={onChangeText}
+        placeholderTextColor={theme.colors.mutedText}
         style={[styles.input, multiline && styles.textarea]}
         value={value}
-        placeholderTextColor={theme.colors.mutedText}
       />
     </View>
   );
@@ -502,159 +500,183 @@ function replaceConversation(
 }
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 16, padding: 20, paddingBottom: 36 },
+    content: {
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxxl,
+    },
     hero: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 6,
-      padding: 20,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.lg,
     },
-    kicker: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
+    kicker: { color: theme.colors.primary, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
     title: { color: theme.colors.text, fontSize: 24, fontWeight: "600" },
     copy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20 },
     headingRow: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      marginTop: 4,
+      marginTop: theme.spacing.xs,
     },
     sectionTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "600" },
     addButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
       gap: 4,
-      paddingHorizontal: 11,
-      paddingVertical: 8,
+      minHeight: 36,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
     },
-    addText: { color: theme.colors.canvas, fontSize: 12, fontWeight: "600" },
-    partnerList: { gap: 10 },
+    addText: { color: "#FFFFFF", fontSize: 12, fontWeight: "600" },
+    partnerList: { gap: theme.spacing.sm },
     partnerCard: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 6,
-      padding: 14,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.md,
       width: 150,
     },
-    partnerSelected: { backgroundColor: theme.colors.accentSoft, borderColor: theme.colors.accent },
+    partnerSelected: {
+      backgroundColor: theme.colors.primarySoft,
+      borderColor: theme.colors.primary,
+    },
     partnerAvatar: {
       alignItems: "center",
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 10,
-      height: 34,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.md,
+      height: 36,
       justifyContent: "center",
-      width: 34,
+      width: 36,
     },
     partnerName: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
     partnerDetail: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 16, minHeight: 32 },
-    partnerAction: { color: theme.colors.accent, fontSize: 12, fontWeight: "600", marginTop: 2 },
-    textButton: { padding: 6 },
-    textButtonText: { color: theme.colors.accent, fontSize: 13, fontWeight: "600" },
+    partnerAction: { color: theme.colors.primary, fontSize: 12, fontWeight: "600", marginTop: 2 },
+    textButton: { padding: theme.spacing.xs },
+    textButtonText: { color: theme.colors.primary, fontSize: 13, fontWeight: "600" },
     empty: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 9,
-      padding: 26,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.xl,
+    },
+    emptyIconContainer: {
+      alignItems: "center",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radius.full,
+      height: 56,
+      justifyContent: "center",
+      width: 56,
+      marginBottom: theme.spacing.xs,
     },
     emptyTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "600" },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 19, textAlign: "center" },
     chatCard: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 10,
-      padding: 13,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
     },
     objective: {
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 10,
-      color: theme.colors.accent,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.md,
+      color: theme.colors.primary,
       fontSize: 12,
       fontWeight: "700",
-      padding: 10,
+      padding: theme.spacing.sm,
     },
-    bubble: { borderRadius: 10, gap: 4, maxWidth: "88%", padding: 11 },
+    bubble: {
+      borderRadius: theme.radius.md,
+      gap: theme.spacing.xs,
+      maxWidth: "88%",
+      padding: theme.spacing.md,
+    },
     assistantBubble: { alignSelf: "flex-start", backgroundColor: theme.colors.surfaceMuted },
-    userBubble: { alignSelf: "flex-end", backgroundColor: theme.colors.accent },
-    bubbleRole: { color: theme.colors.accent, fontSize: 11, fontWeight: "600" },
+    userBubble: { alignSelf: "flex-end", backgroundColor: theme.colors.primary },
+    bubbleRole: { color: theme.colors.primary, fontSize: 11, fontWeight: "600" },
     bubbleText: { color: theme.colors.text, fontSize: 14, lineHeight: 20 },
-    userBubbleText: { color: theme.colors.canvas },
+    userBubbleText: { color: "#FFFFFF" },
     composer: {
       alignItems: "flex-end",
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
-      gap: 8,
-      padding: 8,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.sm,
     },
     composerInput: {
       color: theme.colors.text,
       flex: 1,
       fontSize: 14,
       maxHeight: 112,
-      minHeight: 42,
-      paddingHorizontal: 6,
-      paddingVertical: 8,
+      minHeight: 44,
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: theme.spacing.xs,
     },
     sendButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
-      height: 42,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
+      height: 44,
       justifyContent: "center",
-      width: 42,
+      width: 44,
     },
     editor: {
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
-      gap: 12,
-      padding: 16,
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
     },
     inputWrap: { gap: 5 },
     label: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
     input: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       color: theme.colors.text,
       fontSize: 14,
-      paddingHorizontal: 11,
-      paddingVertical: 9,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
     textarea: { minHeight: 78, textAlignVertical: "top" },
-    editorActions: { flexDirection: "row", gap: 10, justifyContent: "space-between" },
+    editorActions: { flexDirection: "row", gap: theme.spacing.sm, justifyContent: "space-between" },
     saveButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
       gap: 6,
-      paddingHorizontal: 13,
-      paddingVertical: 10,
+      minHeight: 44,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
     deleteButton: {
       alignItems: "center",
-      borderColor: theme.colors.danger,
-      borderRadius: 10,
+      borderColor: theme.colors.error,
+      borderRadius: theme.radius.md,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
       gap: 6,
-      paddingHorizontal: 13,
-      paddingVertical: 10,
+      minHeight: 44,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
-    deleteText: { color: theme.colors.danger, fontSize: 12, fontWeight: "600" },
+    deleteText: { color: theme.colors.error, fontSize: 12, fontWeight: "600" },
     error: { color: theme.colors.error, fontSize: 13, fontWeight: "700", lineHeight: 18 },
     disabled: { opacity: 0.42 },
     pressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },

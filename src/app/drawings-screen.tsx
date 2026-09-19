@@ -177,7 +177,7 @@ export function DrawingsScreen({
       >
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t("drawings.recent")}</Text>
-          {busy ? <ActivityIndicator color={theme.colors.accent} size="small" /> : null}
+          {busy ? <ActivityIndicator color={theme.colors.primary} size="small" /> : null}
         </View>
         {error ? (
           <Text accessibilityRole="alert" style={styles.error}>
@@ -230,7 +230,7 @@ export function DrawingsScreen({
           />
           <View style={styles.modalCard}>
             <View style={styles.modalIcon}>
-              <Shapes color={theme.colors.accent} size={23} />
+              <Shapes color={theme.colors.primary} size={23} />
             </View>
             <Text style={styles.modalTitle}>{t("drawings.createTitle")}</Text>
             <Text style={styles.modalBody}>{t("drawings.createBody")}</Text>
@@ -405,7 +405,7 @@ function createStyles(theme: Theme, width: number) {
       overflow: "hidden",
       backgroundColor: theme.colors.surfaceMuted,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "rgba(15, 23, 42, 0.08)",
+      borderBottomColor: theme.colors.borderSubtle,
     },
     previewStamp: { position: "absolute", left: 15, top: 15, width: 7, height: 7, borderRadius: 4 },
     previewRect: {
@@ -443,14 +443,14 @@ function createStyles(theme: Theme, width: number) {
       fontWeight: "700",
       opacity: 0.08,
     },
-    cardBody: { gap: 6, padding: 13 },
+    cardBody: { gap: theme.spacing[2], padding: theme.spacing[3] },
     cardTitle: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
     cardMetaRow: { flexDirection: "row", alignItems: "center", gap: 5 },
     cardMeta: { color: theme.colors.mutedText, fontSize: 9, fontWeight: "700", letterSpacing: 0.5 },
     cardDate: { color: theme.colors.mutedText, fontSize: 11 },
     emptyCard: {
       alignItems: "center",
-      gap: 8,
+      gap: theme.spacing[2],
       padding: theme.spacing[8],
       borderRadius: theme.radius.large,
       borderWidth: StyleSheet.hairlineWidth,
@@ -463,7 +463,7 @@ function createStyles(theme: Theme, width: number) {
       width: 150,
       height: 92,
       position: "relative",
-      marginBottom: 8,
+      marginBottom: theme.spacing[2],
       borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
@@ -506,11 +506,12 @@ function createStyles(theme: Theme, width: number) {
       textAlign: "center",
     },
     emptyCtaButton: {
+      minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: theme.spacing[2],
       paddingHorizontal: theme.spacing[4],
-      paddingVertical: 9,
+      paddingVertical: theme.spacing[2],
       borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.primary,
       marginTop: theme.spacing[2],
@@ -527,14 +528,14 @@ function createStyles(theme: Theme, width: number) {
       elevation: 20,
       alignItems: "center",
       justifyContent: "center",
-      padding: 22,
+      padding: theme.spacing[6],
       backgroundColor: theme.colors.overlay,
     },
     modalCard: {
       width: "100%",
       maxWidth: 440,
-      gap: 12,
-      padding: 24,
+      gap: theme.spacing[3],
+      padding: theme.spacing[6],
       borderRadius: theme.radius.large,
       backgroundColor: theme.colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
@@ -547,14 +548,15 @@ function createStyles(theme: Theme, width: number) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accentSoft,
+      backgroundColor: theme.colors.primarySoft,
     },
     modalTitle: { color: theme.colors.text, fontSize: 21, fontWeight: "600" },
     modalBody: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 19 },
     input: {
-      marginTop: 4,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+      minHeight: 44,
+      marginTop: theme.spacing[1],
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing[2],
       borderRadius: theme.radius.medium,
       borderWidth: 1.5,
       borderColor: theme.colors.borderDefault,
@@ -563,19 +565,31 @@ function createStyles(theme: Theme, width: number) {
       fontSize: 15,
     },
     modalError: { color: theme.colors.error, fontSize: 12 },
-    modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 4 },
-    cancelButton: { paddingHorizontal: 15, paddingVertical: 11 },
+    modalActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: theme.spacing[3],
+      marginTop: theme.spacing[1],
+    },
+    cancelButton: {
+      minHeight: 44,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: theme.spacing[4],
+      borderRadius: theme.radius.medium,
+    },
     cancelText: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "700" },
     createButton: {
       minWidth: 112,
+      minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 6,
-      paddingHorizontal: 16,
-      paddingVertical: 11,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      gap: theme.spacing[2],
+      paddingHorizontal: theme.spacing[4],
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.sm,
     },
     createText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   });

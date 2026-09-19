@@ -146,7 +146,7 @@ function ResourceResult({
       style={({ pressed }) => [styles.result, pressed && styles.pressed]}
     >
       <View style={styles.resultIcon}>
-        <Icon color={theme.colors.accent} size={19} />
+        <Icon color={theme.colors.primary} size={19} />
       </View>
       <View style={styles.resultCopy}>
         <Text numberOfLines={1} style={styles.resourceTitle}>
@@ -173,7 +173,7 @@ function createStyles(theme: Theme) {
       paddingTop: 10,
     },
     eyebrow: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 10,
       fontWeight: "600",
       letterSpacing: 1.1,
@@ -188,15 +188,19 @@ function createStyles(theme: Theme) {
     closeButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      height: 40,
+      borderRadius: theme.radius.full,
+      height: 44,
       justifyContent: "center",
-      width: 40,
+      minHeight: 44,
+      minWidth: 44,
+      width: 44,
     },
     searchLane: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
       flexDirection: "row",
       gap: 10,
       marginHorizontal: 20,
@@ -225,7 +229,7 @@ function createStyles(theme: Theme) {
     results: { paddingBottom: 32, paddingHorizontal: 20 },
     result: {
       alignItems: "center",
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
       gap: 12,
@@ -235,7 +239,7 @@ function createStyles(theme: Theme) {
     resultIcon: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 18,
+      borderRadius: theme.radius.full,
       height: 42,
       justifyContent: "center",
       width: 42,

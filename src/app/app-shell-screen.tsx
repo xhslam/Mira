@@ -562,7 +562,7 @@ function WorkspaceCheckScreen() {
     <View style={styles.centeredScreen}>
       <ActivityIndicator
         accessibilityLabel={t("startup.checkingLabel")}
-        color={theme.colors.accent}
+        color={theme.colors.primary}
         size="large"
       />
       <Text style={styles.supportingText}>{t("startup.checkingAccess")}</Text>
@@ -707,8 +707,8 @@ function createStyles(theme: Theme) {
       height: 64,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
-      backgroundColor: theme.colors.accentSoft,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primarySoft,
     },
     guideTitle: {
       color: theme.colors.text,
@@ -762,7 +762,7 @@ function createStyles(theme: Theme) {
       lineHeight: 18,
     },
     workspaceCapability: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 12,
       fontWeight: "600",
       lineHeight: 17,
@@ -775,7 +775,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       paddingHorizontal: theme.spacing[6],
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.primary,
       ...theme.shadows.sm,
     },
     primaryButtonPressed: {
@@ -826,8 +826,8 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: theme.radius.pill,
-      color: theme.colors.accent,
-      backgroundColor: theme.colors.accentSoft,
+      color: theme.colors.primary,
+      backgroundColor: theme.colors.primarySoft,
       fontSize: 12,
       fontWeight: "700",
     },
@@ -876,7 +876,7 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 4,
       borderRadius: theme.radius.medium,
     },
-    selectedTab: { backgroundColor: theme.colors.accentSoft },
+    selectedTab: { backgroundColor: theme.colors.primarySoft },
     tabPressed: {
       opacity: 0.78,
     },
@@ -886,7 +886,7 @@ function createStyles(theme: Theme) {
       fontWeight: "500",
     },
     selectedTabLabel: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontWeight: "700",
     },
   });

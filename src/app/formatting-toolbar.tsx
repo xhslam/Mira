@@ -109,7 +109,7 @@ export function FormattingToolbar({
         onPress={onAi}
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
-        <Sparkles color={theme.colors.accent} size={20} />
+        <Sparkles color={theme.colors.primary} size={20} />
       </Pressable>
       {tools.map((tool) => {
         const ToolIcon = tool.icon;
@@ -142,19 +142,19 @@ function createStyles(theme: Theme) {
     toolbar: {
       flexGrow: 0,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.divider,
+      borderTopColor: theme.colors.borderSubtle,
       backgroundColor: theme.colors.background,
     },
     content: {
       alignItems: "center",
-      paddingHorizontal: 4,
+      paddingHorizontal: theme.spacing[1],
     },
     button: {
-      width: 46,
-      height: 46,
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
     pressed: {
       backgroundColor: theme.colors.surfaceMuted,

@@ -369,7 +369,7 @@ export function ActionButton({
       onPress={onPress}
       style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
     >
-      <Icon color={danger ? theme.colors.error : theme.colors.accent} size={18} />
+      <Icon color={danger ? theme.colors.error : theme.colors.primary} size={18} />
       <Text numberOfLines={1} style={[styles.actionLabel, danger && styles.dangerText]}>
         {label}
       </Text>

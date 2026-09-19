@@ -42,7 +42,10 @@ export function DocumentTabs({
                 onPress={() => onSelect(document.documentId)}
                 style={({ pressed }) => [styles.tabMain, pressed && styles.pressed]}
               >
-                <FileText color={active ? theme.colors.accent : theme.colors.mutedText} size={16} />
+                <FileText
+                  color={active ? theme.colors.primary : theme.colors.mutedText}
+                  size={16}
+                />
                 <Text numberOfLines={1} style={[styles.tabText, active && styles.activeTabText]}>
                   {document.path.replace(/\.md$/i, "")}
                   {document.dirty ? " *" : ""}

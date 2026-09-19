@@ -269,7 +269,7 @@ function SettingsContent({
                 accessibilityLabel={t("settings.showLineNumbers")}
                 onValueChange={(lineNumbers) => onEditorChange({ lineNumbers })}
                 thumbColor="#FFFFFF"
-                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.text }}
+                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.primary }}
                 value={settings?.editor.lineNumbers ?? true}
               />
             }
@@ -284,7 +284,7 @@ function SettingsContent({
                 accessibilityLabel={t("settings.wrapLongLines")}
                 onValueChange={(wordWrap) => onEditorChange({ wordWrap })}
                 thumbColor="#FFFFFF"
-                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.text }}
+                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.primary }}
                 value={settings?.editor.wordWrap ?? true}
               />
             }
@@ -310,7 +310,7 @@ function SettingsContent({
                   accessibilityLabel={t("settings.clickVibration")}
                   onValueChange={(clickVibration) => onInteractionChange({ clickVibration })}
                   thumbColor="#FFFFFF"
-                  trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.text }}
+                  trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.primary }}
                   value={settings?.interaction.clickVibration ?? true}
                 />
               </View>
@@ -339,7 +339,7 @@ function SettingsContent({
                   accessibilityLabel={t("settings.interfaceSounds")}
                   onValueChange={(soundEnabled) => onInteractionChange({ soundEnabled })}
                   thumbColor="#FFFFFF"
-                  trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.text }}
+                  trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.primary }}
                   value={settings?.interaction.soundEnabled ?? false}
                 />
               </View>
@@ -385,7 +385,7 @@ function SettingsContent({
                 accessibilityLabel={t("settings.allowClipboard")}
                 onValueChange={onClipboardReadChange}
                 thumbColor="#FFFFFF"
-                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.text }}
+                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.primary }}
                 value={settings?.security.allowClipboardRead ?? true}
               />
             }
@@ -402,7 +402,7 @@ function SettingsContent({
                 accessibilityLabel={t("settings.aiWholeWorkspace")}
                 onValueChange={onWholeWorkspaceAiSearchChange}
                 thumbColor="#FFFFFF"
-                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.text }}
+                trackColor={{ false: theme.colors.surfaceMuted, true: theme.colors.primary }}
                 value={settings?.ai.allowWholeWorkspaceSearch ?? false}
               />
             }
@@ -488,7 +488,7 @@ function SettingRow({
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
-      {Icon ? <Icon color={theme.colors.accent} size={18} /> : null}
+      {Icon ? <Icon color={theme.colors.primary} size={18} /> : null}
       <Text style={styles.rowLabel}>{label}</Text>
       {trailing ?? (value ? <Text style={styles.rowValue}>{value}</Text> : null)}
     </Pressable>

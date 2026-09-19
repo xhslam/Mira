@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View, type ViewToken } from "react-native";
 import { LocateFixed, Volume2 } from "lucide-react-native";
 import type { Theme } from "../../../app/theme";
@@ -78,7 +78,7 @@ export function TranscriptPanel({
             onPress={returnToActiveCue}
             style={styles.returnPill}
           >
-            <LocateFixed color={theme.colors.canvas} size={15} />
+            <LocateFixed color="#FFFFFF" size={15} />
             <Text style={styles.returnText}>回到当前句</Text>
           </Pressable>
         ) : null}
@@ -111,7 +111,7 @@ export function TranscriptPanel({
                 ) : null}
               </View>
               {active ? (
-                <Volume2 color={theme.colors.accent} size={17} />
+                <Volume2 color={theme.colors.primary} size={17} />
               ) : (
                 <Text style={styles.order}>{String(item.order).padStart(2, "0")}</Text>
               )}
@@ -137,49 +137,50 @@ export function TranscriptPanel({
 }
 
 function useStyles(theme: Theme) {
-  const [styles] = useState(() =>
-    StyleSheet.create({
-      container: { flex: 1, minHeight: 280 },
-      header: {
-        alignItems: "center",
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-      },
-      title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
-      meta: { color: theme.colors.mutedText, fontSize: 11, marginTop: 3 },
-      returnPill: {
-        alignItems: "center",
-        backgroundColor: theme.colors.accent,
-        borderRadius: 999,
-        flexDirection: "row",
-        gap: 6,
-        minHeight: 36,
-        paddingHorizontal: 12,
-      },
-      returnText: { color: theme.colors.canvas, fontSize: 12, fontWeight: "700" },
-      list: { paddingBottom: 22 },
-      row: {
-        alignItems: "center",
-        borderBottomColor: theme.colors.divider,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        flexDirection: "row",
-        gap: 12,
-        minHeight: 72,
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-      },
-      rowActive: { backgroundColor: theme.colors.surface },
-      rail: { backgroundColor: theme.colors.divider, height: 32, width: 2 },
-      railActive: { backgroundColor: theme.colors.accent, height: 44 },
-      copy: { flex: 1, gap: 5 },
-      original: { color: theme.colors.text, fontSize: 16, lineHeight: 22 },
-      originalActive: { fontWeight: "700" },
-      translation: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
-      order: { color: theme.colors.mutedText, fontSize: 11, fontVariant: ["tabular-nums"] },
-      pressed: { opacity: 0.78 },
-    }),
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, minHeight: 280 },
+        header: {
+          alignItems: "center",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+        },
+        title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
+        meta: { color: theme.colors.mutedText, fontSize: 11, marginTop: 3 },
+        returnPill: {
+          alignItems: "center",
+          backgroundColor: theme.colors.primary,
+          borderRadius: theme.radius.full,
+          flexDirection: "row",
+          gap: 6,
+          minHeight: 44,
+          paddingHorizontal: 14,
+        },
+        returnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
+        list: { paddingBottom: 22 },
+        row: {
+          alignItems: "center",
+          borderBottomColor: theme.colors.borderSubtle,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          flexDirection: "row",
+          gap: 12,
+          minHeight: 72,
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+        },
+        rowActive: { backgroundColor: theme.colors.surface },
+        rail: { backgroundColor: theme.colors.borderSubtle, height: 32, width: 2 },
+        railActive: { backgroundColor: theme.colors.primary, height: 44 },
+        copy: { flex: 1, gap: 5 },
+        original: { color: theme.colors.text, fontSize: 16, lineHeight: 22 },
+        originalActive: { fontWeight: "700" },
+        translation: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
+        order: { color: theme.colors.mutedText, fontSize: 11, fontVariant: ["tabular-nums"] },
+        pressed: { opacity: 0.78 },
+      }),
+    [theme],
   );
-  return styles;
 }

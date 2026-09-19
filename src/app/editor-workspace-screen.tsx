@@ -496,7 +496,7 @@ export function EditorWorkspaceView({
           ) : (
             <ActivityIndicator
               accessibilityLabel={t("editor.openingWorkspace")}
-              color={theme.colors.accent}
+              color={theme.colors.primary}
               size="large"
             />
           )}
@@ -672,7 +672,7 @@ export function EditorWorkspaceView({
             pointerEvents="none"
             style={styles.recoveryOverlay}
           >
-            <ActivityIndicator color={theme.colors.accent} size="small" />
+            <ActivityIndicator color={theme.colors.primary} size="small" />
             <Text style={styles.recoveryText}>{t("editor.restoring")}</Text>
           </View>
         ) : null}
@@ -897,8 +897,8 @@ function createStyles(theme: Theme) {
       zIndex: 2,
       alignItems: "center",
       justifyContent: "center",
-      gap: 10,
-      padding: 24,
+      gap: theme.spacing[3],
+      padding: theme.spacing[6],
       backgroundColor: theme.colors.canvas,
     },
     recoveryTitle: {
@@ -913,14 +913,14 @@ function createStyles(theme: Theme) {
       textAlign: "center",
     },
     recoveryButton: {
-      minHeight: 48,
+      minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
-      paddingHorizontal: 18,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      gap: theme.spacing[2],
+      paddingHorizontal: theme.spacing[4],
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
     },
     recoveryButtonText: {
       color: "#FFFFFF",
@@ -933,16 +933,16 @@ function createStyles(theme: Theme) {
     },
     readOnlyBanner: {
       position: "absolute",
-      top: 8,
-      right: 8,
+      top: theme.spacing[2],
+      right: theme.spacing[2],
       zIndex: 1,
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingLeft: 10,
+      gap: theme.spacing[2],
+      paddingLeft: theme.spacing[3],
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.canvas,
     },
     readOnlyText: {
@@ -952,9 +952,9 @@ function createStyles(theme: Theme) {
     readOnlyButton: {
       minHeight: 44,
       justifyContent: "center",
-      paddingHorizontal: 12,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      paddingHorizontal: theme.spacing[3],
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.primary,
     },
     readOnlyButtonText: {
       color: "#FFFFFF",
@@ -965,8 +965,8 @@ function createStyles(theme: Theme) {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
-      padding: 24,
+      gap: theme.spacing[2],
+      padding: theme.spacing[6],
       backgroundColor: theme.colors.background,
     },
     errorTitle: {
@@ -984,16 +984,16 @@ function createStyles(theme: Theme) {
       minHeight: 48,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      paddingLeft: 14,
+      gap: theme.spacing[3],
+      paddingLeft: theme.spacing[4],
       backgroundColor: theme.colors.error,
     },
     diagnosticsBanner: {
       minHeight: 40,
       justifyContent: "center",
       gap: 2,
-      paddingHorizontal: 14,
-      paddingVertical: 6,
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing[2],
       backgroundColor: theme.colors.warningSurface,
     },
     diagnosticsText: {
@@ -1026,22 +1026,22 @@ function createStyles(theme: Theme) {
       position: "absolute",
       zIndex: 11,
       top: 52,
-      right: 8,
-      width: 218,
-      padding: 7,
+      right: theme.spacing[2],
+      width: 220,
+      padding: theme.spacing[2],
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      borderRadius: 16,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.card,
       backgroundColor: theme.colors.canvas,
-      elevation: 8,
+      ...theme.elevation.dialog,
     },
     menuAction: {
       minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      paddingHorizontal: 11,
-      borderRadius: 10,
+      gap: theme.spacing[3],
+      paddingHorizontal: theme.spacing[3],
+      borderRadius: theme.radius.medium,
     },
     menuLabel: {
       color: theme.colors.text,
@@ -1049,17 +1049,17 @@ function createStyles(theme: Theme) {
       fontWeight: "600",
     },
     menuTitle: {
-      marginHorizontal: 11,
-      marginTop: 5,
-      marginBottom: 6,
+      marginHorizontal: theme.spacing[3],
+      marginTop: theme.spacing[1],
+      marginBottom: theme.spacing[2],
       color: theme.colors.mutedText,
       fontSize: 12,
       fontWeight: "700",
     },
     menuDivider: {
       height: StyleSheet.hairlineWidth,
-      marginVertical: 5,
-      marginHorizontal: 10,
+      marginVertical: theme.spacing[1],
+      marginHorizontal: theme.spacing[2],
       backgroundColor: theme.colors.divider,
     },
     pressed: {

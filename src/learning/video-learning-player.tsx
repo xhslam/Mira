@@ -208,7 +208,7 @@ export function VideoLearningPlayer({
               已定位第 {selectedSentence.order} 句 · 点按任一句跳转
             </Text>
           </View>
-          <Captions color={theme.colors.accent} size={20} />
+          <Captions color={theme.colors.primary} size={20} />
         </View>
 
         <View style={styles.transcriptList}>
@@ -234,7 +234,7 @@ export function VideoLearningPlayer({
                   <Text style={styles.transcriptTime}>
                     {formatTime(item.startMs)} – {formatTime(item.endMs)}
                   </Text>
-                  {selected ? <Volume2 color={theme.colors.accent} size={17} /> : null}
+                  {selected ? <Volume2 color={theme.colors.primary} size={17} /> : null}
                 </View>
                 <Text
                   style={[styles.transcriptOriginal, selected && styles.transcriptOriginalSelected]}
@@ -391,8 +391,8 @@ function ControlButton({
       ]}
     >
       <Icon
-        color={active ? theme.colors.canvas : theme.colors.mutedText}
-        fill={label === "播放" && active ? theme.colors.canvas : "transparent"}
+        color={active ? "#FFFFFF" : theme.colors.mutedText}
+        fill={label === "播放" && active ? "#FFFFFF" : "transparent"}
         size={20}
       />
       <Text numberOfLines={1} style={[styles.controlLabel, active && styles.controlLabelActive]}>
@@ -419,7 +419,7 @@ function createStyles(theme: Theme) {
     videoBadgeText: { color: "#FFFFFF", fontSize: 12, fontWeight: "600" },
     modeRail: {
       backgroundColor: theme.colors.canvas,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
       paddingHorizontal: 12,
@@ -434,8 +434,8 @@ function createStyles(theme: Theme) {
     modeLabel: { color: theme.colors.mutedText, fontSize: 15, fontWeight: "600" },
     modeLabelSelected: { color: theme.colors.text, fontWeight: "800" },
     modeIndicator: {
-      backgroundColor: theme.colors.text,
-      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
       bottom: 0,
       height: 3,
       position: "absolute",
@@ -443,7 +443,7 @@ function createStyles(theme: Theme) {
     },
     lessonHeading: { gap: 3, paddingHorizontal: 18, paddingTop: 18 },
     lessonKicker: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 11,
       fontWeight: "800",
       letterSpacing: 1.15,
@@ -451,17 +451,18 @@ function createStyles(theme: Theme) {
     lessonTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "800" },
     activeCard: {
       backgroundColor: theme.colors.canvas,
-      borderColor: theme.colors.divider,
-      borderRadius: 20,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
       gap: 13,
       marginHorizontal: 14,
       marginTop: 12,
       padding: 18,
+      ...theme.shadows.sm,
     },
     cardMeta: { alignItems: "center", flexDirection: "row", gap: 9 },
     order: {
-      color: theme.colors.accent,
+      color: theme.colors.primary,
       fontSize: 13,
       fontVariant: ["tabular-nums"],
       fontWeight: "800",
@@ -482,7 +483,7 @@ function createStyles(theme: Theme) {
     translation: { color: theme.colors.mutedText, fontSize: 15, lineHeight: 22 },
     translationHint: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20 },
     cardActions: {
-      borderTopColor: theme.colors.divider,
+      borderTopColor: theme.colors.borderSubtle,
       borderTopWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
       gap: 8,
@@ -491,15 +492,15 @@ function createStyles(theme: Theme) {
     cardAction: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
       gap: 6,
-      minHeight: 34,
-      paddingHorizontal: 11,
+      minHeight: 44,
+      paddingHorizontal: 14,
     },
-    cardActionSelected: { backgroundColor: theme.colors.accent },
-    cardActionText: { color: theme.colors.accent, fontSize: 12, fontWeight: "700" },
-    cardActionTextSelected: { color: theme.colors.canvas },
+    cardActionSelected: { backgroundColor: theme.colors.primary },
+    cardActionText: { color: theme.colors.primary, fontSize: 12, fontWeight: "700" },
+    cardActionTextSelected: { color: "#FFFFFF" },
     transcriptHeader: {
       alignItems: "center",
       flexDirection: "row",
@@ -512,7 +513,7 @@ function createStyles(theme: Theme) {
     transcriptList: { gap: 10, paddingHorizontal: 14, paddingTop: 12 },
     transcriptCard: {
       backgroundColor: theme.colors.background,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
       borderBottomWidth: StyleSheet.hairlineWidth,
       gap: 7,
       paddingHorizontal: 6,
@@ -520,9 +521,9 @@ function createStyles(theme: Theme) {
     },
     transcriptCardSelected: {
       backgroundColor: theme.colors.canvas,
-      borderColor: theme.colors.divider,
+      borderColor: theme.colors.primary,
       borderRadius: 16,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       paddingHorizontal: 14,
     },
     transcriptMetaRow: { alignItems: "center", flexDirection: "row", gap: 8 },
@@ -532,7 +533,7 @@ function createStyles(theme: Theme) {
       fontVariant: ["tabular-nums"],
       fontWeight: "700",
     },
-    transcriptOrderSelected: { color: theme.colors.accent },
+    transcriptOrderSelected: { color: theme.colors.primary },
     transcriptTime: {
       color: theme.colors.mutedText,
       flex: 1,
@@ -544,28 +545,32 @@ function createStyles(theme: Theme) {
     transcriptTranslation: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20 },
     controlDock: {
       backgroundColor: theme.colors.canvas,
-      borderTopColor: theme.colors.divider,
+      borderTopColor: theme.colors.borderSubtle,
       borderTopWidth: StyleSheet.hairlineWidth,
       paddingBottom: 12,
       paddingHorizontal: 14,
       paddingTop: 12,
     },
     progressTrack: {
-      backgroundColor: theme.colors.divider,
-      borderRadius: 999,
+      backgroundColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.full,
       height: 5,
       position: "relative",
     },
-    progressFill: { backgroundColor: theme.colors.accent, borderRadius: 999, height: "100%" },
+    progressFill: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
+      height: "100%",
+    },
     progressThumb: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      height: 13,
-      marginLeft: -6.5,
-      marginTop: -4,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
+      height: 14,
+      marginLeft: -7,
+      marginTop: -4.5,
       position: "absolute",
       top: 0,
-      width: 13,
+      width: 14,
     },
     progressMeta: { flexDirection: "row", justifyContent: "space-between", paddingTop: 7 },
     progressText: { color: theme.colors.mutedText, fontSize: 11, fontVariant: ["tabular-nums"] },
@@ -579,21 +584,21 @@ function createStyles(theme: Theme) {
       minHeight: 56,
       paddingHorizontal: 1,
     },
-    controlButtonActive: { backgroundColor: theme.colors.accent },
+    controlButtonActive: { backgroundColor: theme.colors.primary },
     controlLabel: { color: theme.colors.mutedText, fontSize: 10, fontWeight: "700" },
-    controlLabelActive: { color: theme.colors.canvas },
+    controlLabelActive: { color: "#FFFFFF" },
     focusButton: {
       alignItems: "center",
       alignSelf: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
       gap: 6,
       marginTop: 7,
-      minHeight: 34,
-      paddingHorizontal: 13,
+      minHeight: 44,
+      paddingHorizontal: 14,
     },
-    focusButtonText: { color: theme.colors.accent, fontSize: 12, fontWeight: "700" },
+    focusButtonText: { color: theme.colors.primary, fontSize: 12, fontWeight: "700" },
     disabled: { opacity: 0.3 },
     pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
   });
