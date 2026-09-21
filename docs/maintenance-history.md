@@ -131,6 +131,14 @@
   SHA-256 `f5f4e4b5321246fd1c7f5488c8c302b51a922f4c0f08c52fb076c85fc4ca88df`。`adb install -r`
   在真机 REP-AN00（`AXVVUT3707007264`）上覆盖安装返回 `Success`，用户历史数据与工作区完整保留；
   冷启动耗时 284 ms，前台聚焦 `MainActivity`，Logcat 无运行时异常。
+- 2026-09-21 20:07 从 `main` 提交 `61b3d48` 执行 `npm run android:release` 构建成功，正式
+  `app-release.apk` 为 117,271,202 字节，SHA-256
+  `3803fac729752994954a61b86b246d0f47d648a8d2ba55438adbc99eb588372a`，正式证书 SHA-256
+  `92b5be920bca85841c541939728eece023db590efa663a991b15e22ebc6c145d`。在真机 REP-AN00
+  （`AXVVUT3707007264`）使用 `adb install -r` 覆盖安装返回 `Success`；首次安装时间保持
+  2026-09-01 10:12:52，证明应用数据未因卸载而清除。移除全部 Metro reverse 后冷启动耗时
+  256 ms，`MainActivity` 保持前台且进程存活，Logcat 未检出脚本加载失败或运行时崩溃；手机端
+  `base.apk` 与本地发布包 SHA-256 完全一致。
 - 2026-08-31 18:02 从全局侧栏图标动画的最终源码执行 `npm run android:release` 成功，正式
   `app-release.apk` 为 117,110,330 字节，SHA-256
   `bb45cc9375f511a55bd8a8f724e3955a011d58c180b49b66fdac8191de6d1f23`，正式证书 SHA-256
