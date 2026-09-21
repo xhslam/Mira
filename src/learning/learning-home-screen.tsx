@@ -6,7 +6,6 @@ import {
   FolderOpen,
   Link2,
   Play,
-  Sparkles,
   Subtitles,
   Video,
 } from "lucide-react-native";
@@ -297,11 +296,11 @@ export function LearningImportSheet(props: ImportSheetProps) {
               style={styles.option}
             >
               <View style={styles.optionIcon}>
-                <Sparkles color={theme.colors.primary} size={19} />
+                <FileText color={theme.colors.primary} size={19} />
               </View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>创建学习材料</Text>
-                <Text style={styles.optionDescription}>翻译、改写并生成可反复练习的材料</Text>
+                <Text style={styles.optionDescription}>手动输入文稿，直接保存为学习资料</Text>
               </View>
               <ChevronRight color={theme.colors.mutedText} size={18} />
             </Pressable>

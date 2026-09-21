@@ -1,9 +1,10 @@
 # Changelog
 
-**Last updated:** 2026-08-15
+**Last updated:** 2026-09-21
 
 ## Unreleased
 
+- Split Craft into direct manual manuscript creation and an advanced recording/AI workflow, removing the duplicate advanced mode.
 - Add the Inkstone identity and reproducible application artwork.
 - Add bundled Tiptap and CodeMirror editing modes with a mobile workspace shell.
 - Add verified private-vault persistence, recovery drafts, autosave, persistent history, and conflict resolution.
