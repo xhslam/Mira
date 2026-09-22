@@ -277,6 +277,7 @@ export type LearningSettings = Readonly<{
   sttBaseUrl: string;
   sttApiKeyStored: boolean;
   autoSpeakResponses: boolean;
+  showTranslationsByDefault: boolean;
   translationTargetLanguage: string;
   echoLoopCount: number;
 }>;
@@ -367,6 +368,7 @@ export function createInitialLearningSnapshot(): LearningSnapshot {
       sttBaseUrl: "",
       sttApiKeyStored: false,
       autoSpeakResponses: false,
+      showTranslationsByDefault: true,
       translationTargetLanguage: "zh-CN",
       echoLoopCount: 3,
     }),

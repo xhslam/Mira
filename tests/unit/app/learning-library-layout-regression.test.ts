@@ -9,27 +9,25 @@ function readSource(relativePath: string): string {
 }
 
 describe("learning library visual hierarchy", () => {
-  it("keeps all four material actions inside a single-item accordion", () => {
+  it("opens a resource directly and reveals only download and delete on a right swipe", () => {
     const source = readSource("src/learning/library-screen.tsx");
 
     const filterIndex = source.indexOf("styles.filterRow");
     const resourceListIndex = source.indexOf("styles.resourceList");
-    const actionsIndex = source.indexOf("styles.processingGrid");
 
     expect(filterIndex).toBeGreaterThan(-1);
     expect(resourceListIndex).toBeGreaterThan(filterIndex);
-    expect(actionsIndex).toBeGreaterThan(resourceListIndex);
     expect(source).toContain("filteredResources.map");
-    expect(source).toContain("selectResource(resource)");
-    expect(source).toContain("setExpandedResourceId(resource.id)");
-    expect(source).toContain("resource.id === expandedResourceId");
-    expect(source).toContain("accessibilityState={{ expanded: resourceExpanded }}");
-    expect(source).toContain("{resourceExpanded ? (");
-    expect(source).not.toContain("ResourceHeroArtwork");
-    expect(source).toContain('label={resource.mediaKind === "bilibili" ? "导入字幕" : "识别字幕"}');
-    expect(source).toContain('label="逐句翻译"');
-    expect(source).toContain('label="下载"');
-    expect(source).toContain('label={resource.sentences.length ? "逐句学习"');
+    expect(source).toContain("<SwipeableResourceRow");
+    expect(source).toContain("PanResponder.create");
+    expect(source).toContain("gesture.dx > 10");
+    expect(source).toContain("onOpenPractice(resource)");
+    expect(source).toContain("accessibilityLabel={`下载资料 ${resource.title}`}");
+    expect(source).toContain("accessibilityLabel={`删除资料 ${resource.title}`}");
+    expect(source).not.toContain("styles.processingGrid");
+    expect(source).not.toContain('label="逐句翻译"');
+    expect(source).not.toContain("styles.translationPreview");
+    expect(source).not.toContain("styles.deleteAction");
   });
 
   it("deletes only after confirmation through the learning deletion domain", () => {
@@ -39,6 +37,15 @@ describe("learning library visual hierarchy", () => {
     expect(source).toContain('style: "destructive" as const');
     expect(source).toContain("deleteLearningResource(snapshot, resource.id)");
     expect(source).toContain("设备中的原始文件不会被删除");
+  });
+
+  it("moves smart translation into practice and skips AI when every sentence is translated", () => {
+    const practice = readSource("src/learning/practice-screen.tsx");
+
+    expect(practice).toContain("missingLearningTranslations(snapshot, resource.id)");
+    expect(practice).toContain("全部句子已有译文");
+    expect(practice).toContain('label={translationBusy ? "翻译中" : "生成译文"}');
+    expect(practice).toContain("applyLearningTranslations(");
   });
 
   it("keeps library actions focused and the learning navigation compact", () => {

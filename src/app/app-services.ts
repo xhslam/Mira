@@ -8,6 +8,7 @@ import { createExpoAiStore } from "../ai/expo-ai-store";
 import type { AiSecretStore } from "../ai/ai-secret-store";
 import type { AiStore } from "../ai/ai-store";
 import { createAiConnectionTester } from "../ai/connection-test";
+import { createAiModelDiscovery, type AiModelDiscovery } from "../ai/ai-model-discovery";
 import { createAiConversationService } from "../ai/conversation-service";
 import { createAiGenieService } from "../ai/genie-service";
 import { createAiAutomationRunner } from "../ai/automation-runner";
@@ -122,6 +123,7 @@ export type AppServices = Readonly<{
   aiStore: AiStore;
   aiSecretStore: AiSecretStore;
   aiProviderProfiles: AiProviderProfileManager;
+  aiModelDiscovery: AiModelDiscovery;
   aiProviders: AiProviderRegistry;
   aiConnectionTester: ReturnType<typeof createAiConnectionTester>;
   aiConversations: ReturnType<typeof createAiConversationService>;
@@ -183,6 +185,7 @@ export function createAppServices(): AppServices {
     createId: Crypto.randomUUID,
     now: () => new Date(),
   });
+  const aiModelDiscovery = createAiModelDiscovery({ secrets: aiSecretStore });
   const aiProviders = createAiProviderRegistry(createFetchAiHttpTransport());
   const aiConnectionTester = createAiConnectionTester({
     store: aiStore,
@@ -602,6 +605,7 @@ export function createAppServices(): AppServices {
       aiStore,
       aiSecretStore,
       aiProviderProfiles,
+      aiModelDiscovery,
       aiProviders,
       aiConnectionTester,
       aiConversations,

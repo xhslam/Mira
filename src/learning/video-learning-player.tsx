@@ -38,6 +38,8 @@ export type VideoLearningPlayerProps = Readonly<{
   playbackRate: number;
   repeat: boolean;
   showTranslation: boolean;
+  hasMissingTranslations: boolean;
+  translationBusy: boolean;
   onSelectSentence: (sentenceId: string) => void;
   onTogglePlayback: () => void;
   onPrevious: () => void;
@@ -46,6 +48,7 @@ export type VideoLearningPlayerProps = Readonly<{
   onCycleRate: () => void;
   onToggleRepeat: () => void;
   onToggleTranslation: () => void;
+  onGenerateTranslation: () => void;
   onOpenFocus: () => void;
   onPositionMsChange: (positionMs: number) => void;
 }>;
@@ -70,6 +73,8 @@ export function VideoLearningPlayer({
   playbackRate,
   repeat,
   showTranslation,
+  hasMissingTranslations,
+  translationBusy,
   onSelectSentence,
   onTogglePlayback,
   onPrevious,
@@ -78,6 +83,7 @@ export function VideoLearningPlayer({
   onCycleRate,
   onToggleRepeat,
   onToggleTranslation,
+  onGenerateTranslation,
   onOpenFocus,
   onPositionMsChange,
 }: VideoLearningPlayerProps) {
@@ -269,14 +275,26 @@ export function VideoLearningPlayer({
             >
               播放、进度与倍速请在上方官方播放器中操作。选择字幕仅切换学习内容，不会控制外链播放器的位置。
             </Text>
-            <ControlButton
-              icon={showTranslation ? Captions : EyeOff}
-              label={showTranslation ? "隐藏字幕译文" : "显示字幕译文"}
-              onPress={onToggleTranslation}
-              active={showTranslation}
-              styles={styles}
-              theme={theme}
-            />
+            {hasMissingTranslations ? (
+              <ControlButton
+                icon={Languages}
+                label={translationBusy ? "翻译中" : "生成译文"}
+                onPress={onGenerateTranslation}
+                active={translationBusy}
+                disabled={translationBusy}
+                styles={styles}
+                theme={theme}
+              />
+            ) : (
+              <ControlButton
+                icon={showTranslation ? Captions : EyeOff}
+                label={showTranslation ? "隐藏字幕译文" : "显示字幕译文"}
+                onPress={onToggleTranslation}
+                active={showTranslation}
+                styles={styles}
+                theme={theme}
+              />
+            )}
           </View>
         ) : (
           <>
@@ -307,14 +325,26 @@ export function VideoLearningPlayer({
                 styles={styles}
                 theme={theme}
               />
-              <ControlButton
-                icon={showTranslation ? Captions : EyeOff}
-                label={showTranslation ? "隐藏" : "字幕"}
-                onPress={onToggleTranslation}
-                active={showTranslation}
-                styles={styles}
-                theme={theme}
-              />
+              {hasMissingTranslations ? (
+                <ControlButton
+                  icon={Languages}
+                  label={translationBusy ? "翻译中" : "翻译"}
+                  onPress={onGenerateTranslation}
+                  active={translationBusy}
+                  disabled={translationBusy}
+                  styles={styles}
+                  theme={theme}
+                />
+              ) : (
+                <ControlButton
+                  icon={showTranslation ? Captions : EyeOff}
+                  label={showTranslation ? "隐藏" : "字幕"}
+                  onPress={onToggleTranslation}
+                  active={showTranslation}
+                  styles={styles}
+                  theme={theme}
+                />
+              )}
               <ControlButton
                 icon={ChevronLeft}
                 label="上句"

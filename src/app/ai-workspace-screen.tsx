@@ -1,6 +1,7 @@
 import * as Crypto from "expo-crypto";
 import {
   Bot,
+  ChevronRight,
   Clock3,
   Globe2,
   Inbox,
@@ -265,14 +266,6 @@ export function AiWorkspaceScreen({
       active = false;
     };
   }, [providerRevision, services]);
-
-  async function selectProfile(profile: AiProviderProfile): Promise<void> {
-    setActiveProfileId(profile.id);
-    await services.settingsStore.update((current) => ({
-      ...current,
-      ai: Object.freeze({ ...current.ai, activeProviderProfileId: profile.id }),
-    }));
-  }
 
   function toggleSelectedPath(path: string): void {
     setSelectedPaths((current) =>
@@ -615,13 +608,7 @@ export function AiWorkspaceScreen({
             </Text>
             <Pressable
               accessibilityLabel="选择 AI 服务"
-              disabled={profiles.length < 2}
-              onPress={() => {
-                if (profiles.length < 2) return;
-                const index = activeProfile ? profiles.indexOf(activeProfile) : -1;
-                const next = profiles[(index + 1) % profiles.length];
-                if (next) void selectProfile(next);
-              }}
+              onPress={() => setProviderSheetVisible(true)}
             >
               <Text style={styles.providerStatus}>
                 <Text
@@ -739,6 +726,34 @@ export function AiWorkspaceScreen({
           contentContainerStyle={styles.timeline}
           data={messages}
           keyExtractor={(item) => item.id}
+          ListEmptyComponent={
+            <View style={styles.assistantWelcome}>
+              <View style={styles.emptyIcon}>
+                <Bot color={theme.colors.primary} size={25} />
+              </View>
+              <Text style={styles.assistantWelcomeTitle}>从当前笔记开始</Text>
+              <Text style={styles.assistantWelcomeCopy}>
+                Mira 只会读取上方已列出的上下文。先选一个明确动作，随时可以继续追问。
+              </Text>
+              <View style={styles.suggestionList}>
+                {["总结当前笔记", "梳理结构并给出提纲", "检查表达并提出修改建议"].map(
+                  (suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      onPress={() => setPrompt(suggestion)}
+                      style={({ pressed }) => [
+                        styles.suggestionButton,
+                        pressed && styles.suggestionPressed,
+                      ]}
+                    >
+                      <Text style={styles.suggestionText}>{suggestion}</Text>
+                      <ChevronRight color={theme.colors.mutedText} size={16} />
+                    </Pressable>
+                  ),
+                )}
+              </View>
+            </View>
+          }
           renderItem={({ item }) => (
             <View
               style={[
@@ -849,8 +864,10 @@ export function AiWorkspaceScreen({
       <AiProviderSheet
         connectionTester={services.aiConnectionTester}
         manager={services.aiProviderProfiles}
+        modelDiscovery={services.aiModelDiscovery}
         onChanged={() => setProviderRevision((value) => value + 1)}
         onClose={() => setProviderSheetVisible(false)}
+        onSelected={(profile) => setActiveProfileId(profile.id)}
         settingsStore={services.settingsStore}
         visible={providerSheetVisible}
       />
@@ -1072,6 +1089,42 @@ function createStyles(theme: Theme) {
     webToggleText: { color: theme.colors.mutedText, fontSize: 11, fontWeight: "500" },
     webToggleTextActive: { color: "#FFFFFF", fontWeight: "600" },
     timeline: { flexGrow: 1, gap: 12, paddingVertical: 18 },
+    assistantWelcome: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 28,
+    },
+    assistantWelcomeTitle: {
+      marginTop: 12,
+      color: theme.colors.text,
+      fontSize: 18,
+      fontWeight: "700",
+      letterSpacing: -0.3,
+    },
+    assistantWelcomeCopy: {
+      maxWidth: 320,
+      marginTop: 7,
+      color: theme.colors.mutedText,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: "center",
+    },
+    suggestionList: { alignSelf: "stretch", gap: 8, marginTop: 18 },
+    suggestionButton: {
+      minHeight: 46,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.surface,
+    },
+    suggestionPressed: { opacity: 0.7, transform: [{ scale: 0.99 }] },
+    suggestionText: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     message: { maxWidth: "88%", paddingHorizontal: 0, paddingVertical: 10, borderRadius: 0 },
     userMessage: {
       alignSelf: "flex-end",

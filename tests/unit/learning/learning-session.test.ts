@@ -6,7 +6,10 @@ import {
 import { seedLearningSnapshot } from "../../../src/learning/learning-seed";
 import {
   addPracticeMinutes,
+  applyLearningTranslations,
   deleteLearningResource,
+  missingLearningTranslations,
+  openLearningResource,
   persistLearningPosition,
   saveLearningItem,
 } from "../../../src/learning/learning-session";
@@ -29,6 +32,94 @@ describe("learning session persistence", () => {
       lastPositionMs: 1250,
     });
     expect(next.ui.selectedSentenceId).toBe(sentence.id);
+  });
+
+  it("writes generated translations to both the resource and its active transcript track", () => {
+    const trackSentence = Object.freeze({ ...sentence, translation: null });
+    const untranslated = Object.freeze({
+      ...seeded,
+      resources: Object.freeze([
+        Object.freeze({
+          ...resource,
+          sentences: Object.freeze([Object.freeze({ ...sentence, translation: null })]),
+        }),
+      ]),
+      transcriptTracks: Object.freeze([
+        Object.freeze({
+          id: "track-translation",
+          resourceId: resource.id,
+          label: "主字幕",
+          language: "en",
+          source: "manual" as const,
+          isPrimary: true,
+          sentences: Object.freeze([trackSentence]),
+          createdAt: resource.createdAt,
+          updatedAt: resource.updatedAt,
+        }),
+      ]),
+      ui: Object.freeze({
+        ...seeded.ui,
+        selectedResourceId: resource.id,
+        selectedSentenceId: sentence.id,
+        activeTranscriptTrackId: "track-translation",
+      }),
+    });
+
+    expect(missingLearningTranslations(untranslated, resource.id)).toEqual([trackSentence]);
+
+    const translated = applyLearningTranslations(
+      untranslated,
+      resource.id,
+      Object.freeze([
+        Object.freeze({ sentenceId: sentence.id, translation: "这是已经生成的译文。" }),
+      ]),
+      "2026-09-22T01:00:00.000Z",
+    );
+
+    expect(translated.resources[0]?.sentences[0]?.translation).toBe("这是已经生成的译文。");
+    expect(translated.transcriptTracks[0]?.sentences[0]?.translation).toBe("这是已经生成的译文。");
+    expect(translated.translations[0]).toMatchObject({
+      sentenceId: sentence.id,
+      translation: "这是已经生成的译文。",
+    });
+    expect(missingLearningTranslations(translated, resource.id)).toEqual([]);
+  });
+
+  it("reuses a stored resource translation to repair a stale active track without another request", () => {
+    const translatedSentence = Object.freeze({ ...sentence, translation: "已经存在的译文" });
+    const staleTrackSentence = Object.freeze({ ...sentence, translation: null });
+    const inconsistent = Object.freeze({
+      ...seeded,
+      resources: Object.freeze([
+        Object.freeze({ ...resource, sentences: Object.freeze([translatedSentence]) }),
+      ]),
+      transcriptTracks: Object.freeze([
+        Object.freeze({
+          id: "track-stale",
+          resourceId: resource.id,
+          label: "主字幕",
+          language: "en",
+          source: "manual" as const,
+          isPrimary: true,
+          sentences: Object.freeze([staleTrackSentence]),
+          createdAt: resource.createdAt,
+          updatedAt: resource.updatedAt,
+        }),
+      ]),
+      ui: Object.freeze({
+        ...seeded.ui,
+        selectedResourceId: resource.id,
+        selectedSentenceId: sentence.id,
+        activeTranscriptTrackId: "track-stale",
+      }),
+    });
+
+    expect(missingLearningTranslations(inconsistent, resource.id)).toEqual([]);
+
+    const opened = openLearningResource(inconsistent, resource.id, "2026-09-22T01:05:00.000Z");
+
+    expect(opened.transcriptTracks[0]?.sentences[0]?.translation).toBe("已经存在的译文");
+    expect(opened.resources[0]?.sentences[0]?.translation).toBe("已经存在的译文");
   });
   it("accumulates daily practice minutes and saves contextual items idempotently", () => {
     const minutes = addPracticeMinutes(seeded, 90_000, new Date("2026-08-14T00:00:00.000Z"));
@@ -77,6 +168,7 @@ describe("learning session persistence", () => {
     expect(migrated.vocabulary).toHaveLength(1);
     expect(migrated.vocabulary[0]?.id).toBe("legacy-phrase");
     expect(migrated.memories).toEqual([]);
+    expect(migrated.settings.showTranslationsByDefault).toBe(true);
   });
 
   it("deletes a resource together with every dependent learning record", () => {

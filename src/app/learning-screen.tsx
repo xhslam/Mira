@@ -42,6 +42,7 @@ import { PhraseMemoryScreen } from "../learning/phrase-memory-screen";
 import { LearningResourceSearchSheet } from "../learning/learning-resource-search-sheet";
 import { UrlImportScreen } from "../learning/url-import-screen";
 import type { LearningResource, LearningSnapshot } from "../learning/learning-types";
+import type { AiProviderProfile } from "../ai/provider-profile";
 import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export function LearningScreen({
@@ -355,7 +356,6 @@ export function LearningScreen({
           ) : null}
           {section === "library" ? (
             <LibraryScreen
-              services={services}
               snapshot={snapshot}
               onChange={(next) => void update(next)}
               onOpenPractice={openLibraryResource}
@@ -438,6 +438,18 @@ function SettingsScreen({
   const [ttsKey, setTtsKey] = useState("");
   const [sttKey, setSttKey] = useState("");
   const [mediaServiceBusy, setMediaServiceBusy] = useState(false);
+  const [providers, setProviders] = useState<readonly AiProviderProfile[]>(Object.freeze([]));
+  useEffect(() => {
+    let active = true;
+    void services.aiProviderProfiles.list().then((items) => {
+      if (active) setProviders(Object.freeze(items.map((item) => item.profile)));
+    });
+    return () => {
+      active = false;
+    };
+  }, [services.aiProviderProfiles]);
+  const selectedProvider =
+    providers.find((profile) => profile.id === settings.selectedProviderProfileId) ?? null;
   function patch(values: Partial<LearningSnapshot["settings"]>) {
     onChange(Object.freeze({ ...snapshot, settings: Object.freeze({ ...settings, ...values }) }));
   }
@@ -474,10 +486,10 @@ function SettingsScreen({
         />
         <SettingRow
           icon={Languages}
-          title="逐句翻译"
-          detail="需要时显示中文释义"
-          value={settings.translationTargetLanguage === "zh-CN"}
-          onChange={(value) => patch({ translationTargetLanguage: value ? "zh-CN" : "en-US" })}
+          title="默认显示译文"
+          detail="进入逐句学习时直接显示已生成的中文译文"
+          value={settings.showTranslationsByDefault}
+          onChange={(value) => patch({ showTranslationsByDefault: value })}
           styles={styles}
           theme={theme}
         />
@@ -532,8 +544,12 @@ function SettingsScreen({
             <Settings2 color={theme.colors.accent} size={21} />
           </View>
           <View style={styles.settingsCopy}>
-            <Text style={styles.settingsTitle}>学习 AI Provider</Text>
-            <Text style={styles.settingsDetail}>用于改写、解释和结构化分析</Text>
+            <Text style={styles.settingsTitle}>学习 AI 引擎</Text>
+            <Text style={styles.settingsDetail}>
+              {selectedProvider
+                ? `${selectedProvider.name} · ${selectedProvider.model}`
+                : "尚未选择；用于翻译、解释、陪练和结构化分析"}
+            </Text>
           </View>
           <Text style={styles.settingsChevron}>›</Text>
         </Pressable>
@@ -620,14 +636,19 @@ function SettingsScreen({
         visible={providerSheetVisible}
         onClose={() => setProviderSheetVisible(false)}
         manager={services.aiProviderProfiles}
+        modelDiscovery={services.aiModelDiscovery}
         connectionTester={services.aiConnectionTester}
         settingsStore={services.settingsStore}
+        selectedProfileId={settings.selectedProviderProfileId}
+        onSelected={(profile) => patch({ selectedProviderProfileId: profile.id })}
         onChanged={() => {
-          void services.aiProviderProfiles.list().then((profiles) => {
+          void services.aiProviderProfiles.list().then((items) => {
+            setProviders(Object.freeze(items.map((item) => item.profile)));
             const next =
-              profiles.find((item) => item.profile.id === settings.selectedProviderProfileId) ??
-              profiles[0];
-            if (next) patch({ selectedProviderProfileId: next.profile.id });
+              items.find((item) => item.profile.id === settings.selectedProviderProfileId) ??
+              items[0];
+            if (!next && settings.selectedProviderProfileId)
+              patch({ selectedProviderProfileId: null });
           });
         }}
       />

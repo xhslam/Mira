@@ -5,30 +5,203 @@ import type {
   LearningSnapshot,
   PracticeProgress,
 } from "./learning-types";
+import { fingerprintText } from "./enjoy-player-domain";
 
-export function openLearningResource(
+export type LearningTranslationUpdate = Readonly<{
+  sentenceId: string;
+  translation: string;
+}>;
+
+function translationSourceSentences(
+  snapshot: LearningSnapshot,
+  resourceId: string,
+): readonly LearningSentence[] {
+  const resourceTracks = snapshot.transcriptTracks.filter(
+    (track) => track.resourceId === resourceId,
+  );
+  const activeTrack =
+    resourceTracks.find(
+      (track) =>
+        track.id === snapshot.ui.activeTranscriptTrackId &&
+        snapshot.ui.selectedResourceId === resourceId,
+    ) ?? resourceTracks.find((track) => track.isPrimary);
+  return (
+    activeTrack?.sentences ??
+    snapshot.resources.find((resource) => resource.id === resourceId)?.sentences ??
+    Object.freeze([])
+  );
+}
+
+export function reconcileLearningTranslations(
   snapshot: LearningSnapshot,
   resourceId: string,
   now = new Date().toISOString(),
 ): LearningSnapshot {
   const resource = snapshot.resources.find((item) => item.id === resourceId);
   if (!resource) return snapshot;
-  const progress = snapshot.practice
+  const tracks = snapshot.transcriptTracks.filter((track) => track.resourceId === resourceId);
+  const allSentences = [...resource.sentences, ...tracks.flatMap((track) => track.sentences)];
+  const translationById = new Map<string, string>();
+  const translationByFingerprint = new Map<string, string>();
+
+  allSentences.forEach((sentence) => {
+    const translation = sentence.translation?.trim();
+    if (!translation) return;
+    translationById.set(sentence.id, translation);
+    translationByFingerprint.set(fingerprintText(sentence.text), translation);
+  });
+  snapshot.translations.forEach((entry) => {
+    const translation = entry.translation.trim();
+    if (!translation) return;
+    translationById.set(entry.sentenceId, translation);
+    translationByFingerprint.set(entry.sourceFingerprint, translation);
+  });
+
+  let changed = false;
+  const reconcileSentence = (sentence: LearningSentence): LearningSentence => {
+    if (sentence.translation?.trim()) return sentence;
+    const translation =
+      translationById.get(sentence.id) ??
+      translationByFingerprint.get(fingerprintText(sentence.text));
+    if (!translation) return sentence;
+    changed = true;
+    return Object.freeze({ ...sentence, translation });
+  };
+  const resources = Object.freeze(
+    snapshot.resources.map((item) =>
+      item.id === resourceId
+        ? Object.freeze({
+            ...item,
+            sentences: Object.freeze(item.sentences.map(reconcileSentence)),
+            updatedAt: now,
+          })
+        : item,
+    ),
+  );
+  const transcriptTracks = Object.freeze(
+    snapshot.transcriptTracks.map((track) =>
+      track.resourceId === resourceId
+        ? Object.freeze({
+            ...track,
+            sentences: Object.freeze(track.sentences.map(reconcileSentence)),
+            updatedAt: now,
+          })
+        : track,
+    ),
+  );
+  return changed ? Object.freeze({ ...snapshot, resources, transcriptTracks }) : snapshot;
+}
+
+export function missingLearningTranslations(
+  snapshot: LearningSnapshot,
+  resourceId: string,
+): readonly LearningSentence[] {
+  const reconciled = reconcileLearningTranslations(snapshot, resourceId);
+  return Object.freeze(
+    translationSourceSentences(reconciled, resourceId).filter(
+      (sentence) => !sentence.translation?.trim(),
+    ),
+  );
+}
+
+export function applyLearningTranslations(
+  snapshot: LearningSnapshot,
+  resourceId: string,
+  updates: readonly LearningTranslationUpdate[],
+  now = new Date().toISOString(),
+): LearningSnapshot {
+  const sourceSentences = translationSourceSentences(snapshot, resourceId);
+  const sourceById = new Map(sourceSentences.map((sentence) => [sentence.id, sentence]));
+  const normalizedUpdates = updates.flatMap((update) => {
+    const source = sourceById.get(update.sentenceId);
+    const translation = update.translation.trim();
+    return source && translation ? [Object.freeze({ source, translation })] : [];
+  });
+  if (!normalizedUpdates.length) return snapshot;
+
+  const translationById = new Map(
+    normalizedUpdates.map(({ source, translation }) => [source.id, translation]),
+  );
+  const translationByContent = new Map(
+    normalizedUpdates.map(({ source, translation }) => [
+      `${source.order}:${fingerprintText(source.text)}`,
+      translation,
+    ]),
+  );
+  const updateSentence = (sentence: LearningSentence): LearningSentence => {
+    const translation =
+      translationById.get(sentence.id) ??
+      translationByContent.get(`${sentence.order}:${fingerprintText(sentence.text)}`);
+    return translation ? Object.freeze({ ...sentence, translation }) : sentence;
+  };
+
+  const updatedSentenceIds = new Set(normalizedUpdates.map(({ source }) => source.id));
+  return Object.freeze({
+    ...snapshot,
+    resources: Object.freeze(
+      snapshot.resources.map((resource) =>
+        resource.id === resourceId
+          ? Object.freeze({
+              ...resource,
+              sentences: Object.freeze(resource.sentences.map(updateSentence)),
+              updatedAt: now,
+            })
+          : resource,
+      ),
+    ),
+    transcriptTracks: Object.freeze(
+      snapshot.transcriptTracks.map((track) =>
+        track.resourceId === resourceId
+          ? Object.freeze({
+              ...track,
+              sentences: Object.freeze(track.sentences.map(updateSentence)),
+              updatedAt: now,
+            })
+          : track,
+      ),
+    ),
+    translations: Object.freeze([
+      ...snapshot.translations.filter((entry) => !updatedSentenceIds.has(entry.sentenceId)),
+      ...normalizedUpdates.map(({ source, translation }) =>
+        Object.freeze({
+          id: `translation-${source.id}`,
+          sentenceId: source.id,
+          sourceFingerprint: fingerprintText(source.text),
+          sourceText: source.text,
+          targetLanguage: snapshot.settings.translationTargetLanguage,
+          translation,
+          contextNote: null,
+          updatedAt: now,
+        }),
+      ),
+    ]),
+  });
+}
+
+export function openLearningResource(
+  snapshot: LearningSnapshot,
+  resourceId: string,
+  now = new Date().toISOString(),
+): LearningSnapshot {
+  const reconciled = reconcileLearningTranslations(snapshot, resourceId, now);
+  const resource = reconciled.resources.find((item) => item.id === resourceId);
+  if (!resource) return snapshot;
+  const progress = reconciled.practice
     .filter((item) => item.resourceId === resourceId)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
   const selectedSentenceId =
     progress?.sentenceId ?? resource.sentences[0]?.id ?? snapshot.ui.selectedSentenceId;
   return Object.freeze({
-    ...snapshot,
+    ...reconciled,
     resources: Object.freeze(
-      snapshot.resources.map((item) =>
+      reconciled.resources.map((item) =>
         item.id === resourceId
           ? Object.freeze({ ...item, lastOpenedAt: now, updatedAt: now })
           : item,
       ),
     ),
     ui: Object.freeze({
-      ...snapshot.ui,
+      ...reconciled.ui,
       section: "practice",
       selectedResourceId: resourceId,
       selectedSentenceId,
