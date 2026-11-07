@@ -61,10 +61,10 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     horizontal: { flex: 1, backgroundColor: theme.colors.canvas },
     row: {
-      minHeight: 38,
+      minHeight: 40,
       flexDirection: "row",
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
+      borderBottomColor: theme.colors.borderSubtle,
     },
     cell: { width: 160, padding: 9, color: theme.colors.text, fontSize: 12 },
     heading: { fontWeight: "700", backgroundColor: theme.colors.surfaceMuted },

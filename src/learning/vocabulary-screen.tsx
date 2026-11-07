@@ -142,7 +142,7 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
             <Text style={styles.cardTitle}>收一条新短语</Text>
             <Text style={styles.cardCopy}>可以从逐句页点词，也可以在这里手动补充。</Text>
           </View>
-          <BookmarkPlus color={theme.colors.accent} size={20} />
+          <BookmarkPlus color={theme.colors.primary} size={20} />
         </View>
         <TextInput
           value={term}
@@ -166,7 +166,7 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
           onPress={addManual}
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
         >
-          <Plus color={theme.colors.canvas} size={18} />
+          <Plus color="#FFFFFF" size={18} />
           <Text style={styles.primaryText}>加入短语本</Text>
         </Pressable>
       </View>
@@ -178,7 +178,7 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
               <Text style={styles.cardTitle}>值得收下的表达</Text>
               <Text style={styles.cardCopy}>来自你已经听过、读过的句子。</Text>
             </View>
-            <BookmarkPlus color={theme.colors.accent} size={20} />
+            <BookmarkPlus color={theme.colors.primary} size={20} />
           </View>
           <View style={styles.suggestionList}>
             {suggestions.map((suggestion) => (
@@ -217,7 +217,7 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
               onPress={() => review("again")}
               style={({ pressed }) => [styles.again, pressed && styles.pressed]}
             >
-              <RotateCcw color={theme.colors.canvas} size={16} />
+              <RotateCcw color="#FFFFFF" size={16} />
               <Text style={styles.ratingText}>陌生</Text>
             </Pressable>
             <Pressable
@@ -232,7 +232,7 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
               onPress={() => review("easy")}
               style={({ pressed }) => [styles.easy, pressed && styles.pressed]}
             >
-              <Check color={theme.colors.canvas} size={16} />
+              <Check color="#FFFFFF" size={16} />
               <Text style={styles.ratingText}>熟悉</Text>
             </Pressable>
           </View>
@@ -243,7 +243,9 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
         </View>
       ) : (
         <View style={styles.emptyCard}>
-          <BookmarkPlus color={theme.colors.mutedText} size={25} />
+          <View style={styles.emptyIconContainer}>
+            <BookmarkPlus color={theme.colors.mutedText} size={25} />
+          </View>
           <Text style={styles.emptyTitle}>你的短语本还在等待第一条积累</Text>
           <Text style={styles.emptyCopy}>先在语料库导入几句英语，或从逐句页面点击单词开始。</Text>
         </View>
@@ -256,7 +258,7 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
               <Text style={styles.cardTitle}>和「{active.term}」语境相近</Text>
               <Text style={styles.cardCopy}>来自共同的表达与出现语境。</Text>
             </View>
-            <Link2 color={theme.colors.accent} size={20} />
+            <Link2 color={theme.colors.primary} size={20} />
           </View>
           <View style={styles.relatedList}>
             {related.map((card) => (
@@ -322,36 +324,40 @@ export function VocabularyScreen({ snapshot, onChange, theme }: Props) {
 
 function stylesFor(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 15, padding: 20, paddingBottom: 36 },
-    hero: {
-      borderBottomColor: theme.colors.divider,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      gap: 7,
-      paddingBottom: 20,
+    content: {
+      gap: theme.spacing.md,
+      padding: theme.spacing.lg,
+      paddingBottom: theme.spacing["3xl"],
     },
-    kicker: { color: theme.colors.accent, fontSize: 11, fontWeight: "700", letterSpacing: 1.1 },
-    title: { color: theme.colors.text, fontSize: 25, fontWeight: "700" },
+    hero: {
+      borderBottomColor: theme.colors.borderSubtle,
+      borderBottomWidth: 1,
+      gap: theme.spacing.xs,
+      paddingBottom: theme.spacing.lg,
+    },
+    kicker: { color: theme.colors.primary, fontSize: 11, fontWeight: "700", letterSpacing: 1.1 },
+    title: { color: theme.colors.text, fontSize: 24, fontWeight: "700" },
     copy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20 },
-    statRow: { flexDirection: "row", gap: 8, marginTop: 5 },
+    statRow: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.xs },
     stat: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flex: 1,
       gap: 2,
-      padding: 10,
+      padding: theme.spacing.sm,
     },
     statValue: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
     statLabel: { color: theme.colors.mutedText, fontSize: 11 },
     card: {
-      borderBottomColor: theme.colors.divider,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      gap: 12,
-      paddingBottom: 20,
+      borderBottomColor: theme.colors.borderSubtle,
+      borderBottomWidth: 1,
+      gap: theme.spacing.md,
+      paddingBottom: theme.spacing.lg,
     },
     cardHeading: {
       alignItems: "flex-start",
       flexDirection: "row",
-      gap: 12,
+      gap: theme.spacing.md,
       justifyContent: "space-between",
     },
     cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
@@ -363,130 +369,149 @@ function stylesFor(theme: Theme) {
       maxWidth: 300,
     },
     input: {
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
       color: theme.colors.text,
       fontSize: 14,
-      padding: 12,
+      padding: theme.spacing.md,
     },
     primary: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
-      padding: 13,
+      minHeight: 44,
+      padding: theme.spacing.md,
     },
-    primaryText: { color: theme.colors.canvas, fontSize: 13, fontWeight: "700" },
-    suggestionList: { gap: 8 },
+    primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+    suggestionList: { gap: theme.spacing.sm },
     suggestion: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 10,
-      padding: 10,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.sm,
     },
     suggestionBody: { flex: 1, gap: 3 },
     suggestionTerm: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
     suggestionContext: { color: theme.colors.mutedText, fontSize: 11, fontStyle: "italic" },
     collectButton: {
-      backgroundColor: theme.colors.accentSoft,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
+      alignItems: "center",
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.sm,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
-    collectText: { color: theme.colors.accent, fontSize: 12, fontWeight: "700" },
-    label: { color: theme.colors.accent, fontSize: 11, fontWeight: "700", letterSpacing: 1 },
+    collectText: { color: theme.colors.primary, fontSize: 12, fontWeight: "700" },
+    label: { color: theme.colors.primary, fontSize: 11, fontWeight: "700", letterSpacing: 1 },
     activeTerm: { color: theme.colors.text, fontSize: 28, fontWeight: "700" },
     definition: { color: theme.colors.text, fontSize: 15, fontWeight: "700", lineHeight: 21 },
-    translation: { color: theme.colors.accent, fontSize: 13 },
+    translation: { color: theme.colors.primary, fontSize: 13 },
     context: { color: theme.colors.mutedText, fontSize: 13, fontStyle: "italic", lineHeight: 19 },
-    ratings: { flexDirection: "row", gap: 8 },
+    ratings: { flexDirection: "row", gap: theme.spacing.sm },
     again: {
       alignItems: "center",
       backgroundColor: theme.colors.danger,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flex: 1,
       flexDirection: "row",
       gap: 5,
       justifyContent: "center",
-      padding: 11,
+      minHeight: 44,
+      padding: theme.spacing.sm,
     },
     known: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
       flex: 1,
       justifyContent: "center",
-      padding: 11,
+      minHeight: 44,
+      padding: theme.spacing.sm,
     },
     easy: {
       alignItems: "center",
       backgroundColor: theme.colors.success,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flex: 1,
       flexDirection: "row",
       gap: 5,
       justifyContent: "center",
-      padding: 11,
+      minHeight: 44,
+      padding: theme.spacing.sm,
     },
-    ratingText: { color: theme.colors.canvas, fontSize: 12, fontWeight: "700" },
+    ratingText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
     knownText: { color: theme.colors.text, fontSize: 12, fontWeight: "700" },
     reviewMeta: { color: theme.colors.mutedText, fontSize: 11 },
     emptyCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
-      gap: 7,
-      padding: 24,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      gap: theme.spacing.xs,
+      padding: theme.spacing["2xl"],
+    },
+    emptyIconContainer: {
+      alignItems: "center",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radius.full,
+      height: 56,
+      justifyContent: "center",
+      marginBottom: theme.spacing.xs,
+      width: 56,
     },
     emptyTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600", textAlign: "center" },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 18, textAlign: "center" },
-    relatedList: { gap: 8 },
+    relatedList: { gap: theme.spacing.sm },
     relatedItem: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 10,
-      padding: 11,
+      gap: theme.spacing.sm,
+      minHeight: 44,
+      padding: theme.spacing.sm,
     },
     relatedText: { flex: 1, gap: 3 },
     relatedTerm: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     relatedContext: { color: theme.colors.mutedText, fontSize: 11 },
-    openText: { color: theme.colors.accent, fontSize: 12, fontWeight: "600" },
+    openText: { color: theme.colors.primary, fontSize: 12, fontWeight: "600" },
     libraryHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
     exportButton: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.sm,
+      borderWidth: 1,
       flexDirection: "row",
       gap: 5,
-      paddingHorizontal: 9,
-      paddingVertical: 7,
+      minHeight: 44,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
     },
     exportText: { color: theme.colors.text, fontSize: 11, fontWeight: "600" },
-    allList: { gap: 7 },
+    allList: { gap: theme.spacing.xs },
     allItem: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 8,
-      padding: 10,
+      gap: theme.spacing.sm,
+      minHeight: 44,
+      padding: theme.spacing.sm,
     },
-    allItemSelected: { borderColor: theme.colors.accent, borderWidth: StyleSheet.hairlineWidth },
+    allItemSelected: { borderColor: theme.colors.primary, borderWidth: 1 },
     allText: { flex: 1, gap: 3 },
     allTerm: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     allDefinition: { color: theme.colors.mutedText, fontSize: 11 },
     allMeta: { color: theme.colors.mutedText, fontSize: 10 },
-    pressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
+    pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   });
 }

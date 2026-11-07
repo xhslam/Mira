@@ -60,4 +60,22 @@ describe("Enjoy Player learning domain", () => {
       ),
     ).toEqual(["Dr. Smith said hello.", "This is a useful phrase!", "Keep going?"]);
   });
+  it("splits pasted English prose when sentence-boundary spaces are missing", () => {
+    expect(
+      splitLearningSentences(
+        "Overall, public transport use was far more common among large city residents, whose usage followed a clear age related pattern.By contrast. figures for people living outside major cities remained relatively low and showed only limited variation across age groups",
+      ),
+    ).toEqual([
+      "Overall, public transport use was far more common among large city residents, whose usage followed a clear age related pattern.",
+      "By contrast.",
+      "figures for people living outside major cities remained relatively low and showed only limited variation across age groups",
+    ]);
+  });
+  it("preserves abbreviations, initialisms, and decimals while recovering missing spaces", () => {
+    expect(splitLearningSentences("Dr.Smith reviewed the U.S. census.It's 3.14.Okay?")).toEqual([
+      "Dr.Smith reviewed the U.S. census.",
+      "It's 3.14.",
+      "Okay?",
+    ]);
+  });
 });

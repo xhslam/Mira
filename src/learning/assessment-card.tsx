@@ -14,7 +14,7 @@ export function AssessmentCard({ recording, theme }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.icon}>
-        <Mic color={theme.colors.accent} size={19} />
+        <Mic color={theme.colors.primary} size={19} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.title}>跟读录音已保存</Text>
@@ -33,20 +33,21 @@ function createStyles(theme: Theme) {
     card: {
       alignItems: "center",
       backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
       flexDirection: "row",
-      gap: 12,
-      padding: 15,
+      gap: theme.spacing.md,
+      padding: theme.spacing.md,
+      ...theme.shadows.sm,
     },
     icon: {
       alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      height: 38,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.full,
+      height: 40,
       justifyContent: "center",
-      width: 38,
+      width: 40,
     },
     copy: { flex: 1, gap: 3 },
     title: { color: theme.colors.text, fontSize: 14, fontWeight: "700" },

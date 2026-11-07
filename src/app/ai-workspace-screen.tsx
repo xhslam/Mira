@@ -832,6 +832,7 @@ export function AgentConversationScreen({
       />
       <AiProviderSheet
         connectionTester={services.aiConnectionTester}
+        modelDiscovery={services.aiModelDiscovery}
         manager={services.aiProviderProfiles}
         onChanged={() => setProviderRevision((value) => value + 1)}
         onClose={() => setProviderSheetVisible(false)}

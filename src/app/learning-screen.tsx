@@ -539,10 +539,10 @@ function SettingsScreen({
         />
         <SettingRow
           icon={Languages}
-          title="逐句翻译"
-          detail="需要时显示中文释义"
-          value={settings.translationTargetLanguage === "zh-CN"}
-          onChange={(value) => patch({ translationTargetLanguage: value ? "zh-CN" : "en-US" })}
+          title="默认显示译文"
+          detail="逐句学习时显示已有译文"
+          value={settings.showTranslationsByDefault}
+          onChange={(value) => patch({ showTranslationsByDefault: value })}
           styles={styles}
           theme={theme}
         />

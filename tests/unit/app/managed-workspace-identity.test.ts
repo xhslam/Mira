@@ -30,9 +30,10 @@ describe("managed workspace identity", () => {
   it("localizes the built-in managed workspace name and location", () => {
     const record = grant({});
     expect(resolveWorkspaceName(record, zh)).toBe("应用管理的工作区");
-    expect(resolveWorkspaceLocation(record, zh)).toBe("本机 Inkstone 私有存储");
+    expect(resolveWorkspaceLocation(record, zh)).toBe("本机 Mira 私有存储");
     expect(resolveWorkspaceName(record, en)).toBe(MANAGED_WORKSPACE_DEFAULT_NAME);
-    expect(resolveWorkspaceLocation(record, en)).toBe(MANAGED_WORKSPACE_DEFAULT_LOCATION);
+    expect(resolveWorkspaceLocation(record, en)).toBe("Private Mira storage on this device");
+    expect(record.locationSummary).toBe("Private Inkstone storage on this device");
   });
 
   it("preserves a user rename instead of overwriting it with a translation", () => {

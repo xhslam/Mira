@@ -24,6 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { AiProviderProfileManager } from "../ai/provider-profile-manager";
 import type { AiProviderProfile } from "../ai/provider-profile";
+import { AI_PROVIDER_CATALOG } from "../ai/provider-catalog";
 import type { AppServices } from "./app-services";
 import type { SettingsStore } from "./settings-store";
 import { useTheme, type Theme } from "./theme";
@@ -46,41 +47,12 @@ const EMPTY_DRAFT: Draft = Object.freeze({
   apiKey: "",
 });
 
-const PROVIDER_PRESETS: readonly Readonly<{
-  label: string;
-  name: string;
-  adapter: AiProviderProfile["adapter"];
-  baseUrl: string;
-  model: string;
-}>[] = Object.freeze([
-  Object.freeze({
-    label: "DeepSeek V4 Flash",
-    name: "DeepSeek",
-    adapter: "openai-compatible-chat",
-    baseUrl: "https://api.deepseek.com",
-    model: "deepseek-v4-flash",
-  }),
-  Object.freeze({
-    label: "DeepSeek V4 Pro",
-    name: "DeepSeek",
-    adapter: "openai-compatible-chat",
-    baseUrl: "https://api.deepseek.com",
-    model: "deepseek-v4-pro",
-  }),
-  Object.freeze({
-    label: "OpenAI",
-    name: "OpenAI",
-    adapter: "openai-responses",
-    baseUrl: "https://api.openai.com/v1",
-    model: "gpt-5-mini",
-  }),
-]);
-
 export function AiProviderSheet({
   visible,
   onClose,
   manager,
   connectionTester,
+  modelDiscovery,
   settingsStore,
   onChanged,
 }: Readonly<{
@@ -88,6 +60,7 @@ export function AiProviderSheet({
   onClose: () => void;
   manager: AiProviderProfileManager;
   connectionTester: AppServices["aiConnectionTester"];
+  modelDiscovery: AppServices["aiModelDiscovery"];
   settingsStore: SettingsStore;
   onChanged: () => void;
 }>) {
@@ -95,6 +68,7 @@ export function AiProviderSheet({
   const styles = createStyles(theme);
   const [profiles, setProfiles] = useState<Awaited<ReturnType<typeof manager.list>>>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [models, setModels] = useState<readonly string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +94,7 @@ export function AiProviderSheet({
   }, [manager, visible]);
 
   function closeForm(): void {
+    setModels([]);
     setShowForm(false);
     setDraft(EMPTY_DRAFT);
     setError(null);
@@ -132,6 +107,7 @@ export function AiProviderSheet({
   }
 
   function edit(profile: AiProviderProfile): void {
+    setModels([]);
     setShowForm(true);
     setDraft(
       Object.freeze({
@@ -170,6 +146,25 @@ export function AiProviderSheet({
       onChanged();
     } catch {
       setError("无法保存模型服务，请检查地址、模型 ID 和密钥。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function discoverModels(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    setModels([]);
+    try {
+      const saved = profiles.find(({ profile }) => profile.id === draft.id)?.profile;
+      const models = await modelDiscovery.discover({
+        baseUrl: draft.baseUrl,
+        ...(draft.apiKey.trim() ? { apiKey: draft.apiKey } : {}),
+        ...(saved && saved.baseUrl === draft.baseUrl.trim() ? { profileId: saved.id } : {}),
+      });
+      setModels(models);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "无法读取模型列表。");
     } finally {
       setBusy(false);
     }
@@ -315,9 +310,9 @@ export function AiProviderSheet({
             ) : (
               <View style={styles.form}>
                 <View style={styles.presets}>
-                  {PROVIDER_PRESETS.map((preset) => (
+                  {AI_PROVIDER_CATALOG.map((preset) => (
                     <Pressable
-                      key={preset.label}
+                      key={preset.id}
                       onPress={() =>
                         setDraft((current) =>
                           Object.freeze({
@@ -325,13 +320,14 @@ export function AiProviderSheet({
                             name: preset.name,
                             adapter: preset.adapter,
                             baseUrl: preset.baseUrl,
-                            model: preset.model,
+                            model: preset.defaultModel,
+                            apiKey: current.baseUrl === preset.baseUrl ? current.apiKey : "",
                           }),
                         )
                       }
                       style={styles.preset}
                     >
-                      <Text style={styles.presetText}>{preset.label}</Text>
+                      <Text style={styles.presetText}>{preset.name}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -373,13 +369,16 @@ export function AiProviderSheet({
                   autoCapitalize="none"
                   label="服务地址（HTTPS）"
                   value={draft.baseUrl}
-                  onChange={(baseUrl) => setDraft({ ...draft, baseUrl })}
+                  onChange={(baseUrl) => {
+                    setModels([]);
+                    setDraft({ ...draft, baseUrl });
+                  }}
                   styles={styles}
                 />
                 <Field
                   autoCapitalize="none"
                   label="模型 ID"
-                  placeholder="填写服务商提供的模型 ID"
+                  placeholder="可从服务获取，也可直接输入任意模型 ID"
                   value={draft.model}
                   onChange={(model) => setDraft({ ...draft, model })}
                   styles={styles}
@@ -392,6 +391,31 @@ export function AiProviderSheet({
                   onChange={(apiKey) => setDraft({ ...draft, apiKey })}
                   styles={styles}
                 />
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy || !draft.baseUrl.trim()}
+                  onPress={() => void discoverModels()}
+                  style={styles.preset}
+                >
+                  <Text style={styles.presetText}>{busy ? "请稍候…" : "从服务获取模型"}</Text>
+                </Pressable>
+                {models.length ? (
+                  <View style={styles.presets}>
+                    {models.slice(0, 20).map((model) => (
+                      <Pressable
+                        key={model}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: draft.model === model }}
+                        onPress={() => setDraft((current) => ({ ...current, model }))}
+                        style={[styles.preset, draft.model === model && styles.segmentActive]}
+                      >
+                        <Text numberOfLines={1} style={styles.presetText}>
+                          {model}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 <Pressable
                   disabled={
                     busy ||

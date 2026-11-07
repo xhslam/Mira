@@ -1,0 +1,69 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Generate Android project
+        run: npx expo prebuild --clean --platform android --no-install
+
+      - name: Build standalone APK
+        run: npm run android:release
+
+      - name: Verify and stage APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          mkdir -p apk
+          cp android/app/build/outputs/apk/release/app-release.apk apk/Mira-Android.apk
+          (
+            cd apk
+            sha256sum Mira-Android.apk > SHA256SUMS.txt
+            "$build_tools/apksigner" verify --print-certs Mira-Android.apk
+            "$build_tools/aapt" dump badging Mira-Android.apk > apk-info.txt
+            grep -F "package: name='app.inkstone.markdown'" apk-info.txt
+            grep -F "native-code:" apk-info.txt
+            unzip -Z1 Mira-Android.apk > apk-files.txt
+            grep -Fx 'assets/index.android.bundle' apk-files.txt
+            rm apk-files.txt
+            cat SHA256SUMS.txt
+          )
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mira-Android-${{ github.sha }}
+          path: apk/
+          if-no-files-found: error
+          retention-days: 90

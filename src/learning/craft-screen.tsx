@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import {
   ArrowLeft,
-  Languages,
   Mic,
   Pause,
   Play,
@@ -31,14 +30,18 @@ import {
 } from "expo-audio";
 import type { AppServices } from "../app/app-services";
 import type { Theme } from "../app/theme";
+import { addManualLearningResourceToLibrary, createManualLearningResource } from "./craft-resource";
 import { splitLearningSentences } from "./enjoy-player-domain";
 import { collectLearningResponse } from "./learning-ai";
 import { transcribeOpenAiCompatibleMedia } from "./learning-stt";
 import { synthesizeOpenAiCompatibleSpeech } from "./learning-tts";
 import type { LearningResource, LearningSnapshot } from "./learning-types";
 
-type CraftMode = "quick" | "advanced";
+type CraftMode = "basic" | "advanced";
 type StyleName = "自然" | "正式" | "口语" | "直译";
+
+const SOURCE_LANGUAGE = "中文";
+const TARGET_LANGUAGE = "英语";
 
 type Props = Readonly<{
   services: AppServices;
@@ -50,13 +53,13 @@ type Props = Readonly<{
 
 export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [mode, setMode] = useState<CraftMode>("quick");
+  const [mode, setMode] = useState<CraftMode>("basic");
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualText, setManualText] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [targetText, setTargetText] = useState("");
   const [style, setStyle] = useState<StyleName>("自然");
   const [voice, setVoice] = useState(snapshot.settings.ttsVoiceId || "alloy");
-  const [sourceLanguage, setSourceLanguage] = useState("中文");
-  const [targetLanguage, setTargetLanguage] = useState("英语");
   const [working, setWorking] = useState<"transcribe" | "rewrite" | "speech" | "save" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -76,8 +79,14 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
       Alert.alert("正在录音", "请先停止或取消录音，再离开 Craft。");
       return;
     }
-    if (previewUri || sourceText.trim() || targetText.trim()) {
-      Alert.alert("放弃未保存的 Craft 内容？", "未保存的录音、改写结果和试听音频将被丢弃。", [
+    if (
+      previewUri ||
+      manualTitle.trim() ||
+      manualText.trim() ||
+      sourceText.trim() ||
+      targetText.trim()
+    ) {
+      Alert.alert("放弃未保存的内容？", "未保存的文稿、录音、改写结果和试听音频将被丢弃。", [
         { text: "继续编辑", style: "cancel" },
         { text: "放弃", style: "destructive", onPress: onClose },
       ]);
@@ -111,7 +120,7 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
       const cues = await transcribeOpenAiCompatibleMedia({
         baseUrl: snapshot.settings.sttBaseUrl,
         mediaUri: uri,
-        language: sourceLanguage === "中文" ? "zh" : "en",
+        language: "zh",
       });
       const text = cues
         .map((cue) => cue.text)
@@ -144,14 +153,14 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
           }),
           Object.freeze({
             role: "user" as const,
-            content: `Source language: ${sourceLanguage}\nTarget language: ${targetLanguage}\nStyle: ${style}\nOriginal thought:\n${sourceText.trim()}`,
+            content: `Source language: ${SOURCE_LANGUAGE}\nTarget language: ${TARGET_LANGUAGE}\nStyle: ${style}\nOriginal thought:\n${sourceText.trim()}`,
           }),
         ]),
       });
       setTargetText(response.trim());
     } catch (reason) {
       setNotice(
-        reason instanceof Error ? reason.message : "改写失败，请检查 Agent 的模型设置后重试。",
+        reason instanceof Error ? reason.message : "改写失败，请检查学习设置中的 AI 引擎后重试。",
       );
     } finally {
       setWorking(null);
@@ -211,8 +220,8 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
       const resource: LearningResource = Object.freeze({
         id,
         title: targetText.trim().slice(0, 44),
-        description: `Craft · ${style} · ${sourceLanguage} → ${targetLanguage}`,
-        language: targetLanguage === "英语" ? "en-US" : targetLanguage,
+        description: `Craft · ${style} · ${SOURCE_LANGUAGE} → ${TARGET_LANGUAGE}`,
+        language: "en-US",
         source: "generated",
         provider: "craft",
         content: targetText.trim(),
@@ -252,6 +261,24 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
     }
   }
 
+  function saveManualResource() {
+    setNotice(null);
+    setWorking("save");
+    try {
+      const resource = createManualLearningResource({
+        id: nextId("manual"),
+        title: manualTitle,
+        content: manualText,
+        now: new Date().toISOString(),
+      });
+      onChange(addManualLearningResourceToLibrary(snapshot, resource));
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "保存手动资料失败，请重试。");
+    } finally {
+      setWorking(null);
+    }
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -267,15 +294,16 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
         <View style={styles.headerSpacer} />
       </View>
       <View style={styles.segment}>
-        {(["quick", "advanced"] as const).map((item) => (
+        {(["basic", "advanced"] as const).map((item) => (
           <Pressable
             key={item}
             accessibilityRole="button"
+            accessibilityState={{ selected: mode === item }}
             onPress={() => setMode(item)}
             style={[styles.segmentItem, mode === item && styles.segmentItemActive]}
           >
             <Text style={[styles.segmentLabel, mode === item && styles.segmentLabelActive]}>
-              {item === "quick" ? "快速" : "高级"}
+              {item === "basic" ? "基础" : "高级"}
             </Text>
           </Pressable>
         ))}
@@ -285,19 +313,58 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {mode === "quick" ? (
+        {mode === "basic" ? (
           <>
+            <Text style={styles.kicker}>手动创建</Text>
+            <Text style={styles.intro}>粘贴或输入文稿，保存后直接成为资料库中的文本资料。</Text>
+            <Text style={styles.fieldLabel}>资料标题（可选）</Text>
+            <TextInput
+              value={manualTitle}
+              onChangeText={setManualTitle}
+              placeholder="留空时使用文稿首行"
+              placeholderTextColor={theme.colors.mutedText}
+              style={styles.titleInput}
+            />
+            <Text style={styles.fieldLabel}>文稿内容</Text>
+            <TextInput
+              multiline
+              value={manualText}
+              onChangeText={setManualText}
+              placeholder="在这里输入或粘贴要学习的文稿…"
+              placeholderTextColor={theme.colors.mutedText}
+              style={[styles.input, styles.manualInput]}
+              textAlignVertical="top"
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={working !== null || !manualText.trim()}
+              onPress={saveManualResource}
+              style={[styles.primary, (working !== null || !manualText.trim()) && styles.disabled]}
+            >
+              {working === "save" ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Save color="#FFFFFF" size={18} />
+              )}
+              <Text style={styles.primaryText}>保存到资料</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={styles.kicker}>录音与 AI 创作</Text>
+            <Text style={styles.intro}>
+              说出或输入想法，改写成自然英语，再生成可跟读的音频资料。
+            </Text>
             <View style={styles.captureCard}>
               <Text style={styles.captureLabel}>
-                {recorderState.isRecording ? "正在录音" : "录音"}
+                {recorderState.isRecording ? "正在录音" : "说出你的想法"}
               </Text>
-              {recorderState.isRecording ? (
-                <Text style={styles.captureHint}>
-                  {Math.floor(recorderState.durationMillis / 1000)} 秒
-                </Text>
-              ) : null}
+              <Text style={styles.captureHint}>
+                {recorderState.isRecording
+                  ? `${Math.floor(recorderState.durationMillis / 1000)} 秒 · 点击停止并转写`
+                  : "点击录音，用你最自然的方式表达。"}
+              </Text>
               <Pressable
-                accessibilityLabel={recorderState.isRecording ? "停止录音" : "开始录音"}
                 accessibilityRole="button"
                 onPress={() => void toggleRecording()}
                 style={[styles.micButton, recorderState.isRecording && styles.micButtonActive]}
@@ -308,95 +375,29 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
                   <Mic color="#FFFFFF" size={28} />
                 )}
               </Pressable>
-              {recordingUri ? <Text style={styles.recordingHint}>录音已保留</Text> : null}
+              {recordingUri ? (
+                <Text style={styles.recordingHint}>已保留本次录音；可继续修改转写原文。</Text>
+              ) : null}
             </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.languageRow}>
-              <LanguageChip
-                label={sourceLanguage}
-                onPress={() => setSourceLanguage(sourceLanguage === "中文" ? "英语" : "中文")}
-                styles={styles}
-                theme={theme}
-              />
-              <Languages color={theme.colors.mutedText} size={19} />
-              <LanguageChip
-                label={targetLanguage}
-                onPress={() => setTargetLanguage(targetLanguage === "英语" ? "中文" : "英语")}
-                styles={styles}
-                theme={theme}
-              />
-            </View>
-          </>
-        )}
-        <Text style={styles.fieldLabel}>{mode === "quick" ? "你的原话" : "原文"}</Text>
-        <TextInput
-          multiline
-          value={sourceText}
-          onChangeText={setSourceText}
-          placeholder="输入文字也可以开始…"
-          placeholderTextColor={theme.colors.mutedText}
-          style={styles.input}
-          textAlignVertical="top"
-        />
-        <View style={styles.styleRow}>
-          {(["自然", "正式", "口语", "直译"] as StyleName[]).map((item) => (
-            <Pressable
-              key={item}
-              accessibilityRole="button"
-              onPress={() => setStyle(item)}
-              style={[styles.styleChip, style === item && styles.styleChipActive]}
-            >
-              <Text style={[styles.styleLabel, style === item && styles.styleLabelActive]}>
-                {item}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          disabled={working !== null}
-          onPress={() => void rewrite()}
-          style={[styles.primary, working !== null && styles.disabled]}
-        >
-          {working === "rewrite" || working === "transcribe" ? (
-            <ActivityIndicator color={theme.colors.canvas} />
-          ) : (
-            <RefreshCcw color={theme.colors.canvas} size={18} />
-          )}
-          <Text style={styles.primaryText}>
-            {working === "transcribe"
-              ? "正在转写"
-              : working === "rewrite"
-                ? "正在生成"
-                : targetText
-                  ? "重新生成"
-                  : "生成学习表达"}
-          </Text>
-        </Pressable>
-        {targetText ? (
-          <>
-            <Text style={styles.fieldLabel}>学习语言文本</Text>
+            <Text style={styles.fieldLabel}>你的原话</Text>
             <TextInput
               multiline
-              value={targetText}
-              onChangeText={setTargetText}
-              placeholder="生成后的文本可以继续编辑"
+              value={sourceText}
+              onChangeText={setSourceText}
+              placeholder="输入文字也可以开始…"
               placeholderTextColor={theme.colors.mutedText}
               style={styles.input}
               textAlignVertical="top"
             />
-            <Text style={styles.fieldLabel}>声音</Text>
             <View style={styles.styleRow}>
-              {["alloy", "nova", "shimmer"].map((item) => (
+              {(["自然", "正式", "口语", "直译"] as StyleName[]).map((item) => (
                 <Pressable
                   key={item}
                   accessibilityRole="button"
-                  onPress={() => setVoice(item)}
-                  style={[styles.styleChip, voice === item && styles.styleChipActive]}
+                  onPress={() => setStyle(item)}
+                  style={[styles.styleChip, style === item && styles.styleChipActive]}
                 >
-                  <Text style={[styles.styleLabel, voice === item && styles.styleLabelActive]}>
+                  <Text style={[styles.styleLabel, style === item && styles.styleLabelActive]}>
                     {item}
                   </Text>
                 </Pressable>
@@ -405,75 +406,115 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
             <Pressable
               accessibilityRole="button"
               disabled={working !== null}
-              onPress={() => void generateSpeech()}
-              style={[styles.secondary, working !== null && styles.disabled]}
+              onPress={() => void rewrite()}
+              style={[styles.primary, working !== null && styles.disabled]}
             >
-              {working === "speech" ? (
-                <ActivityIndicator color={theme.colors.accent} />
+              {working === "rewrite" || working === "transcribe" ? (
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Volume2 color={theme.colors.accent} size={18} />
+                <RefreshCcw color="#FFFFFF" size={18} />
               )}
-              <Text style={styles.secondaryText}>{previewUri ? "重新合成试听" : "生成试听"}</Text>
+              <Text style={styles.primaryText}>
+                {working === "transcribe"
+                  ? "正在转写"
+                  : working === "rewrite"
+                    ? "正在生成"
+                    : targetText
+                      ? "重新生成"
+                      : "生成学习表达"}
+              </Text>
             </Pressable>
+            {targetText ? (
+              <>
+                <Text style={styles.fieldLabel}>学习语言文本</Text>
+                <TextInput
+                  multiline
+                  value={targetText}
+                  onChangeText={setTargetText}
+                  placeholder="生成后的文本可以继续编辑"
+                  placeholderTextColor={theme.colors.mutedText}
+                  style={styles.input}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.fieldLabel}>声音</Text>
+                <View style={styles.styleRow}>
+                  {["alloy", "nova", "shimmer"].map((item) => (
+                    <Pressable
+                      key={item}
+                      accessibilityRole="button"
+                      onPress={() => setVoice(item)}
+                      style={[styles.styleChip, voice === item && styles.styleChipActive]}
+                    >
+                      <Text style={[styles.styleLabel, voice === item && styles.styleLabelActive]}>
+                        {item}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={working !== null}
+                  onPress={() => void generateSpeech()}
+                  style={[styles.secondary, working !== null && styles.disabled]}
+                >
+                  {working === "speech" ? (
+                    <ActivityIndicator color={theme.colors.primary} />
+                  ) : (
+                    <Volume2 color={theme.colors.primary} size={18} />
+                  )}
+                  <Text style={styles.secondaryText}>
+                    {previewUri ? "重新合成试听" : "生成试听"}
+                  </Text>
+                </Pressable>
+              </>
+            ) : null}
+            {previewUri ? (
+              <View style={styles.previewCard}>
+                <Pressable accessibilityRole="button" onPress={preview} style={styles.roundIcon}>
+                  {previewStatus.playing ? (
+                    <Pause color={theme.colors.text} size={19} fill={theme.colors.text} />
+                  ) : (
+                    <Play color={theme.colors.text} size={19} fill={theme.colors.text} />
+                  )}
+                </Pressable>
+                <View style={styles.previewCopy}>
+                  <Text style={styles.previewTitle}>试听已就绪</Text>
+                  <Text style={styles.previewDescription}>
+                    保存后会成为资料库中的 Craft 音频材料。
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+            {previewUri ? (
+              <View style={styles.saveRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={working !== null}
+                  onPress={() => saveAndPractice(false)}
+                  style={[styles.primary, styles.savePrimary, working !== null && styles.disabled]}
+                >
+                  <Save color="#FFFFFF" size={18} />
+                  <Text style={styles.primaryText}>保存并练习</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={working !== null}
+                  onPress={() => saveAndPractice(true)}
+                  style={[
+                    styles.secondary,
+                    styles.saveSecondary,
+                    working !== null && styles.disabled,
+                  ]}
+                >
+                  <Text style={styles.secondaryText}>保存后继续说</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </>
-        ) : null}
-        {previewUri ? (
-          <View style={styles.previewCard}>
-            <Pressable accessibilityRole="button" onPress={preview} style={styles.roundIcon}>
-              {previewStatus.playing ? (
-                <Pause color={theme.colors.text} size={19} fill={theme.colors.text} />
-              ) : (
-                <Play color={theme.colors.text} size={19} fill={theme.colors.text} />
-              )}
-            </Pressable>
-            <View style={styles.previewCopy}>
-              <Text style={styles.previewTitle}>试听已就绪</Text>
-              <Text style={styles.previewDescription}>保存后会成为资料库中的 Craft 音频材料。</Text>
-            </View>
-          </View>
-        ) : null}
+        )}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        {previewUri ? (
-          <View style={styles.saveRow}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={working !== null}
-              onPress={() => saveAndPractice(false)}
-              style={[styles.primary, styles.savePrimary, working !== null && styles.disabled]}
-            >
-              <Save color={theme.colors.canvas} size={18} />
-              <Text style={styles.primaryText}>保存并练习</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={working !== null}
-              onPress={() => saveAndPractice(true)}
-              style={[styles.secondary, styles.saveSecondary, working !== null && styles.disabled]}
-            >
-              <Text style={styles.secondaryText}>保存后继续说</Text>
-            </Pressable>
-          </View>
-        ) : null}
       </ScrollView>
     </View>
-  );
-}
-
-function LanguageChip({
-  label,
-  onPress,
-  styles,
-  theme,
-}: Readonly<{
-  label: string;
-  onPress: () => void;
-  styles: ReturnType<typeof createStyles>;
-  theme: Theme;
-}>) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.languageChip}>
-      <Text style={styles.languageLabel}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -484,45 +525,53 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.md,
     },
-    headerSpacer: { height: 48, width: 48 },
-    title: { color: theme.colors.text, fontSize: 19, fontWeight: "600" },
+    headerSpacer: { height: 44, width: 44 },
+    title: { color: theme.colors.text, fontSize: 18, fontWeight: "600" },
     roundIcon: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      height: 48,
+      borderRadius: theme.radius.full,
+      height: 44,
       justifyContent: "center",
-      width: 48,
+      width: 44,
     },
     segment: {
       alignSelf: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
-      marginTop: 14,
+      marginTop: theme.spacing.md,
       padding: 4,
       width: 210,
     },
     segmentItem: {
       alignItems: "center",
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flex: 1,
       justifyContent: "center",
-      minHeight: 44,
+      minHeight: 36,
     },
     segmentItemActive: { backgroundColor: theme.colors.canvas },
     segmentLabel: { color: theme.colors.mutedText, fontSize: 13, fontWeight: "600" },
     segmentLabelActive: { color: theme.colors.text },
-    content: { gap: 14, padding: 20, paddingBottom: 56 },
+    content: { gap: theme.spacing.md, padding: theme.spacing.lg, paddingBottom: 56 },
+    kicker: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontWeight: "600",
+      letterSpacing: 1,
+      marginTop: theme.spacing.sm,
+    },
+    intro: { color: theme.colors.mutedText, fontSize: 15, lineHeight: 22 },
     captureCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 16,
-      gap: 8,
-      padding: 24,
+      borderRadius: theme.radius.lg,
+      gap: theme.spacing.sm,
+      padding: theme.spacing.xl,
     },
     captureLabel: { color: theme.colors.text, fontSize: 20, fontWeight: "600" },
     captureHint: {
@@ -533,84 +582,89 @@ function createStyles(theme: Theme) {
     },
     micButton: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      height: 82,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
+      height: 80,
       justifyContent: "center",
-      marginTop: 10,
-      width: 82,
+      marginTop: theme.spacing.sm,
+      width: 80,
     },
     micButtonActive: { backgroundColor: theme.colors.error },
-    recordingHint: { color: theme.colors.accent, fontSize: 12, marginTop: 2 },
-    languageRow: { alignItems: "center", flexDirection: "row", gap: 10 },
-    languageChip: {
-      alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
-      justifyContent: "center",
-      minHeight: 38,
-      paddingHorizontal: 15,
+    recordingHint: { color: theme.colors.primary, fontSize: 12, marginTop: 2 },
+    fieldLabel: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: "600",
+      marginTop: theme.spacing.xs,
     },
-    languageLabel: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
-    fieldLabel: { color: theme.colors.text, fontSize: 14, fontWeight: "600", marginTop: 4 },
     input: {
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
       color: theme.colors.text,
       fontSize: 15,
       lineHeight: 22,
       minHeight: 120,
-      padding: 15,
+      padding: theme.spacing.md,
     },
-    styleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    manualInput: { minHeight: 240 },
+    titleInput: {
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radius.md,
+      color: theme.colors.text,
+      fontSize: 15,
+      minHeight: 48,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+    },
+    styleRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
     styleChip: {
       alignItems: "center",
-      borderColor: theme.colors.divider,
-      borderRadius: 999,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: theme.radius.full,
       borderWidth: 1,
       justifyContent: "center",
-      minHeight: 34,
-      paddingHorizontal: 13,
+      minHeight: 36,
+      paddingHorizontal: theme.spacing.md,
     },
-    styleChipActive: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+    styleChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
     styleLabel: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
-    styleLabelActive: { color: theme.colors.canvas },
+    styleLabelActive: { color: "#FFFFFF" },
     primary: {
       alignItems: "center",
-      backgroundColor: theme.colors.accent,
-      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
       minHeight: 48,
-      paddingHorizontal: 18,
+      paddingHorizontal: theme.spacing.lg,
     },
-    primaryText: { color: theme.colors.canvas, fontSize: 15, fontWeight: "600" },
+    primaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
     secondary: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
+      borderRadius: theme.radius.full,
       flexDirection: "row",
-      gap: 8,
+      gap: theme.spacing.sm,
       justifyContent: "center",
       minHeight: 46,
-      paddingHorizontal: 18,
+      paddingHorizontal: theme.spacing.lg,
     },
-    secondaryText: { color: theme.colors.accent, fontSize: 14, fontWeight: "600" },
+    secondaryText: { color: theme.colors.primary, fontSize: 14, fontWeight: "600" },
     disabled: { opacity: 0.45 },
     previewCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
+      borderRadius: theme.radius.md,
       flexDirection: "row",
-      gap: 12,
-      padding: 13,
+      gap: theme.spacing.md,
+      padding: theme.spacing.md,
     },
-    previewCopy: { flex: 1, gap: 3 },
+    previewCopy: { flex: 1, gap: theme.spacing.xs },
     previewTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     previewDescription: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
     notice: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20, textAlign: "center" },
-    saveRow: { gap: 9 },
+    saveRow: { gap: theme.spacing.sm },
     savePrimary: { flex: 1 },
     saveSecondary: { flex: 1 },
   });

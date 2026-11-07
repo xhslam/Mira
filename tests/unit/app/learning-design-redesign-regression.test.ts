@@ -20,8 +20,23 @@ describe("learning design implementation", () => {
     expect(learningScreen).toContain("section: lastMainSection");
     expect(homeScreen).toContain('accessibilityLabel="创建学习材料"');
     expect(homeScreen).toContain("onPress={chooseCraft}");
+    expect(homeScreen).toContain("手动输入文稿，直接保存为学习资料");
     expect(homeScreen).not.toContain('title: "录音"');
     expect(homeScreen).not.toContain("craftButton");
+  });
+
+  it("separates direct manual creation from the advanced Craft workflow", () => {
+    const craftScreen = readSource("src/learning/craft-screen.tsx");
+
+    expect(craftScreen).toContain('type CraftMode = "basic" | "advanced"');
+    expect(craftScreen).toContain('{item === "basic" ? "基础" : "高级"}');
+    expect(craftScreen).toContain("粘贴或输入文稿，保存后直接成为资料库中的文本资料。");
+    expect(craftScreen).toContain("createManualLearningResource");
+    expect(craftScreen).toContain("addManualLearningResourceToLibrary");
+    expect(craftScreen).toContain("录音与 AI 创作");
+    expect(craftScreen).not.toContain('type CraftMode = "quick" | "advanced"');
+    expect(craftScreen).not.toContain("高级创作");
+    expect(craftScreen).not.toContain("LanguageChip");
   });
 
   it("implements the concept hierarchy for Today and Learning Settings", () => {

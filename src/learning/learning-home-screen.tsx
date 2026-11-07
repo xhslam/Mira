@@ -242,6 +242,7 @@ export function LearningImportSheet(props: ImportSheetProps) {
               </View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>创建学习材料</Text>
+                <Text style={styles.optionDetail}>手动输入文稿，直接保存为学习资料</Text>
               </View>
               <ChevronRight color={theme.colors.mutedText} size={18} />
             </Pressable>
@@ -398,6 +399,7 @@ function createStyles(theme: Theme) {
     },
     optionIcon: { alignItems: "center", height: 30, justifyContent: "center", width: 30 },
     optionCopy: { flex: 1, gap: 4 },
+    optionDetail: { color: theme.colors.mutedText, fontSize: theme.fontSizes.caption },
     optionTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "500" },
     optionDescription: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
   });

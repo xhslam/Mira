@@ -29,7 +29,7 @@ export type AppSettings = Readonly<{
 }>;
 
 export const DEFAULT_SETTINGS: AppSettings = Object.freeze({
-  themePreference: "system",
+  themePreference: "light",
   localePreference: "system",
   editor: Object.freeze({
     fontSize: 16,

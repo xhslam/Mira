@@ -290,6 +290,7 @@ export function AgentHomeScreen({
       </MiraSheet>
       <AiProviderSheet
         connectionTester={services.aiConnectionTester}
+        modelDiscovery={services.aiModelDiscovery}
         manager={services.aiProviderProfiles}
         onChanged={() => setProfileRevision((value) => value + 1)}
         onClose={() => setModels(false)}

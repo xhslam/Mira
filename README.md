@@ -36,6 +36,8 @@ The App uses user-configured HTTPS AI providers and, only after explicit pairing
 
 ## Android Package
 
+Download the development-signed Android APK and its SHA-256 checksum from the **Artifacts** section of a successful [Android APK run](https://github.com/xhslam/Mira/actions/workflows/android-apk.yml) on `main`.
+
 Generated `android/` output is intentionally ignored. Regenerate it from `app.config.ts` before a native build so identity, icons, orientation, backup policy, keyboard behavior, and blocked permissions are reproducible:
 
 ```sh

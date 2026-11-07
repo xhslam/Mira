@@ -55,6 +55,9 @@ import { VideoLearningPlayer } from "./video-learning-player";
 import { BilibiliPreview } from "./bilibili-preview";
 import {
   addPracticeMinutes,
+  applyLearningTranslations,
+  missingLearningTranslations,
+  reconcileLearningTranslations,
   learningPassage,
   persistLearningPosition,
   saveLearningItem,
@@ -97,6 +100,10 @@ function hasPlayableVideoResource(resource: LearningResource | null): boolean {
 
 export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const snapshotRef = useRef(snapshot);
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
   const resource =
     snapshot.resources.find((item) => item.id === snapshot.ui.selectedResourceId) ??
     snapshot.resources[0] ??
@@ -105,7 +112,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     tracks: resourceTracks,
     track: activeTrack,
     sentences: activeSentences,
-  } = resource ? learningPassage(snapshot, resource) : { tracks: [], track: null, sentences: [] };
+  } = resource
+    ? learningPassage(reconcileLearningTranslations(snapshot, resource.id), resource)
+    : { tracks: [], track: null, sentences: [] };
   const sentence =
     activeSentences.find((item) => item.id === snapshot.ui.selectedSentenceId) ??
     activeSentences[0] ??
@@ -125,8 +134,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   const videoResourceIdRef = useRef<string | null>(null);
   const lastVideoProgressPositionRef = useRef<number | null>(null);
   const [showTranslation, setShowTranslation] = useState(
-    () => resource === null || !hasPlayableVideoResource(resource),
+    snapshot.settings.showTranslationsByDefault,
   );
+  const [translationBusy, setTranslationBusy] = useState(false);
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -819,6 +829,45 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     if (target) selectSentence(target.id);
   }
 
+  async function generateMissingTranslations() {
+    if (!resource || translationBusy) return;
+    const missing = missingLearningTranslations(snapshot, resource.id);
+    if (!missing.length) {
+      setShowTranslation(true);
+      setNotice("全部句子已有译文，无需重复生成。");
+      return;
+    }
+    setTranslationBusy(true);
+    setNotice(`正在生成 ${missing.length} 句缺失译文…`);
+    try {
+      const requestLines = missing.map((item, index) => `${index + 1}. ${item.text}`).join("\n");
+      const { text: raw } = await collectLearningResponse({
+        services,
+        messages: Object.freeze([
+          Object.freeze({
+            role: "user" as const,
+            content: `Translate each English sentence into concise natural Simplified Chinese for learners. Keep the same order. Return only valid JSON: {"translations":["中文1","中文2"]}.\n\n${requestLines}`,
+          }),
+        ]),
+      });
+      const translations = parsePracticeTranslations(raw, missing.length);
+      const updates = Object.freeze(
+        missing.flatMap((item, index) => {
+          const translation = translations[index];
+          return translation ? [Object.freeze({ sentenceId: item.id, translation })] : [];
+        }),
+      );
+      const next = applyLearningTranslations(snapshotRef.current, resource.id, updates);
+      persist(next);
+      setShowTranslation(true);
+      setNotice(`已补齐 ${updates.length} 句译文；已有译文保持不变。`);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "译文生成失败，请检查 AI 引擎后重试。");
+    } finally {
+      setTranslationBusy(false);
+    }
+  }
+
   if (!resource || !sentence) {
     return (
       <View style={styles.empty}>
@@ -858,6 +907,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         playbackRate={playbackRate}
         repeat={repeat}
         showTranslation={showTranslation}
+        hasMissingTranslations={missingLearningTranslations(snapshot, resource.id).length > 0}
+        translationBusy={translationBusy}
+        onGenerateTranslation={() => void generateMissingTranslations()}
         onSelectSentence={(sentenceId) => selectTranscriptCue({ id: sentenceId })}
         onTogglePlayback={() => void playSentence()}
         onPrevious={() => selectAdjacent(-1)}
@@ -1196,6 +1248,16 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                   styles={styles}
                   theme={theme}
                 />
+                {missingLearningTranslations(snapshot, resource.id).length > 0 ? (
+                  <ToolButton
+                    label={translationBusy ? "翻译中" : "生成译文"}
+                    selected={translationBusy}
+                    icon={Captions}
+                    onPress={() => void generateMissingTranslations()}
+                    styles={styles}
+                    theme={theme}
+                  />
+                ) : null}
                 <ToolButton
                   label={showTranslation ? "隐藏译文" : "显示译文"}
                   selected={showTranslation}
@@ -1584,6 +1646,24 @@ function InteractiveSentence({
       )}
     </View>
   );
+}
+
+function parsePracticeTranslations(raw: string, expectedLength: number): readonly string[] {
+  const normalized = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/iu, "")
+    .replace(/\s*```$/u, "");
+  const payload = JSON.parse(normalized) as unknown;
+  const translationField =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>).translations
+      : payload;
+  const values: readonly unknown[] = Array.isArray(translationField) ? translationField : [];
+  const translations = values
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .slice(0, expectedLength);
+  if (!translations.some(Boolean)) throw new Error("AI 没有返回可保存的译文。");
+  return Object.freeze(translations);
 }
 
 function formatTime(value: number | null) {

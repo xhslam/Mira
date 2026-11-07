@@ -26,8 +26,13 @@ import { fingerprintText, parseSrtOrVtt, splitLearningSentences } from "./enjoy-
 import { cleanMarkdownForLearning } from "./learning-enrichment";
 import { transcribeOpenAiCompatibleMedia } from "./learning-stt";
 import { isLocalAudioAsset, isLocalVideoAsset, persistLearningMedia } from "./learning-media-files";
-import { deleteLearningResource } from "./learning-session";
 import type { LearningResource, LearningSnapshot } from "./learning-types";
+import {
+  deleteLearningResource,
+  applyLearningTranslations,
+  learningPassage,
+  missingLearningTranslations,
+} from "./learning-session";
 import { syncResourcePhrases } from "./resource-phrase-sync";
 
 type LibraryFilter = "all" | "audio" | "video" | "text";
@@ -41,6 +46,10 @@ type Props = Readonly<{
 
 export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, theme }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const snapshotRef = useRef(snapshot);
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState<LibraryFilter>("all");
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
@@ -410,68 +419,31 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
   }
 
   async function translateSelectedResource(resource: LearningResource | null = selected) {
-    if (!resource?.sentences.length) {
-      setMessage("请先选中有句子的语料。 ");
+    if (!resource) return;
+    const missing = missingLearningTranslations(snapshot, resource.id);
+    if (!missing.length) {
+      setMessage("没有待翻译的句子。");
       return;
     }
     try {
       setWorking("translation");
-      const requestLines = resource.sentences
-        .map((sentence) => `${sentence.order}. ${sentence.text}`)
-        .join("\n");
+      const requestLines = missing.map((sentence) => sentence.text).join("\n");
       const { text: raw } = await collectLearningResponse({
         services,
         messages: Object.freeze([
           {
             role: "user",
-            content: `Translate each English sentence into concise natural Simplified Chinese for learners. Keep the same order. Return only valid JSON: {"translations":["中文1","中文2"]}.\n\n${requestLines}`,
+            content: `Translate each line into natural Simplified Chinese. Keep the same order. Return only JSON: {"translations":["中文1","中文2"]}.\n\n${requestLines}`,
           },
         ]),
       });
-      const translations = parseTranslations(raw, resource.sentences.length);
-      const now = new Date().toISOString();
-      const next: LearningResource = Object.freeze({
-        ...resource,
-        sentences: Object.freeze(
-          resource.sentences.map((sentence, index) =>
-            Object.freeze({
-              ...sentence,
-              translation: translations[index] ?? sentence.translation,
-            }),
-          ),
-        ),
-        updatedAt: now,
+      const translations = parseTranslations(raw, missing.length);
+      const updates = missing.flatMap(({ id }, index) => {
+        const translation = translations[index];
+        return translation ? [{ sentenceId: id, translation }] : [];
       });
-      persist(
-        Object.freeze({
-          ...snapshot,
-          resources: Object.freeze(
-            snapshot.resources.map((item) => (item.id === next.id ? next : item)),
-          ),
-          translations: Object.freeze([
-            ...snapshot.translations.filter(
-              (item) => !resource.sentences.some((sentence) => sentence.id === item.sentenceId),
-            ),
-            ...next.sentences.flatMap((sentence) =>
-              sentence.translation
-                ? [
-                    Object.freeze({
-                      id: `translation-${sentence.id}`,
-                      sentenceId: sentence.id,
-                      sourceFingerprint: fingerprintText(sentence.text),
-                      sourceText: sentence.text,
-                      targetLanguage: snapshot.settings.translationTargetLanguage,
-                      translation: sentence.translation,
-                      contextNote: null,
-                      updatedAt: now,
-                    }),
-                  ]
-                : [],
-            ),
-          ]),
-        }),
-      );
-      setMessage(`已完成 ${translations.filter(Boolean).length} 句 AI 字幕翻译。`);
+      persist(applyLearningTranslations(snapshotRef.current, resource.id, updates));
+      setMessage(`已完成 ${updates.length} 句 AI 字幕翻译。`);
     } catch (reason) {
       setMessage(
         reason instanceof Error ? reason.message : "字幕翻译暂时失败。请先确认 AI 服务已配置。 ",
@@ -563,6 +535,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
       ) : (
         <View style={styles.resourceList}>
           {filteredResources.map((resource) => {
+            const { sentences } = learningPassage(snapshot, resource);
+            const missingCount = missingLearningTranslations(snapshot, resource.id).length;
+            const translatedCount = sentences.length - missingCount;
             const resourceExpanded = resource.id === expandedResourceId;
             const isVideo =
               resource.mediaKind === "video" ||
@@ -592,6 +567,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                     <Text numberOfLines={1} style={styles.resourceMeta}>
                       {kind} ·{" "}
                       {resource.sentences.length ? `${resource.sentences.length} 句` : "等待字幕"}
+                      {translatedCount > 0
+                        ? ` · ${missingCount === 0 ? "译文完整" : `${translatedCount} 句已译`}`
+                        : ""}
                     </Text>
                   </View>
                   {resourceExpanded ? (
@@ -643,7 +621,7 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                         label="逐句翻译"
                         detail={working === "translation" ? "翻译中…" : undefined}
                         onPress={() => void translateSelectedResource(resource)}
-                        disabled={working !== null || !resource.sentences.length}
+                        disabled={working !== null || missingCount === 0}
                         styles={styles}
                         theme={theme}
                       />

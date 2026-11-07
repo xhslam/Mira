@@ -1,7 +1,7 @@
 import type { ExpoConfig } from "expo/config";
 
 const config: ExpoConfig = {
-  name: "Inkstone",
+  name: "Mira",
   slug: "inkstone-markdown",
   scheme: "inkstone",
   version: "1.0.0",
@@ -14,14 +14,14 @@ const config: ExpoConfig = {
     [
       "expo-audio",
       {
-        microphonePermission: "Allow Inkstone to access your microphone for speaking practice.",
+        microphonePermission: "Allow Mira to access your microphone for speaking practice.",
       },
     ],
     [
       "expo-image-picker",
       {
         photosPermission:
-          "Allow Inkstone to choose videos from your photo library for sentence-by-sentence learning.",
+          "Allow Mira to choose videos from your photo library for sentence-by-sentence learning.",
       },
     ],
   ],
@@ -32,7 +32,7 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSMicrophoneUsageDescription:
-        "Inkstone uses your microphone only when you start a speaking practice recording.",
+        "Mira uses your microphone only when you start a speaking practice recording.",
       UIFileSharingEnabled: false,
       LSSupportsOpeningDocumentsInPlace: true,
     },
@@ -42,7 +42,7 @@ const config: ExpoConfig = {
     versionCode: 1,
     allowBackup: false,
     adaptiveIcon: {
-      backgroundColor: "#F4F7F5",
+      backgroundColor: "#F7F5F0",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
