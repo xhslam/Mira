@@ -1,15 +1,16 @@
 import type { EditorMode } from "../session/document-session";
 
+const markdownModes = ["wysiwyg", "source", "reading"] as const;
+const structuredModes = ["tree", "table", "source"] as const;
+const sourceModes = ["source"] as const;
+
+export function editorModes(formatId: string): readonly EditorMode[] {
+  if (formatId === "markdown") return markdownModes;
+  if (formatId === "json" || formatId === "yaml" || formatId === "toml") return structuredModes;
+  return sourceModes;
+}
+
 export function nextEditorMode(mode: EditorMode, formatId: string): EditorMode {
-  if (formatId === "markdown") {
-    if (mode === "wysiwyg") return "source";
-    if (mode === "source") return "reading";
-    return "wysiwyg";
-  }
-  if (formatId === "json" || formatId === "yaml" || formatId === "toml") {
-    if (mode === "tree") return "table";
-    if (mode === "table") return "source";
-    return "tree";
-  }
-  return "source";
+  const modes = editorModes(formatId);
+  return modes[(modes.indexOf(mode) + 1) % modes.length] ?? "source";
 }

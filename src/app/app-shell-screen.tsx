@@ -1,9 +1,11 @@
-import { BookOpen, Bot, FileText, Palette, Settings } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { FileText } from "lucide-react-native";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { setEditorInputEnabled } from "inkstone-workspace-access";
 import {
   ActivityIndicator,
   Alert,
   AppState,
+  findNodeHandle,
   Keyboard,
   Platform,
   Pressable,
@@ -26,35 +28,20 @@ import {
   type PrimaryTab,
 } from "./app-shell-state";
 import { EditorWorkspaceView } from "./editor-workspace-screen";
-import { AiWorkspaceScreen } from "./ai-workspace-screen";
+import { AgentHomeScreen } from "./agent-home-screen";
 import { LearningScreen } from "./learning-screen";
 import { useEditorWorkspace } from "./use-editor-workspace";
 import { type AppLocale } from "./i18n";
 import { LocaleContext, useTranslate } from "./locale";
 import { SettingsScreen } from "./settings-screen";
-import { DrawingsScreen } from "./drawings-screen";
-import { triggerClickFeedback } from "./press-feedback";
-import { DARK_THEME, useTheme, type Theme, ThemeContext } from "./theme";
+import { theme as themeContext, useTheme, type Theme, ThemeContext } from "./theme";
 import { WorkspacePicker } from "./workspace-picker";
 import { openStartupWorkspace } from "./workspace-startup";
 import { DEFAULT_SETTINGS } from "./settings-store";
-import { UiSoundProvider, useUiSound } from "./ui-sound-context";
+import { UiSoundProvider } from "./ui-sound-context";
 import { GlobalSidebar } from "./global-sidebar";
 import { NotesOverviewScreen } from "./notes-overview-screen";
-
-type TabDefinition = Readonly<{
-  id: PrimaryTab;
-  labelKey: "nav.files" | "nav.drawings" | "nav.ai" | "nav.learn" | "nav.settings";
-  icon: React.ComponentType<Readonly<{ color?: string; size?: number }>>;
-}>;
-
-const TABS: readonly TabDefinition[] = Object.freeze([
-  Object.freeze({ id: "learn", labelKey: "nav.learn", icon: BookOpen }),
-  Object.freeze({ id: "files", labelKey: "nav.files", icon: FileText }),
-  Object.freeze({ id: "ai", labelKey: "nav.ai", icon: Bot }),
-  Object.freeze({ id: "drawings", labelKey: "nav.drawings", icon: Palette }),
-  Object.freeze({ id: "settings", labelKey: "nav.settings", icon: Settings }),
-]);
+import { PrimaryNavigation } from "./primary-navigation";
 
 export function AppShellScreen() {
   if (Platform.OS === "web") return <MobileStorageRequiredScreen />;
@@ -74,6 +61,19 @@ function NativeAppShellScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notesSurface, setNotesSurface] = useState<"overview" | "editor">("overview");
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
+
+  const editorDestination = useRef<View>(null);
+  const editorVisible = state.activeTab === "files" && notesSurface === "editor";
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== "android" || state.startup !== "ready") return;
+    const viewId = findNodeHandle(editorDestination.current);
+    if (viewId !== null) {
+      void setEditorInputEnabled(viewId, editorVisible).catch(() => {
+        if (!editorVisible) Keyboard.dismiss();
+      });
+    }
+  }, [editorVisible, state.startup]);
 
   function synchronizeIndex(nextServices: AppServices): void {
     void nextServices
@@ -100,7 +100,6 @@ function NativeAppShellScreen() {
     });
     return () => subscription.remove();
   }, [indexReadyVersion, services, state.startup]);
-  const [themeContext, setThemeContext] = useState<Theme>(DARK_THEME);
   const [settingsRevision, setSettingsRevision] = useState(0);
   const [locale] = useState<AppLocale>("zh-CN");
   const [clickVibration, setClickVibration] = useState(true);
@@ -112,7 +111,6 @@ function NativeAppShellScreen() {
     let active = true;
     void baseServices.settingsStore.load().then((result) => {
       if (!active) return;
-      // 发布版本统一为简体中文与深色画布。
       setClickVibration(result.ok ? result.value.interaction.clickVibration : true);
       setSoundEnabled(
         result.ok
@@ -122,7 +120,6 @@ function NativeAppShellScreen() {
       setSoundVolume(
         result.ok ? result.value.interaction.soundVolume : DEFAULT_SETTINGS.interaction.soundVolume,
       );
-      setThemeContext(DARK_THEME);
     });
     return () => {
       active = false;
@@ -371,28 +368,26 @@ function NativeAppShellScreen() {
         <UiSoundProvider enabled={soundEnabled} volume={soundVolume}>
           <View style={styles.shell}>
             <View
-              accessibilityElementsHidden={state.activeTab !== "files" || notesSurface !== "editor"}
-              importantForAccessibility={
-                state.activeTab === "files" && notesSurface === "editor"
-                  ? "auto"
-                  : "no-hide-descendants"
-              }
-              pointerEvents={
-                state.activeTab === "files" && notesSurface === "editor" ? "auto" : "none"
-              }
-              style={[
-                styles.destination,
-                (state.activeTab !== "files" || notesSurface !== "editor") &&
-                  styles.hiddenDestination,
-              ]}
+              ref={editorDestination}
+              collapsable={false}
+              accessibilityElementsHidden={!editorVisible}
+              importantForAccessibility={editorVisible ? "auto" : "no-hide-descendants"}
+              pointerEvents={editorVisible ? "auto" : "none"}
+              style={[styles.destination, !editorVisible && styles.hiddenDestination]}
             >
               <EditorWorkspaceView
-                bottomNavigation={
-                  <PrimaryNavigation
-                    activeTab={state.activeTab}
-                    clickVibration={clickVibration}
-                    onSelect={navigatePrimary}
-                  />
+                renderBottomNavigation={(toolbar) =>
+                  editorVisible ? (
+                    <PrimaryNavigation
+                      activeTab="files"
+                      clickVibration={clickVibration}
+                      onSelect={navigatePrimary}
+                    >
+                      {toolbar}
+                    </PrimaryNavigation>
+                  ) : (
+                    toolbar
+                  )
                 }
                 controller={editorController}
                 key={catalog.activeWorkspaceId ?? "managed"}
@@ -419,32 +414,32 @@ function NativeAppShellScreen() {
                 />
               </View>
             ) : null}
-            {state.activeTab === "drawings" ? (
+            {state.activeTab === "agent" ? (
               <View style={styles.destination}>
-                <DrawingsScreen
-                  clickVibration={clickVibration}
-                  controller={editorController}
-                  onEnterEditor={() => {
-                    setNotesSurface("editor");
-                    setState((current) => selectPrimaryTab(current, "files"));
-                  }}
-                  onOpenSidebar={() => setSidebarVisible(true)}
-                />
-              </View>
-            ) : state.activeTab === "ai" ? (
-              <View style={styles.destination}>
-                <AiWorkspaceScreen
+                <AgentHomeScreen
+                  key={services.activeWorkspace.grant.workspaceId}
                   controller={editorController}
                   services={services}
-                  onOpenLearningPractice={() =>
-                    setState((current) => selectPrimaryTab(current, "learn"))
-                  }
                   onOpenSidebar={() => setSidebarVisible(true)}
+                  clickVibration={clickVibration}
+                  onNavigate={navigatePrimary}
                 />
               </View>
             ) : state.activeTab === "learn" ? (
               <View style={styles.destination}>
-                <LearningScreen onOpenSidebar={() => setSidebarVisible(true)} services={services} />
+                <LearningScreen
+                  onOpenSidebar={() => setSidebarVisible(true)}
+                  renderBottomNavigation={(actions) => (
+                    <PrimaryNavigation
+                      activeTab="learn"
+                      clickVibration={clickVibration}
+                      onSelect={navigatePrimary}
+                    >
+                      {actions}
+                    </PrimaryNavigation>
+                  )}
+                  services={services}
+                />
               </View>
             ) : state.activeTab === "settings" ? (
               <View style={styles.destination}>
@@ -470,16 +465,13 @@ function NativeAppShellScreen() {
                 />
               </View>
             ) : null}
-            {/* Notes renders its navigation beside its own overview/editor surface.
-              Every other destination shares this shell-level instance; the global
-              sidebar remains a later sibling so it can cover either variant. */}
-            {state.activeTab === "files" ? null : (
+            {state.activeTab === "settings" ? (
               <PrimaryNavigation
                 activeTab={state.activeTab}
                 clickVibration={clickVibration}
                 onSelect={navigatePrimary}
               />
-            )}
+            ) : null}
             <GlobalSidebar
               activeFolder={notesFolder}
               activeTab={state.activeTab}
@@ -500,10 +492,6 @@ function NativeAppShellScreen() {
                 return opened;
               }}
               onOpenNotes={openNotes}
-              onSelectTab={(tab) => {
-                setSidebarVisible(false);
-                navigatePrimary(tab);
-              }}
               visible={sidebarVisible}
               workspaceName={services.activeWorkspace.grant.displayName}
             />
@@ -591,54 +579,6 @@ function WorkspaceErrorScreen({
   );
 }
 
-function PrimaryNavigation({
-  activeTab,
-  clickVibration,
-  onSelect,
-}: Readonly<{
-  activeTab: PrimaryTab;
-  clickVibration: boolean;
-  onSelect: (tab: PrimaryTab) => void;
-}>) {
-  const theme = useTheme();
-  const t = useTranslate();
-  const uiSound = useUiSound();
-  const styles = createStyles(theme);
-  return (
-    <View
-      accessibilityLabel={t("startup.primaryNavigation")}
-      accessibilityRole="tablist"
-      style={styles.tabBar}
-    >
-      {TABS.map((tab) => {
-        const selected = tab.id === activeTab;
-        const Icon = tab.icon;
-        const label = t(tab.labelKey);
-        return (
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected }}
-            key={tab.id}
-            onPress={() => {
-              if (!selected) uiSound.play("select");
-              triggerClickFeedback(clickVibration);
-              onSelect(tab.id);
-            }}
-            style={({ pressed }) => [
-              styles.tab,
-              selected && styles.selectedTab,
-              pressed && styles.tabPressed,
-            ]}
-          >
-            <Icon color={selected ? "#3B82FF" : "#858D9E"} size={20} />
-            <Text style={[styles.tabLabel, selected && styles.selectedTabLabel]}>{label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const absoluteFill: ViewStyle = Object.freeze({
   position: "absolute",
   top: 0,
@@ -658,17 +598,14 @@ function createStyles(theme: Theme) {
       flex: 1,
       minHeight: 0,
     },
-    // Keeps the editor WebView attached to the native view hierarchy while the
-    // tab is inactive. `display: "none"` would unmount the WebView on Android
-    // and destroy its focus/keyboard association, reproducing the "keyboard
-    // flashes and closes on the next tap" defect; a 1x1, touch-transparent,
-    // invisible frame preserves the WebView's native focusability.
+    // Keep the renderer attached for draft/flush continuity. Android blocks
+    // native focus inside this destination while another page is visible.
     hiddenDestination: {
       position: "absolute",
       top: 0,
+      right: 0,
+      bottom: 0,
       left: 0,
-      width: 1,
-      height: 1,
       opacity: 0,
       overflow: "hidden",
     },
@@ -843,41 +780,6 @@ function createStyles(theme: Theme) {
       fontSize: 12,
       fontStyle: "italic",
       textAlign: "center",
-    },
-    tabBar: {
-      minHeight: 62,
-      flexDirection: "row",
-      alignItems: "stretch",
-      gap: 0,
-      marginHorizontal: 2,
-      marginTop: 2,
-      paddingHorizontal: 8,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: "rgba(124, 145, 181, 0.24)",
-      borderRadius: 14,
-      backgroundColor: "#0B1220",
-      overflow: "hidden",
-    },
-    tab: {
-      minWidth: 0,
-      minHeight: 62,
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 3,
-      paddingHorizontal: 4,
-    },
-    selectedTab: { backgroundColor: "rgba(31, 86, 174, 0.05)" },
-    tabPressed: {
-      opacity: 0.78,
-    },
-    tabLabel: {
-      color: "#858D9E",
-      fontSize: 11,
-      fontWeight: "600",
-    },
-    selectedTabLabel: {
-      color: "#3B82FF",
     },
   });
 }

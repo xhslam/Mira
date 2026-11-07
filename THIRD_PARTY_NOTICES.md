@@ -12,21 +12,6 @@ The procedurally generated audio files are dedicated to the public domain under 
 Commons CC0 1.0 Universal Public Domain Dedication. They may be copied, modified, distributed, and
 used commercially without permission or required attribution.
 
-## Excalidraw
-
-The embedded canvas editor uses `@excalidraw/excalidraw`, Copyright (c) 2020 Excalidraw,
-under the MIT License. Source: <https://github.com/excalidraw/excalidraw>.
-
-## LZ-String
-
-Obsidian-compatible compressed drawing blocks use `lz-string`, Copyright (c) 2013 Pieroxy,
-under the MIT License. Source: <https://github.com/pieroxy/lz-string>.
-
-The MIT License permits use, copying, modification, merging, publication, distribution,
-sublicensing, and sale, provided the copyright and permission notices are included. Both packages
-are provided without warranty, including warranties of merchantability, fitness for a particular
-purpose, and noninfringement.
-
 ## VMark AI Genie prompt templates
 
 The English AI Genie prompt templates and their frontmatter semantics are copied from the official

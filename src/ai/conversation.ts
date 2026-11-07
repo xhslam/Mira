@@ -8,6 +8,7 @@ export type AiConversation = Readonly<{
   id: AiConversationId;
   workspaceId: WorkspaceId;
   title: string;
+  preview?: string;
   providerProfileId: AiProviderProfileId | null;
   createdAt: string;
   updatedAt: string;

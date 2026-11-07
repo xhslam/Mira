@@ -14,12 +14,6 @@ export function installKatexReleaseFonts(
   options?: Readonly<{ cssDirectory?: string }>,
 ): Promise<readonly string[]>;
 
-export function installExcalidrawReleaseFonts(
-  projectRoot: string,
-  domAssetDirectory: string,
-  options?: Readonly<{ cssDirectory?: string }>,
-): Promise<readonly string[]>;
-
 export function readDomAssetInventory(directory: string): Promise<DomAssetInventory>;
 
 export function assertSingleDomBundle(

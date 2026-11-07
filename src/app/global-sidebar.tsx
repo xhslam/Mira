@@ -1,6 +1,4 @@
 import {
-  Bot,
-  BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
@@ -9,9 +7,7 @@ import {
   FolderPlus,
   GripVertical,
   Menu,
-  Palette,
-  Settings,
-  X,
+  Undo2,
 } from "lucide-react-native";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -53,7 +49,6 @@ type GlobalSidebarProps = Readonly<{
   onMoveFile: (entry: FileEntry, to: string) => Promise<BrowserCommandResult>;
   onOpenNote: (path: string) => Promise<boolean>;
   onOpenNotes: (folder: string | null) => void;
-  onSelectTab: (tab: Exclude<PrimaryTab, "files">) => void;
   visible: boolean;
   workspaceName: string;
 }>;
@@ -70,7 +65,6 @@ export function GlobalSidebar({
   onMoveFile,
   onOpenNote,
   onOpenNotes,
-  onSelectTab,
   visible,
   workspaceName,
 }: GlobalSidebarProps) {
@@ -113,6 +107,7 @@ export function GlobalSidebar({
         setOrganizeError(result.error ?? "文件夹没有创建成功。");
         return;
       }
+      Keyboard.dismiss();
       setCreatingFolder(false);
       setFolderValue("");
       setExpandedFolders((current) =>
@@ -176,12 +171,19 @@ export function GlobalSidebar({
   }
 
   return (
-    <OverlaySideSheet maxWidth={390} onClose={onClose} visible={visible} widthFraction={0.84}>
+    <OverlaySideSheet
+      sidebar
+      maxWidth={390}
+      onClose={onClose}
+      visible={visible}
+      widthFraction={0.88}
+    >
       <View style={styles.sheet}>
         <View style={styles.header}>
           <Pressable
             accessibilityLabel="关闭全局侧边栏"
             accessibilityRole="button"
+            accessibilityState={{ expanded: visible }}
             onPress={onClose}
             style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
           >
@@ -195,27 +197,14 @@ export function GlobalSidebar({
               {workspaceName}
             </Text>
           </View>
-          <Pressable
-            accessibilityLabel="打开设置"
-            accessibilityRole="button"
-            onPress={() => onSelectTab("settings")}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <Settings color={theme.colors.text} size={23} />
-          </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.primaryGroup}>
-            <SidebarRow
-              active={activeTab === "learn"}
-              count={null}
-              icon={BookOpen}
-              label="学习"
-              onPress={() => onSelectTab("learn")}
-              styles={styles}
-              theme={theme}
-            />
             <View ref={rootDropRef} style={dragTarget === "" ? styles.dropTargetActive : undefined}>
               <SidebarRow
                 active={activeTab === "files" && activeFolder === null}
@@ -227,24 +216,6 @@ export function GlobalSidebar({
                 theme={theme}
               />
             </View>
-            <SidebarRow
-              active={activeTab === "ai"}
-              count={null}
-              icon={Bot}
-              label="AI 助手"
-              onPress={() => onSelectTab("ai")}
-              styles={styles}
-              theme={theme}
-            />
-            <SidebarRow
-              active={activeTab === "drawings"}
-              count={null}
-              icon={Palette}
-              label="画板"
-              onPress={() => onSelectTab("drawings")}
-              styles={styles}
-              theme={theme}
-            />
           </View>
 
           <View style={styles.sectionHeader}>
@@ -288,7 +259,7 @@ export function GlobalSidebar({
                 }}
                 style={({ pressed }) => [styles.folderInputAction, pressed && styles.pressed]}
               >
-                <X color={theme.colors.mutedText} size={18} />
+                <Undo2 color={theme.colors.mutedText} size={18} />
               </Pressable>
               <Pressable
                 accessibilityLabel="确认创建文件夹"
@@ -336,6 +307,8 @@ export function GlobalSidebar({
                   >
                     <Pressable
                       accessibilityLabel={expanded ? "收起文件夹" : "展开文件夹"}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded }}
                       onPress={() => toggleFolder(folder.path)}
                       style={({ pressed }) => [styles.disclosure, pressed && styles.pressed]}
                     >
@@ -524,9 +497,7 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     sheet: {
       flex: 1,
-      borderRightWidth: StyleSheet.hairlineWidth,
-      borderRightColor: theme.colors.divider,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.canvas,
     },
     header: {
       minHeight: 72,
@@ -534,18 +505,16 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 6,
       paddingHorizontal: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
     },
     identity: { minWidth: 0, flex: 1 },
-    appName: { color: theme.colors.text, fontSize: 17, fontWeight: "800", letterSpacing: 0.8 },
+    appName: { color: theme.colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.4 },
     workspaceName: { color: theme.colors.mutedText, fontSize: 11, marginTop: 2 },
     iconButton: {
       width: 44,
       height: 44,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: theme.radius.medium,
+      borderRadius: theme.radius.pill,
     },
     content: { flexGrow: 1, padding: 12, paddingBottom: 24 },
     primaryGroup: { gap: 4 },
@@ -566,7 +535,7 @@ function createStyles(theme: Theme) {
       borderRadius: 10,
       backgroundColor: theme.colors.surfaceMuted,
     },
-    primaryIconActive: { backgroundColor: "rgba(10, 132, 255, 0.2)" },
+    primaryIconActive: { backgroundColor: theme.colors.canvas },
     primaryLabel: {
       minWidth: 0,
       flex: 1,
@@ -586,8 +555,8 @@ function createStyles(theme: Theme) {
     sectionTitle: { flex: 1, color: theme.colors.mutedText, fontSize: 14, fontWeight: "700" },
     sectionMeta: { color: theme.colors.accent, fontSize: 12, fontWeight: "700" },
     folderAdd: {
-      width: 38,
-      height: 38,
+      width: 48,
+      height: 48,
       alignItems: "center",
       justifyContent: "center",
       marginRight: -5,

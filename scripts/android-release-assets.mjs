@@ -1,4 +1,4 @@
-import { copyFile, cp, mkdir, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 
 const RELEASE_DOM_ASSET_PATHS = Object.freeze([
@@ -81,54 +81,6 @@ export const installKatexReleaseFonts = async (projectRoot, domAssetDirectory, o
       copyFile(path.join(sourceDirectory, file), path.join(targetDirectory, file)),
     ),
   );
-  return Object.freeze(fontFiles);
-};
-
-export const installExcalidrawReleaseFonts = async (
-  projectRoot,
-  domAssetDirectory,
-  options = {},
-) => {
-  const sourceDirectory = path.resolve(
-    projectRoot,
-    "node_modules/@excalidraw/excalidraw/dist/prod/fonts",
-  );
-  const targetDirectory = path.resolve(domAssetDirectory, "fonts");
-  const relativeTarget = path.relative(domAssetDirectory, targetDirectory);
-  if (
-    relativeTarget === ".." ||
-    relativeTarget.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeTarget)
-  ) {
-    throw new Error(`Refusing to install Excalidraw fonts outside DOM assets: ${targetDirectory}`);
-  }
-
-  const fontFiles = (await listFiles(sourceDirectory))
-    .filter((file) => file.endsWith(".woff2"))
-    .sort();
-  if (fontFiles.length === 0) throw new Error("Excalidraw WOFF2 fonts are missing.");
-
-  await rm(targetDirectory, { force: true, recursive: true });
-  await cp(sourceDirectory, targetDirectory, { recursive: true });
-
-  if (options.cssDirectory) {
-    const cssFontDirectory = path.resolve(domAssetDirectory, options.cssDirectory, "fonts");
-    const relativeCssTarget = path.relative(domAssetDirectory, cssFontDirectory);
-    if (
-      relativeCssTarget === ".." ||
-      relativeCssTarget.startsWith(`..${path.sep}`) ||
-      path.isAbsolute(relativeCssTarget)
-    ) {
-      throw new Error(
-        `Refusing to install Excalidraw CSS fonts outside DOM assets: ${cssFontDirectory}`,
-      );
-    }
-    await mkdir(cssFontDirectory, { recursive: true });
-    await cp(path.join(sourceDirectory, "Assistant"), path.join(cssFontDirectory, "Assistant"), {
-      recursive: true,
-    });
-  }
-
   return Object.freeze(fontFiles);
 };
 

@@ -17,6 +17,7 @@ export const LEARNING_SECTIONS = [
   "home",
   "craft",
   "url-import",
+  "english-coach",
   "discover",
   "library",
   "practice",
@@ -268,7 +269,6 @@ export type LearningImportIntent =
   "local" | "photo" | "text" | "url" | "recording" | "subtitle" | null;
 
 export type LearningSettings = Readonly<{
-  selectedProviderProfileId: string | null;
   ttsBaseUrl: string;
   ttsApiKeyStored: boolean;
   ttsVoiceId: string;
@@ -358,7 +358,6 @@ export function createInitialLearningSnapshot(): LearningSnapshot {
     lessonCards: Object.freeze([]),
     replayEvidence: Object.freeze([]),
     settings: Object.freeze({
-      selectedProviderProfileId: null,
       ttsBaseUrl: "",
       ttsApiKeyStored: false,
       ttsVoiceId: "alloy",

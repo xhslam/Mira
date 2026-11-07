@@ -25,7 +25,7 @@ describe("i18n", () => {
   it("leaves no untranslated English copy in the Chinese locale for shell chrome", () => {
     // Keys whose copy is intentionally identical across locales because the
     // term is a proper noun or an acronym that is not translated in Chinese.
-    const sharedTerms: readonly string[] = Object.freeze(["nav.ai"]);
+    const sharedTerms: readonly string[] = Object.freeze(["nav.agent"]);
     // These are the surfaces the user reported as mixed-language.
     const shellKeys = TRANSLATION_KEYS.filter(
       (key) =>

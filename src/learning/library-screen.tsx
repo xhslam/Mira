@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Download,
   FileText,
   Languages,
@@ -12,16 +13,15 @@ import {
   Upload,
   Video,
   Volume2,
-  X,
+  Check,
 } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import type { AppServices } from "../app/app-services";
-import type { AiProviderProfileId } from "../ai/provider-profile";
-import type { Theme } from "../app/theme";
-import { collectLearningResponse } from "./learning-ai";
+import { identityColors, type Theme } from "../app/theme";
+import { collectLearningResponse, resolveLearningProvider } from "./learning-ai";
 import { fingerprintText, parseSrtOrVtt, splitLearningSentences } from "./enjoy-player-domain";
 import { cleanMarkdownForLearning } from "./learning-enrichment";
 import { transcribeOpenAiCompatibleMedia } from "./learning-stt";
@@ -340,14 +340,9 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
     let baseUrl = snapshot.settings.sttBaseUrl;
     let apiKey: string | undefined;
     if (!baseUrl || !snapshot.settings.sttApiKeyStored) {
-      const providerId = snapshot.settings.selectedProviderProfileId;
-      if (!providerId)
-        throw new Error("请先在应用的 AI 设置中选择已连接的引擎，或单独配置转写服务。");
-      const profile = await services.aiStore.getProviderProfile(providerId as AiProviderProfileId);
-      const storedKey = profile ? await services.aiSecretStore.get(profile.id) : null;
-      if (!profile || !storedKey) throw new Error("当前 AI 引擎没有可用的服务地址或密钥。");
-      baseUrl = profile.baseUrl;
-      apiKey = storedKey;
+      const provider = await resolveLearningProvider(services);
+      baseUrl = provider.profile.baseUrl;
+      apiKey = provider.apiKey;
     }
     return transcribeOpenAiCompatibleMedia({
       baseUrl,
@@ -424,9 +419,8 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
       const requestLines = resource.sentences
         .map((sentence) => `${sentence.order}. ${sentence.text}`)
         .join("\n");
-      const raw = await collectLearningResponse({
+      const { text: raw } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           {
             role: "user",
@@ -528,7 +522,7 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
       {message ? (
         <Pressable accessibilityRole="button" onPress={() => setMessage("")} style={styles.message}>
           <Text style={styles.messageText}>{message}</Text>
-          <X color={theme.colors.mutedText} size={14} />
+          <Check color={theme.colors.mutedText} size={14} />
         </Pressable>
       ) : null}
       <View style={styles.filterRow}>
@@ -596,19 +590,35 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                       {resource.title}
                     </Text>
                     <Text numberOfLines={1} style={styles.resourceMeta}>
-                      {kind} · {resource.sentences.length} 句 ·{" "}
-                      {resource.sentences.length ? "可学习" : "等待字幕"}
+                      {kind} ·{" "}
+                      {resource.sentences.length ? `${resource.sentences.length} 句` : "等待字幕"}
                     </Text>
                   </View>
                   {resourceExpanded ? (
-                    <ChevronDown color={theme.colors.accent} size={18} />
+                    <ChevronUp color={theme.colors.accent} size={18} />
                   ) : (
-                    <ChevronRight color={theme.colors.mutedText} size={18} />
+                    <ChevronDown color={theme.colors.mutedText} size={18} />
                   )}
                 </Pressable>
                 {resourceExpanded ? (
                   <View style={styles.resourceActions}>
                     <View style={styles.processingGrid}>
+                      <ProcessingAction
+                        icon={Play}
+                        label={resource.sentences.length ? "逐句学习" : "导入字幕后学习"}
+                        detail={
+                          working === "subtitle"
+                            ? "正在导入字幕…"
+                            : resource.sentences.length
+                              ? undefined
+                              : "先选择本地 SRT/VTT 字幕"
+                        }
+                        featured={resource.sentences.length > 0}
+                        onPress={() => void startSelectedLearning(resource)}
+                        disabled={working !== null}
+                        styles={styles}
+                        theme={theme}
+                      />
                       <ProcessingAction
                         icon={Subtitles}
                         label={resource.mediaKind === "bilibili" ? "导入字幕" : "识别字幕"}
@@ -616,8 +626,8 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                           working === "subtitle"
                             ? "处理中…"
                             : resource.mediaKind === "bilibili"
-                              ? "选择本地 SRT/VTT"
-                              : "提取并切句"
+                              ? "选择本地 SRT / VTT 字幕"
+                              : undefined
                         }
                         onPress={() =>
                           void (resource.mediaKind === "bilibili"
@@ -625,14 +635,13 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                             : transcribeSelectedMedia(resource))
                         }
                         disabled={working !== null}
-                        featured
                         styles={styles}
                         theme={theme}
                       />
                       <ProcessingAction
                         icon={Languages}
                         label="逐句翻译"
-                        detail={working === "translation" ? "翻译中…" : "逐句中译"}
+                        detail={working === "translation" ? "翻译中…" : undefined}
                         onPress={() => void translateSelectedResource(resource)}
                         disabled={working !== null || !resource.sentences.length}
                         styles={styles}
@@ -641,23 +650,8 @@ export function LibraryScreen({ services, snapshot, onChange, onOpenPractice, th
                       <ProcessingAction
                         icon={Download}
                         label="下载"
-                        detail={working === "download" ? "准备中…" : "媒体 / 笔记"}
+                        detail={working === "download" ? "准备中…" : "媒体或笔记"}
                         onPress={() => void downloadSelected(resource)}
-                        disabled={working !== null}
-                        styles={styles}
-                        theme={theme}
-                      />
-                      <ProcessingAction
-                        icon={Play}
-                        label={resource.sentences.length ? "逐句学习" : "导入字幕后学习"}
-                        detail={
-                          working === "subtitle"
-                            ? "正在导入字幕…"
-                            : resource.sentences.length
-                              ? "进入新版学习页"
-                              : "先选择本地 SRT/VTT 字幕"
-                        }
-                        onPress={() => void startSelectedLearning(resource)}
                         disabled={working !== null}
                         styles={styles}
                         theme={theme}
@@ -719,16 +713,16 @@ function safeFileName(value: string): string {
 
 function LibraryResourceIcon({ resource }: Readonly<{ resource: LearningResource }>) {
   if (resource.mediaKind === "audio") {
-    return <Volume2 color="#C8D7F3" size={21} strokeWidth={1.8} />;
+    return <Volume2 color="#FFFFFF" size={21} strokeWidth={1.8} />;
   }
   if (
     resource.mediaKind === "video" ||
     resource.mediaKind === "youtube" ||
     resource.mediaKind === "bilibili"
   ) {
-    return <Video color="#C8D7F3" size={21} strokeWidth={1.8} />;
+    return <Video color="#FFFFFF" size={21} strokeWidth={1.8} />;
   }
-  return <FileText color="#C8D7F3" size={21} strokeWidth={1.8} />;
+  return <FileText color="#FFFFFF" size={21} strokeWidth={1.8} />;
 }
 
 function ProcessingAction({
@@ -743,7 +737,7 @@ function ProcessingAction({
 }: Readonly<{
   icon: typeof FileText;
   label: string;
-  detail: string;
+  detail?: string | undefined;
   onPress: () => void;
   disabled: boolean;
   featured?: boolean;
@@ -753,7 +747,7 @@ function ProcessingAction({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}，${detail}`}
+      accessibilityLabel={detail ? `${label}，${detail}` : label}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -763,72 +757,57 @@ function ProcessingAction({
         pressed && styles.pressed,
       ]}
     >
-      <Icon color="#3988FF" size={21} strokeWidth={1.9} />
+      <Icon
+        color={featured ? theme.colors.accent : theme.colors.mutedText}
+        size={21}
+        strokeWidth={1.9}
+      />
       <View style={styles.processingCopyBlock}>
-        <Text style={styles.processingLabel}>{label}</Text>
-        <Text numberOfLines={1} style={styles.processingDetail}>
-          {detail}
+        <Text style={[styles.processingLabel, featured && styles.processingLabelFeatured]}>
+          {label}
         </Text>
+        {detail ? <Text style={styles.processingDetail}>{detail}</Text> : null}
       </View>
-      <View style={[styles.actionArrow, featured && styles.actionArrowFeatured]}>
-        <ChevronRight
-          color={featured ? "#FFFFFF" : theme.colors.text}
-          size={17}
-          strokeWidth={2.1}
-        />
-      </View>
+      <ChevronRight color={featured ? theme.colors.accent : theme.colors.mutedText} size={17} />
     </Pressable>
   );
 }
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 11, paddingHorizontal: 18, paddingTop: 13 },
+    content: { gap: 16, paddingHorizontal: 16, paddingTop: 16 },
     copy: { color: theme.colors.mutedText, fontSize: 13, lineHeight: 20 },
     message: {
       alignItems: "center",
       backgroundColor: theme.colors.warningSurface,
       borderRadius: 10,
       flexDirection: "row",
-      gap: 9,
+      gap: 8,
       justifyContent: "space-between",
-      padding: 11,
+      padding: 12,
     },
     messageText: { color: theme.colors.warningText, flex: 1, fontSize: 12, lineHeight: 18 },
     filterRow: { flexDirection: "row", gap: 8, marginBottom: 2 },
     filterChip: {
       alignItems: "center",
-      backgroundColor: "rgba(18, 25, 40, 0.76)",
-      borderColor: "rgba(130, 151, 188, 0.17)",
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: 999,
+      borderRadius: theme.radius.pill,
       justifyContent: "center",
-      minHeight: 34,
-      paddingHorizontal: 13,
+      minHeight: 48,
+      paddingHorizontal: 16,
       paddingVertical: 8,
     },
-    filterChipActive: {
-      backgroundColor: "#0867E8",
-      borderColor: "#1B7BFF",
-    },
-    filterText: { color: "#8D94A3", fontSize: 12, fontWeight: "600" },
-    filterTextActive: { color: "#FFFFFF" },
+    filterChipActive: { backgroundColor: theme.colors.text },
+    filterText: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "500" },
+    filterTextActive: { color: theme.colors.canvas },
     empty: {
       alignItems: "center",
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
       gap: 8,
       padding: 24,
     },
     emptyTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
     resourceList: {
-      backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.2)",
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      overflow: "hidden",
+      borderTopColor: theme.colors.divider,
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
     resourceItem: {
       borderBottomColor: theme.colors.divider,
@@ -839,81 +818,55 @@ function createStyles(theme: Theme) {
       flexDirection: "row",
       gap: 12,
       minHeight: 76,
-      paddingHorizontal: 12,
-      paddingVertical: 9,
+      paddingVertical: 12,
     },
     resourceSelected: {
-      backgroundColor: "#0B1A34",
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.medium,
     },
     resourceArtwork: {
       alignItems: "center",
-      backgroundColor: "#17233A",
-      borderRadius: 10,
-      height: 52,
+      backgroundColor: identityColors.learn,
+      borderRadius: 18,
+      height: 48,
       justifyContent: "center",
-      width: 64,
+      width: 48,
     },
-    resourceText: { flex: 1, gap: 3 },
-    resourceTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
-    resourceMeta: { color: theme.colors.mutedText, fontSize: 11, lineHeight: 16 },
+    resourceText: { flex: 1, gap: 4, minWidth: 0 },
+    resourceTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "500" },
+    resourceMeta: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 16 },
     resourceActions: {
-      backgroundColor: "rgba(10, 18, 32, 0.62)",
-      borderTopColor: "rgba(115, 139, 181, 0.16)",
+      borderTopColor: theme.colors.divider,
       borderTopWidth: StyleSheet.hairlineWidth,
-      gap: 10,
-      padding: 10,
+      paddingHorizontal: 16,
+      paddingBottom: 8,
     },
-    processingGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    processingGrid: { gap: 0 },
     processingAction: {
-      backgroundColor: "rgba(18, 24, 38, 0.92)",
-      borderColor: "rgba(110, 130, 168, 0.18)",
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      flexBasis: "47%",
-      flexGrow: 1,
-      height: 82,
-      justifyContent: "space-between",
-      minWidth: "46%",
-      overflow: "hidden",
-      padding: 11,
-      position: "relative",
-    },
-    processingActionFeatured: {
-      backgroundColor: "#101C35",
-      borderColor: "#2075F4",
-    },
-    processingCopyBlock: { gap: 1, paddingRight: 29 },
-    processingLabel: {
-      color: "#F7F9FF",
-      fontSize: 13,
-      fontWeight: "700",
-      letterSpacing: -0.25,
-      lineHeight: 17,
-    },
-    processingDetail: { color: "#858D9D", fontSize: 10, lineHeight: 14 },
-    actionArrow: {
       alignItems: "center",
-      backgroundColor: "rgba(40, 48, 65, 0.72)",
-      borderRadius: 999,
-      bottom: 11,
-      height: 32,
-      justifyContent: "center",
-      position: "absolute",
-      right: 11,
-      width: 32,
+      borderBottomColor: theme.colors.divider,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: "row",
+      gap: 12,
+      minHeight: 56,
+      paddingVertical: 12,
     },
-    actionArrowFeatured: { backgroundColor: "#2A7CF2" },
+    processingActionFeatured: { minHeight: 64 },
+    processingCopyBlock: { flex: 1, gap: 4 },
+    processingLabel: { color: theme.colors.text, fontSize: 14, fontWeight: "500", lineHeight: 20 },
+    processingLabelFeatured: { color: theme.colors.accent, fontWeight: "600" },
+    processingDetail: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 18 },
     resourceActionFooter: { alignItems: "flex-end" },
     deleteAction: {
       alignItems: "center",
-      borderRadius: 9,
+      borderRadius: 10,
       flexDirection: "row",
-      gap: 6,
+      gap: 8,
       justifyContent: "center",
-      minHeight: 38,
-      paddingHorizontal: 9,
+      minHeight: 48,
+      paddingHorizontal: 12,
     },
-    deleteActionText: { color: theme.colors.danger, fontSize: 12, fontWeight: "600" },
+    deleteActionText: { color: theme.colors.danger, fontSize: 13, fontWeight: "500" },
     disabled: { opacity: 0.4 },
     pressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   });

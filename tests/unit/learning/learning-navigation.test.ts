@@ -2,18 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   isLearningMainSection,
-  LEARNING_MAIN_TABS,
   resolveLearningSurface,
 } from "../../../src/learning/learning-navigation";
 
 describe("learning navigation", () => {
-  it("exposes only the two frequent learning destinations", () => {
-    expect(LEARNING_MAIN_TABS).toEqual([
-      { id: "home", label: "今天" },
-      { id: "library", label: "资料" },
-    ]);
-    expect(Object.isFrozen(LEARNING_MAIN_TABS)).toBe(true);
-    expect(LEARNING_MAIN_TABS.every(Object.isFrozen)).toBe(true);
+  it("keeps home and the library as valid return destinations", () => {
+    expect(isLearningMainSection(resolveLearningSurface("home"))).toBe(true);
+    expect(isLearningMainSection(resolveLearningSurface("library"))).toBe(true);
   });
 
   it("folds the legacy discovery destination into the material library", () => {
@@ -21,7 +16,7 @@ describe("learning navigation", () => {
     expect(resolveLearningSurface("library")).toBe("library");
   });
 
-  it("keeps focused and secondary screens out of the main tab rail", () => {
+  it("keeps focused and secondary screens distinct from the return destinations", () => {
     expect(resolveLearningSurface("practice")).toBe("practice");
     expect(resolveLearningSurface("vocabulary")).toBe("phrase-memory");
     expect(resolveLearningSurface("phrase-memory")).toBe("phrase-memory");

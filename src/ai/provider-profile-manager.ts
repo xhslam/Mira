@@ -12,6 +12,17 @@ export type AiProviderProfileSummary = Readonly<{
   hasApiKey: boolean;
 }>;
 
+export function pickDefaultAiProviderProfile(
+  summaries: readonly AiProviderProfileSummary[],
+  configuredId: string | null,
+): AiProviderProfile | null {
+  return (
+    summaries.find(({ profile, hasApiKey }) => hasApiKey && profile.id === configuredId)?.profile ??
+    summaries.find(({ hasApiKey }) => hasApiKey)?.profile ??
+    null
+  );
+}
+
 export type SaveAiProviderProfileInput = Readonly<{
   id?: string;
   name: string;

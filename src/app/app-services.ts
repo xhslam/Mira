@@ -133,7 +133,6 @@ export type AppServices = Readonly<{
   settingsStore: SettingsStore;
   attachmentImporter: AttachmentImporter;
   readWorkspaceResource: (path: string) => Promise<string | null>;
-  shareDrawingExport: (name: string, format: "png" | "svg", contents: string) => Promise<boolean>;
   synchronizeSearchIndex: () => Promise<void>;
   createDocumentId: () => DocumentId;
   createSessionId: () => SessionId;
@@ -541,35 +540,6 @@ export function createAppServices(): AppServices {
       sha256: hashBytes,
     });
     const settingsStore = createSettingsStore(storage);
-    async function shareDrawingExport(
-      name: string,
-      format: "png" | "svg",
-      contents: string,
-    ): Promise<boolean> {
-      if (!(await Sharing.isAvailableAsync())) return false;
-      const safeName =
-        name
-          .replace(/\.excalidraw(?:\.md)?$/i, "")
-          .replace(/[^a-zA-Z0-9._-]+/g, "-")
-          .replace(/^-+|-+$/g, "") || "drawing";
-      const uri = `${Paths.cache.uri}mira-drawing-${Crypto.randomUUID()}-${safeName}.${format}`;
-      try {
-        await FileSystem.writeAsStringAsync(uri, contents, {
-          encoding:
-            format === "png" ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8,
-        });
-        await Sharing.shareAsync(uri, {
-          dialogTitle: `Share ${safeName}.${format}`,
-          mimeType: format === "png" ? "image/png" : "image/svg+xml",
-          ...(format === "png" ? { UTI: "public.png" } : { UTI: "public.svg-image" }),
-        });
-        return true;
-      } catch {
-        return false;
-      } finally {
-        await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
-      }
-    }
     const aiAutomations = createAiAutomationRunner({
       store: aiStore,
       secrets: aiSecretStore,
@@ -613,7 +583,6 @@ export function createAppServices(): AppServices {
       settingsStore,
       attachmentImporter,
       readWorkspaceResource,
-      shareDrawingExport,
       async synchronizeSearchIndex() {
         await searchIndex.initialize();
         await phase6Store.initialize();

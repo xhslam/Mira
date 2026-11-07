@@ -7,6 +7,8 @@ import { seedLearningSnapshot } from "../../../src/learning/learning-seed";
 import {
   addPracticeMinutes,
   deleteLearningResource,
+  learningHomePreview,
+  openLearningResource,
   persistLearningPosition,
   saveLearningItem,
 } from "../../../src/learning/learning-session";
@@ -30,6 +32,58 @@ describe("learning session persistence", () => {
     });
     expect(next.ui.selectedSentenceId).toBe(sentence.id);
   });
+  it("previews the exact saved sentence that reopening the resource selects", () => {
+    const later = resource.sentences[1]!;
+    const practiced = persistLearningPosition(seeded, {
+      resource,
+      sentence: later,
+      positionMs: 0,
+      now: "2026-08-14T01:00:00.000Z",
+    });
+    const unprepared = {
+      ...resource,
+      id: "video-without-subtitles",
+      sentences: [],
+      lastOpenedAt: "2026-08-14T02:00:00.000Z",
+    };
+    const snapshot = { ...practiced, resources: [...practiced.resources, unprepared] };
+    expect(learningHomePreview(snapshot)).toMatchObject({
+      resource: { id: resource.id },
+      sentence: later,
+      index: 1,
+      resuming: true,
+    });
+    expect(openLearningResource(snapshot, resource.id).ui.selectedSentenceId).toBe(later.id);
+    expect(learningHomePreview({ ...snapshot, resources: [unprepared] })).toBeNull();
+  });
+
+  it("restores the selected cue when older navigation data gave all cues one timestamp", () => {
+    const later = resource.sentences[1]!;
+    const snapshot = {
+      ...seeded,
+      resources: [{ ...resource, lastOpenedAt: resource.createdAt }],
+      practice: seeded.practice.map((item) => ({
+        ...item,
+        selected: item.sentenceId === later.id,
+      })),
+    };
+    expect(learningHomePreview(snapshot)?.sentence.id).toBe(later.id);
+    expect(openLearningResource(snapshot, resource.id).ui.selectedSentenceId).toBe(later.id);
+  });
+
+  it("ignores a saved cue that is absent from the selected track", () => {
+    const later = resource.sentences[1]!;
+    const practiced = persistLearningPosition(seeded, { resource, sentence: later, positionMs: 0 });
+    const snapshot = {
+      ...practiced,
+      resources: [{ ...resource, sentences: [sentence] }],
+      practice: practiced.practice.filter((item) => item.sentenceId === later.id),
+      transcriptTracks: [],
+    };
+    expect(learningHomePreview(snapshot)).toMatchObject({ sentence, index: 0, resuming: false });
+    expect(openLearningResource(snapshot, resource.id).ui.selectedSentenceId).toBe(sentence.id);
+  });
+
   it("accumulates daily practice minutes and saves contextual items idempotently", () => {
     const minutes = addPracticeMinutes(seeded, 90_000, new Date("2026-08-14T00:00:00.000Z"));
     const input = {

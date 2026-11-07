@@ -7,7 +7,6 @@ import type {
 } from "../workspace/workspace-browser";
 import type { BrowserCommandResult } from "./browser-command";
 import type { FileTemplate } from "./file-template-registry";
-import { contentForNewExcalidrawPath } from "../formats/excalidraw/excalidraw-file";
 import type { WorkspaceCreateKind } from "./workspace-drawer-dialogs";
 
 export function useEntryCreation(options: {
@@ -77,11 +76,7 @@ export function useEntryCreation(options: {
       const result =
         kind === "directory"
           ? await options.onCreateDirectory(value)
-          : await options.onCreateFile(
-              value,
-              contentForNewExcalidrawPath(value, content),
-              conflict,
-            );
+          : await options.onCreateFile(value, content, conflict);
       if (!result.ok && result.errorCode === "ALREADY_EXISTS" && conflict === "fail") {
         showConflict();
         return;

@@ -1,4 +1,12 @@
-import { ChevronRight, FileText, Search, Video, Volume2, X } from "lucide-react-native";
+import {
+  ChevronRight,
+  FileText,
+  Search,
+  Video,
+  Volume2,
+  ChevronLeft,
+  Delete,
+} from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -52,7 +60,7 @@ export function LearningResourceSearchSheet({
             onPress={close}
             style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
           >
-            <X color={theme.colors.text} size={22} />
+            <ChevronLeft color={theme.colors.text} size={22} />
           </Pressable>
         </View>
 
@@ -77,7 +85,7 @@ export function LearningResourceSearchSheet({
               onPress={() => setQuery("")}
               style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
             >
-              <X color={theme.colors.mutedText} size={17} />
+              <Delete color={theme.colors.mutedText} size={17} />
             </Pressable>
           ) : null}
         </View>

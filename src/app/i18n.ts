@@ -3,8 +3,7 @@ export type LocalePreference = "system" | AppLocale;
 
 const en = Object.freeze({
   "nav.files": "Files",
-  "nav.drawings": "Drawings",
-  "nav.ai": "智能",
+  "nav.agent": "Agent",
   "nav.learn": "Learn",
   "nav.settings": "Settings",
 
@@ -13,6 +12,8 @@ const en = Object.freeze({
   "header.moreActions": "More actions",
   "header.unsavedChanges": "Unsaved changes",
   "header.switchMode": "Switch to {mode} mode",
+  "header.editorModes": "Editor mode",
+  "header.editorMode": "Editor mode: {mode}",
   "header.renameNote": "Rename {name}",
   "header.renameNoteInput": "Note name",
   "header.renameNoteHint": "The folder and file type stay unchanged",
@@ -42,6 +43,8 @@ const en = Object.freeze({
   "save.error": "Error",
 
   "tabs.newNote": "New note",
+  "tabs.openNotes": "Open notes",
+  "tabs.openNotesCount": "Open notes, {count}",
   "tabs.closeNote": "Close {name}",
   "tabs.untitled": "Untitled",
 
@@ -94,32 +97,7 @@ const en = Object.freeze({
   "search.emptyNote": "Empty note",
   "search.resultLabel": "{group}: {title}",
 
-  "drawings.title": "Visual workspace",
-  "drawings.subtitle":
-    "Sketch ideas, map systems, and keep every canvas beside your notes as a local file.",
-  "drawings.new": "New canvas",
-  "drawings.total": "canvases",
-  "drawings.compatibility": "Opens Obsidian .excalidraw.md and standard .excalidraw files",
-  "drawings.localFirst": "Offline-first with automatic workspace saving",
-  "drawings.recent": "Recent canvases",
-  "drawings.emptyTitle": "Start with an infinite canvas",
-  "drawings.emptyBody":
-    "Create a canvas for diagrams, handwritten thoughts, wireframes, or visual notes.",
-  "drawings.createTitle": "Name your canvas",
-  "drawings.createBody": "Mira stores it as an Obsidian-compatible .excalidraw.md file.",
-  "drawings.namePlaceholder": "System map",
-  "drawings.cancel": "Cancel",
-  "drawings.create": "Create canvas",
-  "drawings.nameRequired": "Enter a canvas name.",
-  "drawings.nameInvalid": "This canvas name cannot be used.",
-  "drawings.nameExists": "A canvas with this name already exists.",
-  "drawings.createFailed": "The canvas could not be created.",
-  "drawings.openFailed": "The canvas could not be opened.",
-  "drawings.openLabel": "Open canvas {name}",
-  "drawings.localFile": "Local file",
-
   "editor.markdownEditor": "Markdown editor",
-  "editor.excalidrawEditor": "Excalidraw canvas editor",
   "editor.openingWorkspace": "Opening workspace",
   "editor.workspaceUnavailable": "Workspace unavailable",
   "editor.viewMode": "View mode · code is never executed",
@@ -239,8 +217,7 @@ export type TranslationKey = keyof typeof en;
 
 const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "nav.files": "笔记",
-  "nav.drawings": "画板",
-  "nav.ai": "AI",
+  "nav.agent": "Agent",
   "nav.learn": "学习",
   "nav.settings": "设置",
 
@@ -249,6 +226,8 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "header.moreActions": "更多操作",
   "header.unsavedChanges": "有未保存的更改",
   "header.switchMode": "切换到{mode}模式",
+  "header.editorModes": "编辑模式",
+  "header.editorMode": "编辑模式：{mode}",
   "header.renameNote": "重命名{name}",
   "header.renameNoteInput": "笔记名称",
   "header.renameNoteHint": "文件夹与文件类型保持不变",
@@ -278,6 +257,8 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "save.error": "保存出错",
 
   "tabs.newNote": "新建笔记",
+  "tabs.openNotes": "已打开的笔记",
+  "tabs.openNotesCount": "已打开的笔记，共 {count} 篇",
   "tabs.closeNote": "关闭{name}",
   "tabs.untitled": "未命名",
 
@@ -329,30 +310,7 @@ const zhCN: Readonly<Record<TranslationKey, string>> = Object.freeze({
   "search.emptyNote": "空笔记",
   "search.resultLabel": "{group}：{title}",
 
-  "drawings.title": "视觉工作区",
-  "drawings.subtitle": "画下想法、梳理系统，把每张无限画布作为本地文件与笔记放在一起。",
-  "drawings.new": "新建画板",
-  "drawings.total": "张画板",
-  "drawings.compatibility": "兼容 Obsidian .excalidraw.md 与标准 .excalidraw 文件",
-  "drawings.localFirst": "完全离线，自动保存到当前工作区",
-  "drawings.recent": "最近画板",
-  "drawings.emptyTitle": "从一张无限画布开始",
-  "drawings.emptyBody": "新建画板，用来绘制图表、手写想法、线框图或视觉笔记。",
-  "drawings.createTitle": "给画板起个名字",
-  "drawings.createBody": "Mira 会将它保存为兼容 Obsidian 的 .excalidraw.md 文件。",
-  "drawings.namePlaceholder": "系统架构",
-  "drawings.cancel": "取消",
-  "drawings.create": "创建画板",
-  "drawings.nameRequired": "请输入画板名称。",
-  "drawings.nameInvalid": "这个画板名称无法使用。",
-  "drawings.nameExists": "已有同名画板。",
-  "drawings.createFailed": "无法创建画板。",
-  "drawings.openFailed": "无法打开画板。",
-  "drawings.openLabel": "打开画板 {name}",
-  "drawings.localFile": "本地文件",
-
   "editor.markdownEditor": "Markdown 编辑器",
-  "editor.excalidrawEditor": "Excalidraw 画板编辑器",
   "editor.openingWorkspace": "正在打开工作区",
   "editor.workspaceUnavailable": "工作区不可用",
   "editor.viewMode": "查看模式 · 代码不会被执行",

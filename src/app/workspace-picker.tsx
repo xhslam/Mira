@@ -8,7 +8,7 @@ import {
   PinOff,
   RefreshCw,
   Trash2,
-  X,
+  ChevronDown,
 } from "lucide-react-native";
 import { useState } from "react";
 import {
@@ -107,7 +107,7 @@ export function WorkspacePicker({
           </View>
           {canClose ? (
             <IconButton label={t("picker.close")} onPress={onClose}>
-              <X color={theme.colors.text} size={21} />
+              <ChevronDown color={theme.colors.text} size={21} />
             </IconButton>
           ) : null}
         </View>
@@ -324,19 +324,13 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
     header: {
-      minHeight: 76,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
-      marginHorizontal: 12,
-      paddingLeft: 16,
-      paddingRight: 6,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
-      borderRadius: 10,
-      backgroundColor: theme.colors.canvas,
+      paddingHorizontal: 24,
     },
     headerText: { minWidth: 0, flex: 1 },
-    title: { color: theme.colors.text, fontSize: 21, fontWeight: "700" },
+    title: { color: theme.colors.text, fontSize: 28, fontWeight: "600", letterSpacing: -0.5 },
     content: { width: "100%", maxWidth: 640, alignSelf: "center", gap: 12, padding: 20 },
     errorBanner: { padding: 12, borderRadius: 10, backgroundColor: "#FDECEC" },
     errorText: { color: theme.colors.error, fontSize: 13, lineHeight: 19 },
@@ -344,10 +338,10 @@ function createStyles(theme: Theme) {
       overflow: "hidden",
       borderWidth: 1,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.canvas,
     },
-    activeCard: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accentSoft },
+    activeCard: { backgroundColor: theme.colors.surface },
     cardMain: {
       minHeight: 92,
       flexDirection: "row",
@@ -361,7 +355,7 @@ function createStyles(theme: Theme) {
       flexShrink: 0,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.background,
     },
     cardText: { minWidth: 0, flex: 1, gap: 3 },
@@ -382,7 +376,7 @@ function createStyles(theme: Theme) {
       flexShrink: 0,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     cardActions: {
@@ -409,11 +403,8 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 14,
       padding: 16,
-      borderWidth: 1,
-      borderStyle: "dashed",
-      borderColor: theme.colors.accent,
-      borderRadius: 10,
-      backgroundColor: theme.colors.canvas,
+      borderRadius: theme.radius.large,
+      backgroundColor: theme.colors.surface,
     },
     addText: { minWidth: 0, flex: 1 },
     addTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700" },
@@ -421,7 +412,7 @@ function createStyles(theme: Theme) {
     platformBoundary: {
       gap: 4,
       padding: 14,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     boundaryTitle: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
@@ -446,7 +437,7 @@ function createStyles(theme: Theme) {
       maxWidth: 420,
       gap: 16,
       padding: 20,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.canvas,
     },
     renameTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
@@ -455,7 +446,7 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 12,
       borderWidth: 1,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       color: theme.colors.text,
       backgroundColor: theme.colors.background,
       fontSize: 15,
@@ -466,7 +457,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 16,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
     secondaryButtonText: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "600" },
     confirmButton: {
@@ -474,7 +465,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 18,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     confirmButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },

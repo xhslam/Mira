@@ -1,6 +1,6 @@
 export type ViewKind = "wysiwyg" | "source" | "reading" | "tree" | "table";
 
-export type FormatParser = "markdown" | "json" | "yaml" | "toml" | "mermaid" | "excalidraw";
+export type FormatParser = "markdown" | "json" | "yaml" | "toml" | "mermaid";
 export type FormatEditability = boolean | "opt-in";
 export type LargeFilePolicy = "normal" | "source-only" | "stream";
 export type FormatSecurityProfile = "text" | "structured-data" | "sandboxed-render" | "binary";
@@ -99,16 +99,15 @@ function adapter(input: FormatAdapter): FormatAdapter {
 
 const DEFAULT_FORMAT_ADAPTERS: readonly FormatAdapter[] = Object.freeze([
   adapter({
-    id: "excalidraw",
+    id: "legacy-drawing",
     extensions: [".excalidraw.md", ".excalidraw"],
     mimeTypes: ["application/vnd.excalidraw+json"],
     defaultView: "source",
     supportedViews: ["source"],
-    editable: true,
+    editable: false,
     searchable: true,
-    parser: "excalidraw",
     largeFilePolicy: "source-only",
-    securityProfile: "sandboxed-render",
+    securityProfile: "text",
   }),
   adapter({
     id: "markdown",

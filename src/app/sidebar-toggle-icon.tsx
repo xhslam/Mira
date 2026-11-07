@@ -1,3 +1,4 @@
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
@@ -14,9 +15,6 @@ export function SidebarToggleIcon({
 }>) {
   const reduceMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(expanded ? 1 : 0));
-  const lineWidth = size * 0.68;
-  const lineHeight = Math.max(1.75, size * 0.078);
-  const travel = size * 0.2;
 
   useEffect(() => {
     if (reduceMotion) {
@@ -34,88 +32,23 @@ export function SidebarToggleIcon({
     return () => animation.stop();
   }, [expanded, progress, reduceMotion]);
 
-  const topTransform = [
-    {
-      translateY: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [-travel, 0],
-      }),
-    },
-    {
-      rotate: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: ["0deg", "40deg"],
-      }),
-    },
-    {
-      scaleX: progress.interpolate({
-        inputRange: [0, 0.62, 1],
-        outputRange: [1, 0.9, 0.82],
-      }),
-    },
-  ];
-  const bottomTransform = [
-    {
-      translateY: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [travel, 0],
-      }),
-    },
-    {
-      rotate: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: ["0deg", "-40deg"],
-      }),
-    },
-    {
-      scaleX: progress.interpolate({
-        inputRange: [0, 0.62, 1],
-        outputRange: [1, 0.9, 0.82],
-      }),
-    },
-  ];
-
   return (
-    <View accessibilityElementsHidden style={[styles.icon, { width: size, height: size }]}>
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: size, height: size }}
+    >
       <Animated.View
         style={[
-          styles.line,
-          { backgroundColor: color, width: lineWidth, height: lineHeight },
-          { transform: topTransform },
+          StyleSheet.absoluteFill,
+          { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
         ]}
-      />
-      <Animated.View
-        style={[
-          styles.line,
-          { backgroundColor: color, width: lineWidth, height: lineHeight },
-          {
-            opacity: progress.interpolate({
-              inputRange: [0, 0.58, 0.9],
-              outputRange: [1, 0, 0],
-            }),
-            transform: [
-              {
-                scaleX: progress.interpolate({
-                  inputRange: [0, 0.7, 1],
-                  outputRange: [1, 0.58, 0.42],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.line,
-          { backgroundColor: color, width: lineWidth, height: lineHeight },
-          { transform: bottomTransform },
-        ]}
-      />
+      >
+        <PanelLeftOpen color={color} size={size} strokeWidth={1.8} />
+      </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
+        <PanelLeftClose color={color} size={size} strokeWidth={1.8} />
+      </Animated.View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  icon: { alignItems: "center", justifyContent: "center" },
-  line: { position: "absolute", borderRadius: 999 },
-});

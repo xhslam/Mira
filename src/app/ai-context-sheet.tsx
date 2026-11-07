@@ -1,4 +1,5 @@
-import { Check, Search, X } from "lucide-react-native";
+import { CircleAction } from "./mira-controls";
+import { Check, Search, ChevronDown } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import {
   FlatList,
@@ -10,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { FileEntry } from "../workspace/workspace-adapter";
 import { useTheme, type Theme } from "./theme";
@@ -44,44 +46,37 @@ export function AiContextSheet(
   return (
     <Modal animationType="slide" onRequestClose={props.onClose} transparent visible={props.visible}>
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        <SafeAreaView edges={["bottom", "left", "right"]} style={styles.sheet}>
           <View style={styles.header}>
             <View>
               <Text accessibilityRole="header" style={styles.title}>
-                Note context
+                笔记上下文
               </Text>
-              <Text style={styles.subtitle}>Current note is always included</Text>
+              {props.currentPath ? <Text style={styles.subtitle}>已包含当前笔记</Text> : null}
             </View>
-            <Pressable
-              accessibilityLabel="Close note context"
-              onPress={props.onClose}
-              style={styles.close}
-            >
-              <X color={theme.colors.text} size={21} />
-            </Pressable>
+            <CircleAction label="关闭笔记上下文" onPress={props.onClose} muted>
+              <ChevronDown color={theme.colors.text} size={21} />
+            </CircleAction>
           </View>
 
           <View style={styles.permissionCard}>
             <View style={styles.permissionCopy}>
-              <Text style={styles.permissionTitle}>Allow AI to search the whole workspace</Text>
-              <Text style={styles.permissionBody}>
-                Off by default. This lets the model call local note search during a request.
-              </Text>
+              <Text style={styles.permissionTitle}>允许搜索整个工作区</Text>
             </View>
             <Switch
-              accessibilityLabel="Allow AI to search the whole workspace"
+              accessibilityLabel="允许搜索整个工作区"
               onValueChange={(allowed) => void props.onPermissionChange(allowed)}
               value={props.allowWholeWorkspaceSearch}
             />
           </View>
 
-          <Text style={styles.sectionLabel}>MANUALLY ADD NOTES</Text>
+          <Text style={styles.sectionLabel}>添加笔记</Text>
           <View style={styles.searchBox}>
             <Search color={theme.colors.mutedText} size={17} />
             <TextInput
-              accessibilityLabel="Search notes to add"
+              accessibilityLabel="搜索笔记"
               onChangeText={setQuery}
-              placeholder="Search by path…"
+              placeholder="搜索笔记…"
               placeholderTextColor={theme.colors.mutedText}
               style={styles.searchInput}
               value={query}
@@ -91,7 +86,7 @@ export function AiContextSheet(
             data={files}
             keyExtractor={(item) => item.path}
             keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={<Text style={styles.empty}>No matching notes</Text>}
+            ListEmptyComponent={<Text style={styles.empty}>没有匹配的笔记</Text>}
             renderItem={({ item }) => {
               const selected = props.selectedPaths.includes(item.path);
               return (
@@ -113,9 +108,9 @@ export function AiContextSheet(
             style={styles.list}
           />
           <Pressable onPress={props.onClose} style={styles.doneButton}>
-            <Text style={styles.doneText}>Done · {props.selectedPaths.length} added</Text>
+            <Text style={styles.doneText}>完成 · 已选 {props.selectedPaths.length} 篇</Text>
           </Pressable>
-        </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -123,20 +118,19 @@ export function AiContextSheet(
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.42)" },
+    backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: theme.colors.overlay },
     sheet: {
       maxHeight: "88%",
       minHeight: "66%",
       gap: 14,
       padding: 18,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
       backgroundColor: theme.colors.background,
     },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     subtitle: { marginTop: 3, color: theme.colors.mutedText, fontSize: 12 },
-    close: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
     permissionCard: {
       flexDirection: "row",
       alignItems: "center",
@@ -144,12 +138,11 @@ function createStyles(theme: Theme) {
       padding: 14,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     permissionCopy: { minWidth: 0, flex: 1, gap: 3 },
     permissionTitle: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
-    permissionBody: { color: theme.colors.mutedText, fontSize: 11, lineHeight: 16 },
     sectionLabel: {
       color: theme.colors.mutedText,
       fontSize: 10,
@@ -162,7 +155,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 8,
       paddingHorizontal: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     searchInput: { flex: 1, color: theme.colors.text, fontSize: 14 },
@@ -183,7 +176,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       borderWidth: 1,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
     checkSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent },
     empty: { paddingVertical: 28, color: theme.colors.mutedText, textAlign: "center" },
@@ -191,7 +184,7 @@ function createStyles(theme: Theme) {
       minHeight: 48,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     doneText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },

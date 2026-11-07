@@ -339,19 +339,28 @@ export function createPrivateVaultRepository(
             return repositoryFailure("ALREADY_EXISTS", request.to);
           }
 
-          await options.storage.move(
-            documentStoragePath(from.value),
-            documentStoragePath(to.value),
-          );
+          const sourcePath = documentStoragePath(from.value);
+          const targetPath = documentStoragePath(to.value);
           const renamed: CatalogEntry = Object.freeze({ ...entry, path: to.value });
-          await saveCatalog(
-            freezeCatalog(
-              catalog.entries.map((item) =>
-                item.documentId === entry.documentId ? renamed : item,
-              ),
-            ),
-          );
-          return success(await readEntry(renamed));
+          await options.storage.move(sourcePath, targetPath);
+          try {
+            const verified = await readEntry(renamed);
+            if (verified.contentHash !== entry.contentHash) {
+              throw new Error("Renamed file did not match its saved content");
+            }
+            await saveCatalog(
+              freezeCatalog(catalog.entries.map((item) => (item === entry ? renamed : item))),
+            );
+            return success(verified);
+          } catch {
+            const currentCatalog = await loadCatalog();
+            const current = currentCatalog.entries.find(
+              (item) => item.documentId === entry.documentId,
+            );
+            if (current?.path === to.value) return success(await readEntry(current));
+            if (current?.path === from.value) await options.storage.move(targetPath, sourcePath);
+            return repositoryFailure("IO_FAILURE", request.from);
+          }
         } catch {
           return repositoryFailure("IO_FAILURE", request.from);
         }

@@ -43,8 +43,8 @@ function textAdapter(
 describe("format registry", () => {
   it.each([
     ["README.MD", null, "markdown"],
-    ["Map.excalidraw.md", null, "excalidraw"],
-    ["Map.EXCALIDRAW", null, "excalidraw"],
+    ["Map.excalidraw.md", null, "legacy-drawing"],
+    ["Map.EXCALIDRAW", null, "legacy-drawing"],
     ["settings.yaml", "application/octet-stream", "yaml"],
     ["records.jsonl", null, "json"],
     ["Cargo.toml", null, "toml"],
@@ -81,11 +81,11 @@ describe("format registry", () => {
     const code = DEFAULT_FORMAT_REGISTRY.resolve("main.py");
 
     expect(excalidraw).toMatchObject({
-      parser: "excalidraw",
+      id: "legacy-drawing",
       defaultView: "source",
       supportedViews: ["source"],
-      editable: true,
-      securityProfile: "sandboxed-render",
+      editable: false,
+      securityProfile: "text",
     });
     expect(markdown).toMatchObject({
       defaultView: "wysiwyg",

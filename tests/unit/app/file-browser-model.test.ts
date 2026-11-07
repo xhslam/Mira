@@ -59,7 +59,6 @@ describe("file browser model", () => {
 
     expect(model.groups.map((group) => [group.id, group.count])).toEqual([
       ["markdown", 1],
-      ["excalidraw", 1],
       ["yaml", 1],
       ["json", 1],
       ["toml", 1],
@@ -67,7 +66,7 @@ describe("file browser model", () => {
       ["svg", 1],
       ["html", 1],
       ["code", 1],
-      ["other", 2],
+      ["other", 3],
     ]);
     expect(model.fileCount).toBe(11);
   });

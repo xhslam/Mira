@@ -1,10 +1,12 @@
+import { CircleAction } from "./mira-controls";
 import * as Crypto from "expo-crypto";
-import { Search, Sparkles, Square, X } from "lucide-react-native";
+import { Search, Sparkles, Square, ChevronDown } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { AiProposal } from "../ai/proposal";
 import type { AiProviderProfile } from "../ai/provider-profile";
+import { pickDefaultAiProviderProfile } from "../ai/provider-profile-manager";
 import {
   applyVmarkGenieResult,
   captureGenieTarget,
@@ -31,8 +33,7 @@ export function AiQuickAssistant(
 ) {
   const theme = useTheme();
   const styles = createStyles(theme);
-  const [profiles, setProfiles] = useState<readonly AiProviderProfile[]>(Object.freeze([]));
-  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<AiProviderProfile["id"] | null>(null);
   const [query, setQuery] = useState("");
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -58,16 +59,12 @@ export function AiQuickAssistant(
       ),
     ]).then(([summaries, settings, history]) => {
       if (!active) return;
-      const loaded = Object.freeze(summaries.map((item) => item.profile));
-      setProfiles(loaded);
       const configured = settings.ok ? settings.value.ai.activeProviderProfileId : null;
       setUseChineseLabels(
         resolveLocale(settings.ok ? settings.value.localePreference : "system") === "zh-CN",
       );
       setPromptHistory(history);
-      setProfileId(
-        loaded.some((item) => item.id === configured) ? configured : (loaded[0]?.id ?? null),
-      );
+      setProfileId(pickDefaultAiProviderProfile(summaries, configured)?.id ?? null);
     });
     return () => {
       active = false;
@@ -93,7 +90,7 @@ export function AiQuickAssistant(
   }, [query]);
 
   async function run(genie: VmarkGenie, customPrompt?: string): Promise<void> {
-    const activeProfileId = profileId as AiProviderProfile["id"] | null;
+    const activeProfileId = profileId;
     if (!activeProfileId || running) return;
     lastGenieRef.current = genie;
     setRunning(true);
@@ -238,17 +235,13 @@ export function AiQuickAssistant(
                 </Text>
                 <Text style={styles.scope}>Scope: {visibleScope}</Text>
               </View>
-              <Pressable
-                accessibilityLabel="Close AI Quick Assistant"
-                onPress={props.onClose}
-                style={styles.iconButton}
-              >
-                <X color={theme.colors.text} size={21} />
-              </Pressable>
+              <CircleAction label="Close AI Quick Assistant" onPress={props.onClose} muted>
+                <ChevronDown color={theme.colors.text} size={21} />
+              </CircleAction>
             </View>
 
-            {profiles.length === 0 ? (
-              <Text style={styles.error}>Connect an AI provider in the AI tab first.</Text>
+            {!profileId ? (
+              <Text style={styles.error}>请在 Agent 的「新建 → 模型设置」中连接一个模型。</Text>
             ) : null}
             <View style={styles.quickRow}>
               {VMARK_GENIES.filter((item) => QUICK_IDS.has(item.id)).map((item) => (
@@ -389,7 +382,7 @@ export function AiQuickAssistant(
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.42)" },
+    backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: theme.colors.overlay },
     sheet: {
       height: "86%",
       gap: 12,
@@ -401,14 +394,13 @@ function createStyles(theme: Theme) {
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     scope: { marginTop: 3, color: theme.colors.mutedText, fontSize: 11 },
-    iconButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     error: { color: theme.colors.error, fontSize: 12 },
     quickRow: { flexDirection: "row", gap: 7 },
     quickChip: {
       minHeight: 34,
       justifyContent: "center",
       paddingHorizontal: 10,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accentSoft,
     },
     quickText: { color: theme.colors.accent, fontSize: 11, fontWeight: "600" },
@@ -418,7 +410,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 8,
       paddingHorizontal: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     searchInput: { flex: 1, color: theme.colors.text, fontSize: 13 },
@@ -428,7 +420,7 @@ function createStyles(theme: Theme) {
       maxWidth: 120,
       paddingHorizontal: 8,
       paddingVertical: 6,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     historyText: { color: theme.colors.text, fontSize: 10 },
@@ -446,7 +438,7 @@ function createStyles(theme: Theme) {
       height: 34,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accentSoft,
     },
     actionCopy: { minWidth: 0, flex: 1 },
@@ -457,7 +449,7 @@ function createStyles(theme: Theme) {
       gap: 7,
       overflow: "hidden",
       padding: 10,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     previewLabel: {
@@ -486,7 +478,7 @@ function createStyles(theme: Theme) {
       minHeight: 46,
       justifyContent: "center",
       paddingHorizontal: 16,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },

@@ -7,7 +7,6 @@ import {
   assertSingleDomBundle,
   cleanReleaseDomAssets,
   getReleaseDomAssetDirectories,
-  installExcalidrawReleaseFonts,
   installKatexReleaseFonts,
   readDomAssetInventory,
 } from "../../../scripts/android-release-assets.mjs";
@@ -83,38 +82,6 @@ describe("Android release DOM assets", () => {
     await expect(
       readFile(path.join(domAssets, "_expo/static/css/fonts/KaTeX_Main-Regular.woff2"), "utf8"),
     ).resolves.toBe("font");
-  });
-
-  it("installs the complete Excalidraw font tree and CSS font subset", async () => {
-    const projectRoot = await createTemporaryProject();
-    const domAssets = getReleaseDomAssetDirectories(projectRoot)[0];
-    if (!domAssets) throw new Error("missing generated DOM asset directory");
-    await writeFixture(
-      projectRoot,
-      "node_modules/@excalidraw/excalidraw/dist/prod/fonts/Virgil/Virgil-Regular.woff2",
-      "virgil",
-    );
-    await writeFixture(
-      projectRoot,
-      "node_modules/@excalidraw/excalidraw/dist/prod/fonts/Assistant/Assistant-Regular.woff2",
-      "assistant",
-    );
-
-    const files = await installExcalidrawReleaseFonts(projectRoot, domAssets, {
-      cssDirectory: "_expo/static/css",
-    });
-
-    expect(files).toEqual(["Assistant/Assistant-Regular.woff2", "Virgil/Virgil-Regular.woff2"]);
-    expect(Object.isFrozen(files)).toBe(true);
-    await expect(
-      readFile(path.join(domAssets, "fonts/Virgil/Virgil-Regular.woff2"), "utf8"),
-    ).resolves.toBe("virgil");
-    await expect(
-      readFile(
-        path.join(domAssets, "_expo/static/css/fonts/Assistant/Assistant-Regular.woff2"),
-        "utf8",
-      ),
-    ).resolves.toBe("assistant");
   });
 
   it("returns a deeply frozen inventory", async () => {

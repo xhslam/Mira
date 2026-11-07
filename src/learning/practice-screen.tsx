@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   BookmarkPlus,
   Captions,
@@ -21,9 +22,13 @@ import {
   Pause,
   Play,
   Repeat2,
+  SkipBack,
+  SkipForward,
   RotateCcw,
   Trash2,
-  X,
+  Check,
+  ChevronDown,
+  Minimize2,
 } from "lucide-react-native";
 import {
   RecordingPresets,
@@ -48,7 +53,13 @@ import { upsertPhraseCard } from "./phrase-recognition";
 import { VideoPreview } from "./video-preview";
 import { VideoLearningPlayer } from "./video-learning-player";
 import { BilibiliPreview } from "./bilibili-preview";
-import { addPracticeMinutes, persistLearningPosition, saveLearningItem } from "./learning-session";
+import {
+  addPracticeMinutes,
+  learningPassage,
+  persistLearningPosition,
+  saveLearningItem,
+} from "./learning-session";
+import { studyAccent } from "./study-appearance";
 import { useAudioPlayerSession } from "./presentation/player/use-audio-player-session";
 import { TranscriptPanel } from "./presentation/transcript/transcript-panel";
 import {
@@ -90,14 +101,11 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     snapshot.resources.find((item) => item.id === snapshot.ui.selectedResourceId) ??
     snapshot.resources[0] ??
     null;
-  const resourceTracks = snapshot.transcriptTracks.filter(
-    (item) => item.resourceId === resource?.id,
-  );
-  const activeTrack =
-    resourceTracks.find((item) => item.id === snapshot.ui.activeTranscriptTrackId) ??
-    resourceTracks.find((item) => item.isPrimary) ??
-    null;
-  const activeSentences = activeTrack?.sentences ?? resource?.sentences ?? [];
+  const {
+    tracks: resourceTracks,
+    track: activeTrack,
+    sentences: activeSentences,
+  } = resource ? learningPassage(snapshot, resource) : { tracks: [], track: null, sentences: [] };
   const sentence =
     activeSentences.find((item) => item.id === snapshot.ui.selectedSentenceId) ??
     activeSentences[0] ??
@@ -116,7 +124,10 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   const videoLoopRestartingRef = useRef(false);
   const videoResourceIdRef = useRef<string | null>(null);
   const lastVideoProgressPositionRef = useRef<number | null>(null);
-  const [showTranslation, setShowTranslation] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(
+    () => resource === null || !hasPlayableVideoResource(resource),
+  );
+  const [toolsExpanded, setToolsExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const echoRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -147,13 +158,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         : null,
     onProgress: async ({ mediaId, positionMs, playedDeltaMs }) => {
       const currentResource = snapshot.resources.find((item) => item.id === mediaId);
-      const currentSentences =
-        snapshot.transcriptTracks.find(
-          (track) =>
-            track.id === snapshot.ui.activeTranscriptTrackId && track.resourceId === mediaId,
-        )?.sentences ??
-        currentResource?.sentences ??
-        [];
+      const currentSentences = currentResource
+        ? learningPassage(snapshot, currentResource).sentences
+        : [];
       const currentSentence =
         currentSentences.find(
           (item) =>
@@ -217,22 +224,25 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   function selectSentence(sentenceId: string, userInitiated = true) {
     if (!resource) return;
     const target = activeSentences.find((item) => item.id === sentenceId);
+    if (!target) return;
     if (userInitiated) {
       if (hasPlayableVideoResource(resource)) {
-        setVideoPositionMs(target?.startMs ?? 0);
+        setVideoPositionMs(target.startMs ?? 0);
         setVideoPlaying(false);
       }
       stopPlayback();
+      persist(
+        persistLearningPosition(snapshot, {
+          resource,
+          sentence: target,
+          positionMs: target.startMs ?? 0,
+        }),
+      );
+      return;
     }
-    const now = new Date().toISOString();
     persist(
       Object.freeze({
         ...snapshot,
-        practice: Object.freeze(
-          snapshot.practice.map((entry) =>
-            Object.freeze({ ...entry, selected: entry.sentenceId === sentenceId, updatedAt: now }),
-          ),
-        ),
         ui: Object.freeze({
           ...snapshot.ui,
           selectedResourceId: resource.id,
@@ -515,9 +525,8 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     }
     setAnalysisBusy(true);
     try {
-      const content = await collectLearningResponse({
+      const { text: content } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           Object.freeze({
             role: "system" as const,
@@ -589,9 +598,8 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     setContextBusy(true);
     setContextExplanation(null);
     try {
-      const response = await collectLearningResponse({
+      const { text: response } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           Object.freeze({
             role: "system" as const,
@@ -657,14 +665,15 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     if (!resource || track.sentences.length === 0) return;
     const nextSentence = track.sentences[0]!;
     stopPlayback();
+    const withPosition = persistLearningPosition(snapshot, {
+      resource,
+      sentence: nextSentence,
+      positionMs: nextSentence.startMs ?? 0,
+    });
     persist(
       Object.freeze({
-        ...snapshot,
-        ui: Object.freeze({
-          ...snapshot.ui,
-          activeTranscriptTrackId: track.id,
-          selectedSentenceId: nextSentence.id,
-        }),
+        ...withPosition,
+        ui: Object.freeze({ ...withPosition.ui, activeTranscriptTrackId: track.id }),
       }),
     );
     setTrackSheetVisible(false);
@@ -806,7 +815,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
 
   function selectAdjacent(offset: number) {
     if (!resource || !sentence) return;
-    const target = activeSentences.find((item) => item.order === sentence.order + offset);
+    const target = activeSentences[activeSentences.indexOf(sentence) + offset];
     if (target) selectSentence(target.id);
   }
 
@@ -822,9 +831,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     );
   }
 
-  const playedCount = snapshot.practice.filter(
-    (item) => item.resourceId === resource.id && item.listened,
-  ).length;
+  const sentenceIndex = activeSentences.indexOf(sentence);
+  const positionSegments = Math.min(activeSentences.length, 8);
+  const activeSegment = Math.floor((sentenceIndex / activeSentences.length) * positionSegments);
   const hasTimedMedia = Boolean(
     sentence.startMs !== null &&
     (hasPlayableVideoResource(resource) || (resource.mediaKind === "audio" && resource.mediaUri)),
@@ -881,321 +890,344 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   const echoElapsedLabel = `${String(Math.floor(echoElapsedSeconds / 60)).padStart(2, "0")}:${String(echoElapsedSeconds % 60).padStart(2, "0")}`;
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      nestedScrollEnabled
-      showsVerticalScrollIndicator={false}
-      style={styles.scroll}
-    >
-      {hasPlayableVideoResource(resource) ? (
-        <View style={styles.mediaPreview}>
-          {resource.mediaKind === "bilibili" && resource.sourceUrl ? (
-            <BilibiliPreview
-              sourceUrl={resource.sourceUrl}
-              positionMs={videoPositionMs}
-              playing={videoPlaying}
-              playbackRate={videoPlaybackRate}
-              onPositionMsChange={followPlaybackPosition}
-            />
-          ) : resource.mediaUri ? (
-            <VideoPreview
-              uri={resource.mediaUri}
-              positionMs={videoPositionMs}
-              playing={videoPlaying}
-              playbackRate={videoPlaybackRate}
-              onPositionMsChange={followPlaybackPosition}
-            />
-          ) : null}
-        </View>
-      ) : null}
-      <View style={styles.mediaStage}>
-        <View style={styles.stageTopline}>
-          <Text style={styles.stageLabel}>{hasTimedMedia ? "同步字幕" : "逐句朗读"}</Text>
-          <Text style={styles.stageTime}>
-            {hasTimedMedia ? formatTime(sentence.startMs) : "设备语音"}
-          </Text>
-        </View>
-        <Text style={styles.stageOrder}>{String(sentence.order).padStart(2, "0")}</Text>
-        <InteractiveSentence
-          text={sentence.text}
-          styles={styles}
-          onWordPress={(word) => void openWord(word)}
-        />
-        {showTranslation ? (
-          <Text style={styles.translation}>
-            {sentence.translation ?? "这句还没有译文。你可以在语料页按需生成翻译。"}
-          </Text>
-        ) : (
-          <Text style={styles.translationHint}>
-            点一下 CC 显示译文；点英文单词查看它在这句里的意思。
-          </Text>
-        )}
-      </View>
-
-      <View style={styles.transport}>
-        <Pressable
-          accessibilityLabel="上一句"
-          accessibilityRole="button"
-          disabled={sentence.order === 1}
-          onPress={() => selectAdjacent(-1)}
-          style={({ pressed }) => [
-            styles.transportButton,
-            sentence.order === 1 && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <ChevronLeft color={theme.colors.text} size={21} />
-        </Pressable>
-        <Pressable
-          accessibilityLabel={playing ? "暂停" : "播放这一句"}
-          accessibilityRole="button"
-          onPress={() => void playSentence()}
-          style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
-        >
-          {playing ? (
-            <Pause color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
-          ) : (
-            <Play color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
-          )}
-        </Pressable>
-        <Pressable
-          accessibilityLabel="下一句"
-          accessibilityRole="button"
-          disabled={sentence.order === activeSentences.length}
-          onPress={() => selectAdjacent(1)}
-          style={({ pressed }) => [
-            styles.transportButton,
-            sentence.order === activeSentences.length && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <ChevronRight color={theme.colors.text} size={21} />
-        </Pressable>
-      </View>
-
-      {hasTimedMedia ? (
-        <View style={styles.playbackControls}>
-          <Pressable
-            accessibilityLabel="跳转播放进度"
-            accessibilityRole="button"
-            onLayout={(event) => setProgressTrackWidth(event.nativeEvent.layout.width)}
-            onPress={(event) => {
-              if (progressTrackWidth === 0 || playbackDurationMs === null) return;
-              void seekPlaybackTo(
-                (event.nativeEvent.locationX / progressTrackWidth) * playbackDurationMs,
-              );
-            }}
-            style={styles.progressTrack}
-          >
-            <View style={[styles.progressFill, { width: `${playbackProgress}%` }]} />
-          </Pressable>
-          <View style={styles.playbackMeta}>
-            <Text style={styles.playbackTime}>
-              {formatTime(playbackPositionMs)} /{" "}
-              {playbackDurationMs === null ? "—:—" : formatTime(playbackDurationMs)}
-            </Text>
-            <Pressable
-              accessibilityLabel={`播放速度 ${playbackRate} 倍，点按切换`}
-              accessibilityRole="button"
-              onPress={cyclePlaybackRate}
-              style={styles.rateChip}
-            >
-              <Text style={styles.rateText}>{playbackRate}×</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.utilityBar}>
-        <ToolButton
-          label="单句循环"
-          selected={repeat}
-          icon={Repeat2}
-          onPress={() => setRepeat((value) => !value)}
-          styles={styles}
-          theme={theme}
-        />
-        <ToolButton
-          label={showTranslation ? "隐藏译文" : "显示译文"}
-          selected={showTranslation}
-          icon={Captions}
-          onPress={() => setShowTranslation((value) => !value)}
-          styles={styles}
-          theme={theme}
-        />
-        <ToolButton
-          label="专注听力"
-          icon={Focus}
-          onPress={() => setImmersive(true)}
-          styles={styles}
-          theme={theme}
-        />
-        <ToolButton
-          label={analysisBusy ? "分析中" : "句子分析"}
-          selected={analysisVisible}
-          icon={Focus}
-          onPress={() => void loadSentenceAnalysis()}
-          styles={styles}
-          theme={theme}
-        />
-        <ToolButton
-          label={
-            echoSession.state === "recording"
-              ? "结束录音"
-              : echoSession.state === "readyToRecord"
-                ? "开始录音"
-                : echoSession.state === "recorded"
-                  ? "回放跟读"
-                  : "Echo 跟读"
-          }
-          selected={echoSession.state === "recording"}
-          icon={Mic}
-          onPress={() => void handleEchoAction()}
-          styles={styles}
-          theme={theme}
-        />
-      </View>
-      {echoSession.state === "recording" ? (
-        <View style={styles.echoLiveCard}>
-          <View style={styles.echoPulse} />
-          <View style={styles.echoLiveCopy}>
-            <Text style={styles.echoLiveTitle}>正在收录你的跟读</Text>
-            <Text style={styles.echoLiveMeta}>{echoElapsedLabel} · 再读一遍完整句子后点击结束</Text>
-          </View>
-          <Mic color={theme.colors.accent} size={19} />
-        </View>
-      ) : null}
-      {latestEchoRecording ? (
-        <>
-          <AssessmentCard recording={latestEchoRecording} theme={theme} />
-          <View style={styles.echoActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void replayEchoRecording()}
-              style={styles.echoActionPill}
-            >
-              <Play color={theme.colors.accent} size={15} />
-              <Text style={styles.echoActionText}>回放我的录音</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={retryEcho} style={styles.echoActionPill}>
-              <RotateCcw color={theme.colors.accent} size={15} />
-              <Text style={styles.echoActionText}>重录</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={deleteLatestEchoRecording}
-              style={styles.echoActionPill}
-            >
-              <Trash2 color={theme.colors.accent} size={15} />
-              <Text style={styles.echoActionText}>删除</Text>
-            </Pressable>
-          </View>
-        </>
-      ) : null}
-      {echoSession.state !== "idle" ? (
-        <Text style={styles.echoStatus}>{echoStatusCopy(echoSession)}</Text>
-      ) : null}
-      {echoRecordings.length > 0 ? (
-        <View style={styles.echoHistory}>
-          <View style={styles.echoHistoryHeader}>
-            <Text style={styles.echoHistoryTitle}>本句跟读</Text>
-            <Text style={styles.echoHistoryCount}>{echoRecordings.length} 次记录</Text>
-          </View>
-          {echoRecordings.slice(0, 3).map((recording, index) => (
-            <View key={recording.id} style={styles.echoHistoryRow}>
-              <View style={styles.echoHistoryIcon}>
-                <Mic color={theme.colors.accent} size={14} />
-              </View>
-              <Text style={styles.echoHistoryText}>第 {echoRecordings.length - index} 次跟读</Text>
-              <Text style={styles.echoHistoryMeta}>
-                {Math.max(0, Math.round(recording.durationMs / 1000))} 秒 ·{" "}
-                {recording.createdAt.slice(11, 16)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-      {analysisVisible && currentAnalysis ? (
-        <View style={styles.analysisCard}>
-          <Text style={styles.analysisTitle}>句子分析</Text>
-          {currentAnalysis.sentencePatterns.length ? (
-            <>
-              <Text style={styles.analysisSection}>句型结构</Text>
-              {currentAnalysis.sentencePatterns.map((item) => (
-                <Text key={item} style={styles.analysisCopy}>
-                  • {item}
-                </Text>
-              ))}
-            </>
-          ) : null}
-          {currentAnalysis.keyPhrases.length ? (
-            <>
-              <Text style={styles.analysisSection}>重点短语</Text>
-              {currentAnalysis.keyPhrases.map((item) => (
-                <Pressable
-                  key={item.phrase}
-                  accessibilityRole="button"
-                  onPress={() => void openPhrase(item.phrase)}
-                  style={styles.analysisPhrase}
-                >
-                  <Text style={styles.analysisPhraseTitle}>
-                    {item.phrase} · {item.translation}
-                  </Text>
-                  <Text style={styles.analysisCopy}>{item.explanation}</Text>
-                </Pressable>
-              ))}
-            </>
-          ) : null}
-          {currentAnalysis.grammarPoints.length ? (
-            <>
-              <Text style={styles.analysisSection}>语法要点</Text>
-              {currentAnalysis.grammarPoints.map((item) => (
-                <Text key={item} style={styles.analysisCopy}>
-                  • {item}
-                </Text>
-              ))}
-            </>
-          ) : null}
-          {currentAnalysis.contextualExplanation ? (
-            <>
-              <Text style={styles.analysisSection}>语境说明</Text>
-              <Text style={styles.analysisCopy}>{currentAnalysis.contextualExplanation}</Text>
-            </>
-          ) : null}
-        </View>
-      ) : null}
-
-      {notice ? (
-        <Pressable accessibilityRole="button" onPress={() => setNotice(null)} style={styles.notice}>
-          <Text style={styles.noticeText}>{notice}</Text>
-          <X color={theme.colors.mutedText} size={16} />
-        </Pressable>
-      ) : null}
-
-      <View style={styles.trajectoryHeader}>
-        <View>
-          <Text style={styles.trajectoryTitle}>字幕轨道</Text>
-          <Text style={styles.trajectoryMeta}>已听 {playedCount} 句 · 点任一句跳转</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setTrackSheetVisible(true)}
-          style={styles.trackPill}
-        >
-          <Captions color={theme.colors.accent} size={14} />
-          <Text numberOfLines={1} style={styles.trackPillText}>
-            {activeTrack?.label ?? "主字幕"}
-          </Text>
-          <ChevronRight color={theme.colors.accent} size={14} />
-        </Pressable>
-      </View>
+    <>
       <TranscriptPanel
+        header={
+          <View style={styles.content}>
+            {hasPlayableVideoResource(resource) ? (
+              <View style={styles.mediaPreview}>
+                {resource.mediaKind === "bilibili" && resource.sourceUrl ? (
+                  <BilibiliPreview
+                    sourceUrl={resource.sourceUrl}
+                    positionMs={videoPositionMs}
+                    playing={videoPlaying}
+                    playbackRate={videoPlaybackRate}
+                    onPositionMsChange={followPlaybackPosition}
+                  />
+                ) : resource.mediaUri ? (
+                  <VideoPreview
+                    uri={resource.mediaUri}
+                    positionMs={videoPositionMs}
+                    playing={videoPlaying}
+                    playbackRate={videoPlaybackRate}
+                    onPositionMsChange={followPlaybackPosition}
+                  />
+                ) : null}
+              </View>
+            ) : null}
+            <View style={styles.mediaStage}>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.sentencePosition}
+              >
+                {Array.from({ length: positionSegments }, (_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.sentenceSegment,
+                      index === activeSegment && styles.sentenceSegmentActive,
+                    ]}
+                  />
+                ))}
+              </View>
+              <InteractiveSentence
+                text={sentence.text}
+                styles={styles}
+                onWordPress={(word) => void openWord(word)}
+              />
+              {showTranslation && sentence.translation ? (
+                <Text style={styles.translation}>{sentence.translation}</Text>
+              ) : null}
+            </View>
+
+            <View style={styles.transport}>
+              <Pressable
+                accessibilityLabel="上一句"
+                accessibilityRole="button"
+                disabled={sentenceIndex === 0}
+                onPress={() => selectAdjacent(-1)}
+                style={({ pressed }) => [
+                  styles.transportButton,
+                  sentenceIndex === 0 && styles.disabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <SkipBack color={theme.colors.text} size={22} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel={playing ? "暂停" : "播放这一句"}
+                accessibilityRole="button"
+                onPress={() => void playSentence()}
+                style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
+              >
+                {playing ? (
+                  <Pause color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
+                ) : (
+                  <Play color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
+                )}
+              </Pressable>
+              <Pressable
+                accessibilityLabel="下一句"
+                accessibilityRole="button"
+                disabled={sentenceIndex === activeSentences.length - 1}
+                onPress={() => selectAdjacent(1)}
+                style={({ pressed }) => [
+                  styles.transportButton,
+                  sentenceIndex === activeSentences.length - 1 && styles.disabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <SkipForward color={theme.colors.text} size={22} />
+              </Pressable>
+            </View>
+
+            {hasTimedMedia ? (
+              <View style={styles.playbackControls}>
+                <Pressable
+                  accessibilityLabel="跳转播放进度"
+                  accessibilityRole="button"
+                  onLayout={(event) => setProgressTrackWidth(event.nativeEvent.layout.width)}
+                  onPress={(event) => {
+                    if (progressTrackWidth === 0 || playbackDurationMs === null) return;
+                    void seekPlaybackTo(
+                      (event.nativeEvent.locationX / progressTrackWidth) * playbackDurationMs,
+                    );
+                  }}
+                  style={styles.progressTrack}
+                >
+                  <View style={[styles.progressFill, { width: `${playbackProgress}%` }]} />
+                </Pressable>
+                <View style={styles.playbackMeta}>
+                  <Text style={styles.playbackTime}>
+                    {formatTime(playbackPositionMs)} /{" "}
+                    {playbackDurationMs === null ? "—:—" : formatTime(playbackDurationMs)}
+                  </Text>
+                  <Pressable
+                    accessibilityLabel={`播放速度 ${playbackRate} 倍，点按切换`}
+                    accessibilityRole="button"
+                    onPress={cyclePlaybackRate}
+                    style={styles.rateChip}
+                  >
+                    <Text style={styles.rateText}>{playbackRate}×</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleEchoAction()}
+              style={({ pressed }) => [styles.followButton, pressed && styles.pressed]}
+            >
+              <Mic color={theme.colors.text} size={20} />
+              <Text style={styles.followText}>
+                {echoSession.state === "recording"
+                  ? "结束录音"
+                  : echoSession.state === "readyToRecord"
+                    ? "开始录音"
+                    : echoSession.state === "recorded"
+                      ? "回放跟读"
+                      : "跟读"}
+              </Text>
+            </Pressable>
+            {echoSession.state === "recording" ? (
+              <View style={styles.echoLiveCard}>
+                <View style={styles.echoPulse} />
+                <View style={styles.echoLiveCopy}>
+                  <Text style={styles.echoLiveTitle}>正在收录你的跟读</Text>
+                  <Text style={styles.echoLiveMeta}>
+                    {echoElapsedLabel} · 再读一遍完整句子后点击结束
+                  </Text>
+                </View>
+                <Mic color={theme.colors.accent} size={19} />
+              </View>
+            ) : null}
+            {latestEchoRecording ? (
+              <>
+                <AssessmentCard recording={latestEchoRecording} theme={theme} />
+                <View style={styles.echoActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void replayEchoRecording()}
+                    style={styles.echoActionPill}
+                  >
+                    <Play color={theme.colors.accent} size={15} />
+                    <Text style={styles.echoActionText}>回放我的录音</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={retryEcho}
+                    style={styles.echoActionPill}
+                  >
+                    <RotateCcw color={theme.colors.accent} size={15} />
+                    <Text style={styles.echoActionText}>重录</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={deleteLatestEchoRecording}
+                    style={styles.echoActionPill}
+                  >
+                    <Trash2 color={theme.colors.accent} size={15} />
+                    <Text style={styles.echoActionText}>删除</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : null}
+            {echoSession.state !== "idle" ? (
+              <Text style={styles.echoStatus}>{echoStatusCopy(echoSession)}</Text>
+            ) : null}
+            {echoRecordings.length > 0 ? (
+              <View style={styles.echoHistory}>
+                <View style={styles.echoHistoryHeader}>
+                  <Text style={styles.echoHistoryTitle}>本句跟读</Text>
+                  <Text style={styles.echoHistoryCount}>{echoRecordings.length} 次记录</Text>
+                </View>
+                {echoRecordings.slice(0, 3).map((recording, index) => (
+                  <View key={recording.id} style={styles.echoHistoryRow}>
+                    <View style={styles.echoHistoryIcon}>
+                      <Mic color={theme.colors.accent} size={14} />
+                    </View>
+                    <Text style={styles.echoHistoryText}>
+                      第 {echoRecordings.length - index} 次跟读
+                    </Text>
+                    <Text style={styles.echoHistoryMeta}>
+                      {Math.max(0, Math.round(recording.durationMs / 1000))} 秒 ·{" "}
+                      {recording.createdAt.slice(11, 16)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {analysisVisible && currentAnalysis ? (
+              <View style={styles.analysisCard}>
+                <Text style={styles.analysisTitle}>句子分析</Text>
+                {currentAnalysis.sentencePatterns.length ? (
+                  <>
+                    <Text style={styles.analysisSection}>句型结构</Text>
+                    {currentAnalysis.sentencePatterns.map((item) => (
+                      <Text key={item} style={styles.analysisCopy}>
+                        • {item}
+                      </Text>
+                    ))}
+                  </>
+                ) : null}
+                {currentAnalysis.keyPhrases.length ? (
+                  <>
+                    <Text style={styles.analysisSection}>重点短语</Text>
+                    {currentAnalysis.keyPhrases.map((item) => (
+                      <Pressable
+                        key={item.phrase}
+                        accessibilityRole="button"
+                        onPress={() => void openPhrase(item.phrase)}
+                        style={styles.analysisPhrase}
+                      >
+                        <Text style={styles.analysisPhraseTitle}>
+                          {item.phrase} · {item.translation}
+                        </Text>
+                        <Text style={styles.analysisCopy}>{item.explanation}</Text>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : null}
+                {currentAnalysis.grammarPoints.length ? (
+                  <>
+                    <Text style={styles.analysisSection}>语法要点</Text>
+                    {currentAnalysis.grammarPoints.map((item) => (
+                      <Text key={item} style={styles.analysisCopy}>
+                        • {item}
+                      </Text>
+                    ))}
+                  </>
+                ) : null}
+                {currentAnalysis.contextualExplanation ? (
+                  <>
+                    <Text style={styles.analysisSection}>语境说明</Text>
+                    <Text style={styles.analysisCopy}>{currentAnalysis.contextualExplanation}</Text>
+                  </>
+                ) : null}
+              </View>
+            ) : null}
+
+            {notice ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setNotice(null)}
+                style={styles.notice}
+              >
+                <Text style={styles.noticeText}>{notice}</Text>
+                <Check color={theme.colors.mutedText} size={16} />
+              </Pressable>
+            ) : null}
+
+            <View style={styles.trajectoryHeader}>
+              <Text accessibilityRole="header" style={styles.trajectoryTitle}>
+                逐句列表
+              </Text>
+              <View style={styles.trajectoryActions}>
+                {hasTimedMedia || resourceTracks.length > 1 ? (
+                  <Pressable
+                    accessibilityLabel="字幕轨道"
+                    accessibilityRole="button"
+                    onPress={() => setTrackSheetVisible(true)}
+                    style={styles.trackPill}
+                  >
+                    <Captions color={theme.colors.mutedText} size={17} />
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: toolsExpanded }}
+                  onPress={() => setToolsExpanded((value) => !value)}
+                  style={styles.trackPill}
+                >
+                  <Text style={styles.trackPillText}>练习工具</Text>
+                  <ChevronDown color={theme.colors.mutedText} size={15} />
+                </Pressable>
+              </View>
+            </View>
+            {toolsExpanded ? (
+              <View style={styles.utilityBar}>
+                <ToolButton
+                  label="单句循环"
+                  selected={repeat}
+                  icon={Repeat2}
+                  onPress={() => setRepeat((value) => !value)}
+                  styles={styles}
+                  theme={theme}
+                />
+                <ToolButton
+                  label={showTranslation ? "隐藏译文" : "显示译文"}
+                  selected={showTranslation}
+                  icon={Captions}
+                  onPress={() => setShowTranslation((value) => !value)}
+                  styles={styles}
+                  theme={theme}
+                />
+                <ToolButton
+                  label="专注听力"
+                  icon={Focus}
+                  onPress={() => setImmersive(true)}
+                  styles={styles}
+                  theme={theme}
+                />
+                <ToolButton
+                  label={analysisBusy ? "分析中" : "句子分析"}
+                  selected={analysisVisible}
+                  icon={Focus}
+                  onPress={() => void loadSentenceAnalysis()}
+                  styles={styles}
+                  theme={theme}
+                />
+              </View>
+            ) : null}
+          </View>
+        }
         cues={activeSentences}
         activeCueId={sentence.id}
         followTranscript={audioSession.state.followTranscript}
         showOriginal
-        showTranslation={showTranslation}
+        showTranslation={hasTimedMedia && showTranslation}
         onFollowChange={audioSession.setFollowTranscript}
         onCuePress={selectTranscriptCue}
         theme={theme}
@@ -1227,7 +1259,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
             onPress={() => setTrackSheetVisible(false)}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.wordSheet}>
+          <SafeAreaView edges={["bottom", "left", "right"]} style={styles.wordSheet}>
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetKicker}>字幕轨道</Text>
@@ -1239,7 +1271,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                 onPress={() => setTrackSheetVisible(false)}
                 style={styles.closeButton}
               >
-                <X color={theme.colors.text} size={20} />
+                <ChevronDown color={theme.colors.text} size={20} />
               </Pressable>
             </View>
             {transcriptTracks.length > 0 ? (
@@ -1285,7 +1317,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                 当前材料只有主字幕轨道。导入或生成新的字幕后可在这里切换。
               </Text>
             )}
-          </View>
+          </SafeAreaView>
         </View>
       </Modal>
       <Modal
@@ -1300,18 +1332,21 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
             onPress={() => setWordSheet(null)}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.wordSheet}>
+          <SafeAreaView edges={["bottom", "left", "right"]} style={styles.wordSheet}>
             <View style={styles.sheetHeader}>
               <View>
-                {wordSheet?.kind === "phrase" ? "这句里的短语" : "这句里的词"}
+                <Text style={styles.contextLabel}>
+                  {wordSheet?.kind === "phrase" ? "这句里的短语" : "这句里的词"}
+                </Text>
                 <Text style={styles.word}>{wordSheet?.word}</Text>
               </View>
               <Pressable
+                accessibilityLabel="关闭词语详情"
                 accessibilityRole="button"
                 onPress={() => setWordSheet(null)}
                 style={styles.closeButton}
               >
-                <X color={theme.colors.text} size={20} />
+                <ChevronDown color={theme.colors.text} size={20} />
               </Pressable>
             </View>
             {lookingUp || !wordSheet?.lookup ? (
@@ -1367,10 +1402,10 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                 </Pressable>
               </>
             )}
-          </View>
+          </SafeAreaView>
         </View>
       </Modal>
-    </ScrollView>
+    </>
   );
 }
 
@@ -1435,7 +1470,7 @@ function ImmersiveListening({
   const [revealed, setRevealed] = useState(false);
   return (
     <Modal animationType="fade" visible={visible} onRequestClose={onClose}>
-      <View style={styles.immersiveOverlay}>
+      <SafeAreaView style={styles.immersiveOverlay}>
         <View style={styles.immersiveTop}>
           <Text style={styles.immersiveKicker}>
             专注听力 · {String(sentence.order).padStart(2, "0")}
@@ -1446,7 +1481,7 @@ function ImmersiveListening({
             onPress={onClose}
             style={styles.immersiveClose}
           >
-            <X color={theme.colors.text} size={20} />
+            <Minimize2 color={theme.colors.text} size={20} />
           </Pressable>
         </View>
         <View style={styles.immersiveBody}>
@@ -1514,7 +1549,7 @@ function ImmersiveListening({
             单句循环
           </Text>
         </Pressable>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -1528,7 +1563,7 @@ function InteractiveSentence({
   styles: ReturnType<typeof createStyles>;
   onWordPress: (word: string) => void;
 }>) {
-  const pieces = text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)?|[^A-Za-z]+/gu) ?? [text];
+  const pieces = text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)?[ \t]*|[^A-Za-z]+/gu) ?? [text];
   return (
     <View accessibilityLabel={text} style={styles.sentenceWords}>
       {pieces.map((piece, index) =>
@@ -1536,13 +1571,13 @@ function InteractiveSentence({
           <Pressable
             key={`${piece}-${index}`}
             accessibilityRole="button"
-            onPress={() => onWordPress(piece)}
+            onPress={() => onWordPress(piece.trimEnd())}
             style={({ pressed }) => [styles.wordToken, pressed && styles.wordTokenPressed]}
           >
             <Text style={styles.wordTokenText}>{piece}</Text>
           </Pressable>
         ) : (
-          <Text key={`${piece}-${index}`} style={styles.punctuation}>
+          <Text key={`${piece}-${index}`} style={styles.wordTokenText}>
             {piece}
           </Text>
         ),
@@ -1558,45 +1593,27 @@ function formatTime(value: number | null) {
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    scroll: { flex: 1, minHeight: 0 },
-    content: { flexGrow: 1, gap: 18, paddingBottom: 30, paddingTop: 4 },
+    content: { gap: 18, paddingTop: 12 },
     empty: { alignItems: "center", gap: 12, paddingHorizontal: 28, paddingTop: 90 },
     emptyTitle: {
       color: theme.colors.text,
-      fontFamily: "Georgia",
       fontSize: 25,
       lineHeight: 33,
       textAlign: "center",
     },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 21, textAlign: "center" },
     mediaPreview: { marginHorizontal: 20 },
-    mediaStage: {
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.divider,
-      borderRadius: 16,
-      borderWidth: StyleSheet.hairlineWidth,
-      gap: 14,
-      marginHorizontal: 20,
-      minHeight: 266,
-      padding: 20,
+    mediaStage: { gap: 12, marginHorizontal: 24 },
+    sentencePosition: { flexDirection: "row", gap: 6, marginBottom: 12 },
+    sentenceSegment: {
+      flex: 1,
+      height: 4,
+      backgroundColor: theme.colors.divider,
+      borderRadius: theme.radius.pill,
     },
-    stageTopline: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-    stageLabel: {
-      color: theme.colors.accent,
-      fontSize: 10,
-      fontWeight: "700",
-      letterSpacing: 1.35,
-    },
-    stageTime: { color: theme.colors.mutedText, fontSize: 11, fontVariant: ["tabular-nums"] },
-    stageOrder: {
-      color: theme.colors.divider,
-      fontFamily: "Georgia",
-      fontSize: 52,
-      letterSpacing: -3,
-      lineHeight: 50,
-    },
+    sentenceSegmentActive: { backgroundColor: studyAccent(theme) },
     sentenceWords: { flexDirection: "row", flexWrap: "wrap", marginTop: -4 },
-    wordToken: { borderRadius: 10, paddingHorizontal: 1, paddingVertical: 1 },
+    wordToken: { borderRadius: 10, maxWidth: "100%" },
     analysisCard: {
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 10,
@@ -1617,26 +1634,20 @@ function createStyles(theme: Theme) {
     wordTokenPressed: { backgroundColor: theme.colors.accentSoft },
     wordTokenText: {
       color: theme.colors.text,
-      fontFamily: "Georgia",
-      fontSize: 28,
-      letterSpacing: -0.28,
-      lineHeight: 39,
+      fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+      fontSize: 54,
+      lineHeight: 58,
+      fontWeight: "700",
+      letterSpacing: -0.8,
     },
-    punctuation: {
-      color: theme.colors.text,
-      fontFamily: "Georgia",
-      fontSize: 28,
-      letterSpacing: -0.28,
-      lineHeight: 39,
+    translation: { color: theme.colors.mutedText, fontSize: 17, lineHeight: 25 },
+    transport: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 20,
+      justifyContent: "center",
+      paddingTop: 6,
     },
-    translation: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 21, marginTop: "auto" },
-    translationHint: {
-      color: theme.colors.mutedText,
-      fontSize: 12,
-      lineHeight: 18,
-      marginTop: "auto",
-    },
-    transport: { alignItems: "center", flexDirection: "row", gap: 16, justifyContent: "center" },
     playbackControls: { gap: 8, marginHorizontal: 20 },
     progressTrack: {
       backgroundColor: theme.colors.divider,
@@ -1660,26 +1671,38 @@ function createStyles(theme: Theme) {
     transportButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
-      height: 44,
+      borderRadius: theme.radius.pill,
+      height: 54,
       justifyContent: "center",
-      width: 44,
+      width: 54,
     },
     playButton: {
       alignItems: "center",
       backgroundColor: theme.colors.accent,
-      borderRadius: 16,
-      height: 62,
+      borderRadius: theme.radius.pill,
+      height: 72,
       justifyContent: "center",
-      width: 62,
+      width: 72,
     },
+    followButton: {
+      alignItems: "center",
+      borderColor: theme.colors.mutedText,
+      borderRadius: theme.radius.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: "row",
+      gap: 8,
+      justifyContent: "center",
+      marginHorizontal: 36,
+      minHeight: 48,
+    },
+    followText: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
     disabled: { opacity: 0.28 },
-    utilityBar: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 20 },
+    utilityBar: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 24 },
     toolButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 10,
-      flex: 1,
+      flexGrow: 1,
       flexDirection: "row",
       gap: 6,
       justifyContent: "center",
@@ -1700,34 +1723,25 @@ function createStyles(theme: Theme) {
     },
     noticeText: { color: theme.colors.warningText, flex: 1, fontSize: 12, lineHeight: 18 },
     trajectoryHeader: {
-      alignItems: "flex-end",
-      borderBottomColor: theme.colors.divider,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      alignItems: "center",
+      borderTopColor: theme.colors.divider,
+      borderTopWidth: StyleSheet.hairlineWidth,
       flexDirection: "row",
+      flexWrap: "wrap",
       justifyContent: "space-between",
-      marginHorizontal: 20,
-      paddingBottom: 12,
-      paddingTop: 8,
+      marginHorizontal: 24,
     },
-    trajectoryTitle: {
-      color: theme.colors.text,
-      fontFamily: "Georgia",
-      fontSize: 22,
-      letterSpacing: -0.3,
-    },
-    trajectoryMeta: { color: theme.colors.mutedText, fontSize: 11, marginTop: 3 },
-    trajectoryIndex: { color: theme.colors.accent, fontSize: 28 },
+    trajectoryTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
+    trajectoryActions: { flexDirection: "row", alignItems: "center", gap: 8 },
     trackPill: {
       alignItems: "center",
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 999,
       flexDirection: "row",
-      gap: 5,
-      maxWidth: 150,
-      minHeight: 36,
-      paddingHorizontal: 11,
+      gap: 4,
+      minHeight: 44,
+      minWidth: 44,
+      justifyContent: "center",
     },
-    trackPillText: { color: theme.colors.accent, flexShrink: 1, fontSize: 12, fontWeight: "600" },
+    trackPillText: { color: theme.colors.mutedText, fontSize: 12 },
     echoLiveCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
@@ -1849,7 +1863,6 @@ function createStyles(theme: Theme) {
     },
     word: {
       color: theme.colors.text,
-      fontFamily: "Georgia",
       fontSize: 35,
       letterSpacing: -0.5,
       marginTop: 3,
@@ -1867,10 +1880,10 @@ function createStyles(theme: Theme) {
     closeButton: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      height: 34,
+      borderRadius: theme.radius.pill,
+      height: 44,
       justifyContent: "center",
-      width: 34,
+      width: 44,
     },
     lookupLoading: { alignItems: "center", flexDirection: "row", gap: 9, paddingVertical: 22 },
     lookupLoadingText: { color: theme.colors.mutedText, fontSize: 13 },
@@ -1901,7 +1914,6 @@ function createStyles(theme: Theme) {
     },
     context: {
       color: theme.colors.text,
-      fontFamily: "Georgia",
       fontSize: 15,
       fontStyle: "italic",
       lineHeight: 21,
@@ -1934,15 +1946,14 @@ function createStyles(theme: Theme) {
     immersiveClose: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 10,
-      height: 36,
+      borderRadius: theme.radius.pill,
+      height: 44,
       justifyContent: "center",
-      width: 36,
+      width: 44,
     },
     immersiveBody: { alignItems: "center", flex: 1, justifyContent: "center" },
     immersiveSentence: {
       color: theme.colors.text,
-      fontFamily: "Georgia",
       fontSize: 31,
       letterSpacing: -0.4,
       lineHeight: 43,

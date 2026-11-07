@@ -7,7 +7,7 @@ import {
   ListTree,
   RefreshCw,
   Search,
-  X,
+  PanelLeftClose,
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import {
@@ -505,7 +505,7 @@ function DrawerHeader(props: WorkspaceDrawerProps) {
         </View>
       </Pressable>
       <IconButton label={t("drawer.close")} onPress={props.onClose}>
-        <X color={theme.colors.text} size={21} />
+        <PanelLeftClose color={theme.colors.text} size={21} />
       </IconButton>
     </View>
   );

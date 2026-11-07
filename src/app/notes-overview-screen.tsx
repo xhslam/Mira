@@ -3,15 +3,17 @@ import {
   ChevronLeft,
   FileText,
   FolderInput,
+  MoreHorizontal,
   Pencil,
   Plus,
   Search,
   Share2,
   Star,
   Trash2,
-  X,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react-native";
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -26,15 +28,18 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { WorkspaceDocumentSnapshot } from "../workspace/workspace-repository";
 import type { FileEntry } from "../workspace/workspace-adapter";
 import { parseWorkspacePath } from "../workspace/workspace-path";
+import type { BrowserCommandResult } from "./browser-command";
 import type { EditorWorkspaceController } from "./editor-workspace-controller";
 import { noteFolderSummaries, noteMoveTargetPath, noteParentFolder } from "./note-file-management";
 import { editableNoteName, noteRenameTargetPath } from "./note-rename";
 import { SidebarToggleIcon } from "./sidebar-toggle-icon";
-import { useTheme, type Theme } from "./theme";
+import { CircleAction } from "./mira-controls";
+import { identityColors, useTheme, type Theme } from "./theme";
 
 type NoteActionPage = "menu" | "rename" | "move" | "delete";
 
@@ -54,6 +59,7 @@ export function NotesOverviewScreen({
   onOpenSidebar,
 }: NotesOverviewScreenProps) {
   const theme = useTheme();
+  const { top: safeAreaTop } = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [documents, setDocuments] = useState<readonly WorkspaceDocumentSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +71,7 @@ export function NotesOverviewScreen({
   const [actionPage, setActionPage] = useState<NoteActionPage>("menu");
   const [actionValue, setActionValue] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const actionInFlight = useRef(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -136,6 +143,7 @@ export function NotesOverviewScreen({
   }
 
   function openActions(document: WorkspaceDocumentSnapshot): void {
+    Keyboard.dismiss();
     setActionDocument(document);
     setActionPage("menu");
     setActionValue(editableNoteName(document.path));
@@ -143,7 +151,7 @@ export function NotesOverviewScreen({
   }
 
   function closeActions(): void {
-    if (actionBusy) return;
+    if (actionInFlight.current) return;
     Keyboard.dismiss();
     setActionDocument(null);
     setActionPage("menu");
@@ -158,23 +166,29 @@ export function NotesOverviewScreen({
   }
 
   async function runAction(
-    action: (entry: FileEntry) => Promise<Readonly<{ ok: boolean; error: string | null }>>,
+    action: (entry: FileEntry) => Promise<BrowserCommandResult>,
   ): Promise<void> {
-    if (!actionDocument || actionBusy) return;
+    if (!actionDocument || actionInFlight.current) return;
     const entry = fileEntryFor(actionDocument, controller.browserEntries);
     if (!entry) {
       setActionError("这篇笔记的文件路径无法使用。");
       return;
     }
+    actionInFlight.current = true;
     setActionBusy(true);
     setActionError(null);
     try {
       const result = await action(entry);
       if (!result.ok) {
-        setActionError(result.error ?? "操作没有完成，请重试。");
+        setActionError(
+          result.errorCode === "ALREADY_EXISTS"
+            ? "目标位置已有同名文件，请换一个名称或文件夹。"
+            : (result.error ?? "操作没有完成，请重试。"),
+        );
         return;
       }
-      await reloadDocuments();
+      if (!(await reloadDocuments())) setError("操作已完成，笔记列表暂时无法刷新。");
+      else setError(null);
       Keyboard.dismiss();
       setActionDocument(null);
       setActionPage("menu");
@@ -182,6 +196,7 @@ export function NotesOverviewScreen({
     } catch {
       setActionError("操作没有完成，请重试。");
     } finally {
+      actionInFlight.current = false;
       setActionBusy(false);
     }
   }
@@ -191,6 +206,10 @@ export function NotesOverviewScreen({
     const target = noteRenameTargetPath(actionDocument.path, actionValue);
     if (!target.ok) {
       setActionError(target.code === "EMPTY" ? "请输入笔记名称。" : "名称不能包含路径符号。");
+      return;
+    }
+    if (target.path === actionDocument.path) {
+      closeActions();
       return;
     }
     await runAction((entry) => controller.renameBrowserEntry(entry, target.path));
@@ -206,6 +225,7 @@ export function NotesOverviewScreen({
     await runAction((entry) => controller.moveBrowserEntry(entry, target.path));
   }
 
+  const capabilities = controller.services.browser.capabilities;
   const actionEntry = actionDocument
     ? fileEntryFor(actionDocument, controller.browserEntries)
     : null;
@@ -220,43 +240,26 @@ export function NotesOverviewScreen({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Pressable
-          accessibilityLabel="打开全局侧边栏"
-          accessibilityRole="button"
-          onPress={onOpenSidebar}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-        >
+        <CircleAction label="打开全局侧边栏" onPress={onOpenSidebar}>
           <SidebarToggleIcon color={theme.colors.text} expanded={false} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text accessibilityRole="header" style={styles.title}>
-            {folder ?? "全部笔记"}
-          </Text>
-          <Text style={styles.subtitle}>{visibleDocuments.length} 条笔记</Text>
-        </View>
-        <Pressable
-          accessibilityLabel={searchVisible ? "关闭搜索" : "搜索笔记"}
-          accessibilityRole="button"
+        </CircleAction>
+        <Text style={styles.headerCopy}>Mira</Text>
+        <CircleAction
+          label={searchVisible ? "关闭搜索" : "搜索笔记"}
           onPress={() => {
             setSearchVisible((visible) => !visible);
             if (searchVisible) setQuery("");
           }}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
           {searchVisible ? (
-            <X color={theme.colors.text} size={22} />
+            <ChevronUp color={theme.colors.text} size={21} />
           ) : (
-            <Search color={theme.colors.text} size={23} />
+            <Search color={theme.colors.text} size={21} />
           )}
-        </Pressable>
-        <Pressable
-          accessibilityLabel="新建笔记"
-          accessibilityRole="button"
-          onPress={() => void createNote()}
-          style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
-        >
-          <Plus color={theme.colors.canvas} size={23} strokeWidth={2.4} />
-        </Pressable>
+        </CircleAction>
+        <CircleAction label="新建笔记" onPress={() => void createNote()}>
+          <Plus color={theme.colors.text} size={22} />
+        </CircleAction>
       </View>
 
       {searchVisible ? (
@@ -286,28 +289,48 @@ export function NotesOverviewScreen({
         </View>
       ) : (
         <FlatList
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={styles.list}
           data={visibleDocuments}
           keyExtractor={(document) => document.documentId}
           keyboardShouldPersistTaps="handled"
-          numColumns={2}
-          renderItem={({ item, index }) => (
-            <NoteCard
+          renderItem={({ item }) => (
+            <NoteRow
               busy={openingPath === item.path}
               document={item}
-              index={index}
-              onLongPress={() => openActions(item)}
+              onOpenActions={() => openActions(item)}
               onPress={() => void open(item)}
               styles={styles}
               theme={theme}
             />
           )}
+          ListHeaderComponent={
+            <View style={styles.listHeading}>
+              <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>
+                {folder ?? "全部笔记"}
+              </Text>
+              <Text style={styles.subtitle}>
+                {visibleDocuments.length} {query.trim() ? "条匹配结果" : "条笔记"}
+              </Text>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.centered}>
-              <FileText color={theme.colors.mutedText} size={32} />
-              <Text style={styles.emptyTitle}>{query ? "没有匹配的笔记" : "这里还没有笔记"}</Text>
-              <Text style={styles.emptyCopy}>点击右上角加号开始记录。</Text>
+              <View style={styles.emptyGlyph}>
+                <FileText color={theme.colors.mutedText} size={26} />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {query.trim() ? "没有匹配的笔记" : "这里还没有笔记"}
+              </Text>
+              {!query.trim() ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void createNote()}
+                  style={({ pressed }) => [styles.firstNote, pressed && styles.pressed]}
+                >
+                  <Plus color={theme.colors.canvas} size={18} />
+                  <Text style={styles.firstNoteText}>新建第一条笔记</Text>
+                </Pressable>
+              ) : null}
             </View>
           }
           showsVerticalScrollIndicator={false}
@@ -316,7 +339,9 @@ export function NotesOverviewScreen({
       {bottomNavigation}
       {actionDocument ? (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          enabled={actionPage === "rename"}
+          keyboardVerticalOffset={safeAreaTop}
           pointerEvents="box-none"
           style={styles.actionOverlay}
         >
@@ -333,6 +358,7 @@ export function NotesOverviewScreen({
               ) : (
                 <Pressable
                   accessibilityLabel="返回笔记操作"
+                  disabled={actionBusy}
                   onPress={() => {
                     Keyboard.dismiss();
                     setActionPage("menu");
@@ -353,6 +379,7 @@ export function NotesOverviewScreen({
               </View>
               <Pressable
                 accessibilityLabel="关闭笔记操作"
+                accessibilityRole="button"
                 disabled={actionBusy}
                 onPress={closeActions}
                 style={({ pressed }) => [styles.actionIcon, pressed && styles.pressed]}
@@ -360,7 +387,7 @@ export function NotesOverviewScreen({
                 {actionBusy ? (
                   <ActivityIndicator color={theme.colors.accent} size="small" />
                 ) : (
-                  <X color={theme.colors.mutedText} size={20} />
+                  <ChevronDown color={theme.colors.mutedText} size={20} />
                 )}
               </Pressable>
             </View>
@@ -373,23 +400,27 @@ export function NotesOverviewScreen({
 
             {actionPage === "menu" ? (
               <View style={styles.actionList}>
-                <NoteActionRow
-                  icon={Pencil}
-                  label="重命名"
-                  onPress={() => {
-                    setActionValue(editableNoteName(actionDocument.path));
-                    setActionPage("rename");
-                  }}
-                  styles={styles}
-                  theme={theme}
-                />
-                <NoteActionRow
-                  icon={FolderInput}
-                  label="移动到文件夹"
-                  onPress={() => setActionPage("move")}
-                  styles={styles}
-                  theme={theme}
-                />
+                {capabilities.rename ? (
+                  <NoteActionRow
+                    icon={Pencil}
+                    label="重命名"
+                    onPress={() => {
+                      setActionValue(editableNoteName(actionDocument.path));
+                      setActionPage("rename");
+                    }}
+                    styles={styles}
+                    theme={theme}
+                  />
+                ) : null}
+                {capabilities.move ? (
+                  <NoteActionRow
+                    icon={FolderInput}
+                    label="移动到文件夹"
+                    onPress={() => setActionPage("move")}
+                    styles={styles}
+                    theme={theme}
+                  />
+                ) : null}
                 {actionEntry ? (
                   <NoteActionRow
                     icon={Star}
@@ -398,13 +429,14 @@ export function NotesOverviewScreen({
                       void runAction(async (entry) => ({
                         ok: await controller.setFavorite(entry, !favorite),
                         error: "收藏状态没有更新。",
+                        errorCode: null,
                       }))
                     }
                     styles={styles}
                     theme={theme}
                   />
                 ) : null}
-                {controller.services.browser.capabilities.share ? (
+                {capabilities.share ? (
                   <NoteActionRow
                     icon={Share2}
                     label="分享"
@@ -413,22 +445,31 @@ export function NotesOverviewScreen({
                     theme={theme}
                   />
                 ) : null}
-                <View style={styles.actionDivider} />
-                <NoteActionRow
-                  danger
-                  icon={Trash2}
-                  label="删除笔记"
-                  onPress={() => setActionPage("delete")}
-                  styles={styles}
-                  theme={theme}
-                />
+                {capabilities.remove ? (
+                  <>
+                    <View style={styles.actionDivider} />
+                    <NoteActionRow
+                      danger
+                      icon={Trash2}
+                      label="删除笔记"
+                      onPress={() => setActionPage("delete")}
+                      styles={styles}
+                      theme={theme}
+                    />
+                  </>
+                ) : null}
               </View>
             ) : actionPage === "rename" ? (
               <View style={styles.actionForm}>
                 <Text style={styles.actionPrompt}>新的笔记名称</Text>
                 <TextInput
+                  accessibilityLabel="新的笔记名称"
                   autoFocus
-                  onChangeText={setActionValue}
+                  editable={!actionBusy}
+                  onChangeText={(value) => {
+                    setActionValue(value);
+                    setActionError(null);
+                  }}
                   onSubmitEditing={() => void renameNote()}
                   returnKeyType="done"
                   selectTextOnFocus
@@ -436,6 +477,7 @@ export function NotesOverviewScreen({
                   value={actionValue}
                 />
                 <Pressable
+                  accessibilityRole="button"
                   disabled={actionBusy}
                   onPress={() => void renameNote()}
                   style={({ pressed }) => [styles.actionPrimary, pressed && styles.pressed]}
@@ -507,19 +549,17 @@ export function NotesOverviewScreen({
   );
 }
 
-function NoteCard({
+function NoteRow({
   busy,
   document,
-  index,
-  onLongPress,
+  onOpenActions,
   onPress,
   styles,
   theme,
 }: Readonly<{
   busy: boolean;
   document: WorkspaceDocumentSnapshot;
-  index: number;
-  onLongPress: () => void;
+  onOpenActions: () => void;
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
   theme: Theme;
@@ -530,33 +570,37 @@ function NoteCard({
     ? document.path.split("/").slice(0, -1).join(" / ")
     : "根目录";
   return (
-    <Pressable
-      accessibilityLabel={`打开笔记${title}`}
-      accessibilityHint="长按可重命名、移动或删除"
-      accessibilityRole="button"
-      delayLongPress={320}
-      onLongPress={onLongPress}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        index % 3 === 1 && styles.cardAlternate,
-        pressed && styles.cardPressed,
-      ]}
-    >
-      <View style={[styles.cardMark, index % 3 === 1 && styles.cardMarkAlternate]} />
-      <Text numberOfLines={2} style={styles.cardTitle}>
-        {title}
-      </Text>
-      <Text numberOfLines={4} style={styles.cardPreview}>
-        {preview || "无附加文本"}
-      </Text>
-      <View style={styles.cardFooter}>
-        <Text numberOfLines={1} style={styles.cardMeta}>
-          {folder}
-        </Text>
-        {busy ? <ActivityIndicator color={theme.colors.accent} size="small" /> : null}
-      </View>
-    </Pressable>
+    <View style={styles.noteRow}>
+      <Pressable
+        accessibilityLabel={`打开笔记${title}`}
+        accessibilityHint="长按可重命名、移动或删除"
+        accessibilityRole="button"
+        accessibilityState={{ busy }}
+        delayLongPress={320}
+        onLongPress={onOpenActions}
+        onPress={onPress}
+        style={({ pressed }) => [styles.noteMain, pressed && styles.pressed]}
+      >
+        <View style={styles.noteIcon}>
+          <FileText color={theme.colors.canvas} size={22} />
+        </View>
+        <View style={styles.noteCopy}>
+          <Text numberOfLines={1} style={styles.noteTitle}>
+            {title}
+          </Text>
+          <Text numberOfLines={1} style={styles.notePreview}>
+            {preview || folder}
+          </Text>
+        </View>
+      </Pressable>
+      {busy ? (
+        <ActivityIndicator color={theme.colors.accent} size="small" />
+      ) : (
+        <CircleAction label={`${title}的笔记操作`} onPress={onOpenActions}>
+          <MoreHorizontal color={theme.colors.mutedText} size={21} />
+        </CircleAction>
+      )}
+    </View>
   );
 }
 
@@ -629,31 +673,34 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, minHeight: 0, backgroundColor: theme.colors.background },
     header: {
-      minHeight: 86,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
-      gap: 4,
-      paddingHorizontal: 10,
-      paddingTop: 8,
+      gap: 8,
+      paddingHorizontal: 16,
     },
-    headerCopy: { minWidth: 0, flex: 1, gap: 2, paddingLeft: 3 },
-    title: { color: theme.colors.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.7 },
-    subtitle: { color: theme.colors.mutedText, fontSize: 13, fontWeight: "600" },
-    iconButton: {
-      width: 44,
-      height: 44,
+    headerCopy: { minWidth: 0, flex: 1, color: theme.colors.text, fontSize: 21, fontWeight: "600" },
+    listHeading: { paddingBottom: 16, gap: 4 },
+    emptyGlyph: {
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: theme.radius.medium,
+      width: 54,
+      height: 54,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surface,
     },
-    addButton: {
-      width: 42,
-      height: 42,
+    firstNote: {
+      flexDirection: "row",
+      minHeight: 48,
+      gap: 8,
       alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 21,
-      backgroundColor: theme.colors.accent,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.text,
+      paddingHorizontal: 16,
     },
+    firstNoteText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
+    title: { color: theme.colors.text, fontSize: 34, fontWeight: "600", letterSpacing: -0.9 },
+    subtitle: { color: theme.colors.mutedText, fontSize: 12 },
     searchBar: {
       minHeight: 44,
       flexDirection: "row",
@@ -675,39 +722,34 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.warningSurface,
       fontSize: 12,
     },
-    grid: { flexGrow: 1, gap: 12, paddingHorizontal: 14, paddingBottom: 22 },
-    row: { gap: 12 },
-    card: {
+    list: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
+    noteRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.divider,
+    },
+    noteMain: {
+      flex: 1,
       minWidth: 0,
-      minHeight: 190,
-      flex: 1,
-      padding: 15,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      borderRadius: theme.radius.large,
-      backgroundColor: theme.colors.surface,
+      minHeight: 72,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 12,
     },
-    cardAlternate: { backgroundColor: "#151922" },
-    cardPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-    cardMark: { width: 5, height: 28, borderRadius: 3, backgroundColor: theme.colors.accent },
-    cardMarkAlternate: { backgroundColor: theme.colors.success },
-    cardTitle: {
-      minHeight: 46,
-      marginTop: 10,
-      color: theme.colors.text,
-      fontSize: 17,
-      fontWeight: "700",
-      lineHeight: 23,
+    noteIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: identityColors.notes,
     },
-    cardPreview: {
-      flex: 1,
-      marginTop: 7,
-      color: theme.colors.mutedText,
-      fontSize: 13,
-      lineHeight: 19,
-    },
-    cardFooter: { minHeight: 22, flexDirection: "row", alignItems: "center", marginTop: 10 },
-    cardMeta: { minWidth: 0, flex: 1, color: theme.colors.mutedText, fontSize: 11 },
+    noteCopy: { flex: 1, minWidth: 0, gap: 4 },
+    noteTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
+    notePreview: { color: theme.colors.mutedText, fontSize: 13 },
     centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 30 },
     emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
     emptyCopy: { color: theme.colors.mutedText, fontSize: 13, textAlign: "center" },
@@ -757,7 +799,8 @@ function createStyles(theme: Theme) {
       height: 42,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 14,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
     },
     actionTitleGroup: { minWidth: 0, flex: 1, alignItems: "center" },
     actionTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "700" },

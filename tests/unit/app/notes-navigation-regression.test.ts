@@ -28,15 +28,25 @@ describe("notes navigation regression", () => {
     expect(editor).toContain('result === "last"');
   });
 
-  test("morphs the sidebar icon with an interruptible reduced-motion-aware spring", () => {
+  test("keeps open notes reachable when the editor strip overflows", () => {
+    const tabs = readSource("src/app/document-tabs.tsx");
+
+    expect(tabs).toContain("flexShrink: 0");
+    expect(tabs).toContain("right > scrollOffset.current + viewportWidth");
+    expect(tabs).toContain("documents.length > 1");
+    expect(tabs).toContain("renderDocument(document, true)");
+    expect(tabs).toContain("onSelect(document.documentId)");
+  });
+
+  test("switches between panel direction icons with a reduced-motion-aware spring", () => {
     const icon = readSource("src/app/sidebar-toggle-icon.tsx");
     const sidebar = readSource("src/app/global-sidebar.tsx");
 
     expect(icon).toContain("Animated.spring(progress");
     expect(icon).toContain("useReducedMotion()");
-    expect(icon).toContain('["0deg", "40deg"]');
-    expect(icon).toContain('["0deg", "-40deg"]');
-    expect(icon).toContain("outputRange: [1, 0.9, 0.82]");
+    expect(icon).toContain("<PanelLeftOpen");
+    expect(icon).toContain("<PanelLeftClose");
+    expect(icon).toContain("opacity: progress");
     expect(sidebar).toContain("<SidebarToggleIcon");
     expect(sidebar).toContain("expanded={visible}");
   });
@@ -47,7 +57,9 @@ describe("notes navigation regression", () => {
 
     expect(header).toContain('accessibilityLabel={t("header.renameNoteInput")}');
     expect(header).toContain("onSubmitEditing={rename.onSubmit}");
-    expect(editor).toContain("controller.renameActiveDocument(target.path, conflict)");
+    expect(editor).toContain(
+      "controller.renameActiveDocument(renameDocumentId, target.path, conflict)",
+    );
     expect(editor).toContain('setMenuPage("backup")');
     expect(editor).not.toContain("icon={FilePlus2}");
     expect(editor).not.toContain("icon={Save}");

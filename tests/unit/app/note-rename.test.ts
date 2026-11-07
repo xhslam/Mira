@@ -14,9 +14,17 @@ describe("note rename", () => {
     });
   });
 
-  it("returns the editable name without exposing a Markdown extension", () => {
+  it("returns the editable name without its extension", () => {
     expect(editableNoteName("journal/Today.md")).toBe("Today");
-    expect(editableNoteName("data.json")).toBe("data.json");
+    expect(editableNoteName("data.json")).toBe("data");
+    expect(noteRenameTargetPath("archive/data.json", "Current.JSON")).toEqual({
+      ok: true,
+      path: "archive/Current.json",
+    });
+    expect(noteRenameTargetPath("Legacy note", "New title")).toEqual({
+      ok: true,
+      path: "New title",
+    });
   });
 
   it("rejects empty names and path traversal instead of turning rename into move", () => {

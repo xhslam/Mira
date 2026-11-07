@@ -26,8 +26,8 @@ import {
   Target,
   Trash2,
   TriangleAlert,
-  X,
 } from "lucide-react-native";
+import { MiraSheet } from "../app/mira-controls";
 import type { Theme } from "../app/theme";
 import type { VocabularyCard } from "./enjoy-player-domain";
 import {
@@ -836,44 +836,31 @@ function MemoryDetailSheet({
   theme: Theme;
 }>) {
   return (
-    <Modal transparent animationType="slide" visible onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => undefined}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>记忆详情</Text>
-            <Pressable
-              accessibilityLabel="关闭记忆详情"
-              accessibilityRole="button"
-              onPress={onClose}
-            >
-              <X color={theme.colors.mutedText} size={20} />
-            </Pressable>
-          </View>
-          <Text style={styles.memoryDetail}>{memory.text}</Text>
-          <DetailSection title="分类" styles={styles}>
-            <Text style={styles.detailBody}>
-              {memory.category ? MEMORY_CATEGORY_LABELS[memory.category] : "学习信息"}
-            </Text>
-          </DetailSection>
-          <DetailSection title="标签" styles={styles}>
-            <Text style={styles.detailBody}>{memory.tags.join(" · ") || "暂无标签"}</Text>
-          </DetailSection>
-          <DetailSection title="更新时间" styles={styles}>
-            <Text style={styles.detailBody}>{formatDate(memory.updatedAt)}</Text>
-          </DetailSection>
-          <View style={styles.detailActions}>
-            <Pressable accessibilityRole="button" onPress={onEdit} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>编辑</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={onDelete} style={styles.deleteButton}>
-              <Trash2 color={theme.colors.danger} size={16} />
-              <Text style={styles.deleteText}>删除</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <MiraSheet onClose={onClose} title="记忆详情" visible>
+      <View style={styles.sheetContent}>
+        <Text style={styles.memoryDetail}>{memory.text}</Text>
+        <DetailSection title="分类" styles={styles}>
+          <Text style={styles.detailBody}>
+            {memory.category ? MEMORY_CATEGORY_LABELS[memory.category] : "学习信息"}
+          </Text>
+        </DetailSection>
+        <DetailSection title="标签" styles={styles}>
+          <Text style={styles.detailBody}>{memory.tags.join(" · ") || "暂无标签"}</Text>
+        </DetailSection>
+        <DetailSection title="更新时间" styles={styles}>
+          <Text style={styles.detailBody}>{formatDate(memory.updatedAt)}</Text>
+        </DetailSection>
+        <View style={styles.detailActions}>
+          <Pressable accessibilityRole="button" onPress={onEdit} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>编辑</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onDelete} style={styles.deleteButton}>
+            <Trash2 color={theme.colors.danger} size={16} />
+            <Text style={styles.deleteText}>删除</Text>
+          </Pressable>
+        </View>
+      </View>
+    </MiraSheet>
   );
 }
 
@@ -917,108 +904,90 @@ function ComposerModal({
   const [category, setCategory] = useState<LearningMemoryCategory | null>(memory?.category ?? null);
   const [tags, setTags] = useState(memory?.tags.join("，") ?? "");
   return (
-    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => undefined}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>
-              {phraseMode
-                ? mode === "editPhrase"
-                  ? "编辑短语"
-                  : "添加短语"
-                : mode === "editMemory"
-                  ? "编辑记忆"
-                  : "添加记忆"}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={onClose}>
-              <X color={theme.colors.mutedText} size={20} />
-            </Pressable>
-          </View>
-          {phraseMode ? (
-            <>
-              <Field
-                label="短语 *"
-                value={term}
-                onChange={setTerm}
-                placeholder="例如：figure out"
-                styles={styles}
-                theme={theme}
-                english
-              />
-              <Field
-                label="中文解释"
-                value={definition}
-                onChange={setDefinition}
-                placeholder="例如：弄清楚；想明白"
-                styles={styles}
-                theme={theme}
-              />
-              <Field
-                label="例句"
-                value={context}
-                onChange={setContext}
-                placeholder="输入原始上下文（可选）"
-                styles={styles}
-                theme={theme}
-              />
-              <Field
-                label="备注"
-                value={notes}
-                onChange={setNotes}
-                placeholder="备注（可选）"
-                styles={styles}
-                theme={theme}
-              />
-            </>
-          ) : (
-            <>
-              <Field
-                label="内容 *"
-                value={term}
-                onChange={setTerm}
-                placeholder="例如：用户更喜欢自然的美式表达"
-                styles={styles}
-                theme={theme}
-                multiline
-              />
-              <CategoryPicker
-                value={category}
-                onChange={setCategory}
-                styles={styles}
-                theme={theme}
-              />
-              <Field
-                label="标签"
-                value={tags}
-                onChange={setTags}
-                placeholder="用逗号分隔（可选）"
-                styles={styles}
-                theme={theme}
-              />
-              <Field
-                label="备注"
-                value={notes}
-                onChange={setNotes}
-                placeholder="备注（可选）"
-                styles={styles}
-                theme={theme}
-              />
-            </>
-          )}
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              if (phraseMode) onSavePhrase({ term, definition, context, notes });
-              else onSaveMemory({ text: term, category, tags: tags.split(/[,，]/u), notes });
-            }}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>保存</Text>
-          </Pressable>
+    <MiraSheet
+      onClose={onClose}
+      title={`${mode === "editPhrase" || mode === "editMemory" ? "编辑" : "添加"}${phraseMode ? "短语" : "记忆"}`}
+      visible={visible}
+    >
+      <View style={styles.sheetContent}>
+        {phraseMode ? (
+          <>
+            <Field
+              label="短语 *"
+              value={term}
+              onChange={setTerm}
+              placeholder="例如：figure out"
+              styles={styles}
+              theme={theme}
+              english
+            />
+            <Field
+              label="中文解释"
+              value={definition}
+              onChange={setDefinition}
+              placeholder="例如：弄清楚；想明白"
+              styles={styles}
+              theme={theme}
+            />
+            <Field
+              label="例句"
+              value={context}
+              onChange={setContext}
+              placeholder="输入原始上下文（可选）"
+              styles={styles}
+              theme={theme}
+            />
+            <Field
+              label="备注"
+              value={notes}
+              onChange={setNotes}
+              placeholder="备注（可选）"
+              styles={styles}
+              theme={theme}
+            />
+          </>
+        ) : (
+          <>
+            <Field
+              label="内容 *"
+              value={term}
+              onChange={setTerm}
+              placeholder="例如：用户更喜欢自然的美式表达"
+              styles={styles}
+              theme={theme}
+              multiline
+            />
+            <CategoryPicker value={category} onChange={setCategory} styles={styles} theme={theme} />
+            <Field
+              label="标签"
+              value={tags}
+              onChange={setTags}
+              placeholder="用逗号分隔（可选）"
+              styles={styles}
+              theme={theme}
+            />
+            <Field
+              label="备注"
+              value={notes}
+              onChange={setNotes}
+              placeholder="备注（可选）"
+              styles={styles}
+              theme={theme}
+            />
+          </>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (phraseMode) onSavePhrase({ term, definition, context, notes });
+            else onSaveMemory({ text: term, category, tags: tags.split(/[,，]/u), notes });
+          }}
+          style={styles.primaryButton}
+        >
+          <Text style={styles.primaryButtonText}>保存</Text>
         </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </MiraSheet>
   );
 }
 
@@ -1251,20 +1220,33 @@ function stylesFor(theme: Theme) {
       paddingHorizontal: 16,
       paddingTop: 14,
     },
-    iconButton: { alignItems: "center", height: 40, justifyContent: "center", width: 40 },
+    iconButton: {
+      alignItems: "center",
+      height: 48,
+      justifyContent: "center",
+      width: 48,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
+    },
     title: { color: theme.colors.text, fontSize: 23, fontWeight: "700" },
     tabs: {
-      borderBottomColor: theme.colors.divider,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.pill,
       flexDirection: "row",
-      justifyContent: "space-around",
       marginHorizontal: 20,
       marginTop: 12,
+      padding: 4,
     },
-    tab: { alignItems: "center", flex: 1, paddingBottom: 12 },
-    tabActive: { borderBottomColor: theme.colors.accent, borderBottomWidth: 2 },
-    tabText: { color: theme.colors.mutedText, fontSize: 15, fontWeight: "600" },
-    tabTextActive: { color: theme.colors.accent },
+    tab: {
+      alignItems: "center",
+      justifyContent: "center",
+      flex: 1,
+      minHeight: 48,
+      borderRadius: theme.radius.pill,
+    },
+    tabActive: { backgroundColor: theme.colors.canvas },
+    tabText: { color: theme.colors.mutedText, fontSize: 15, fontWeight: "500" },
+    tabTextActive: { color: theme.colors.text, fontWeight: "600" },
     listContent: { flexGrow: 1, padding: 20, paddingBottom: 42 },
     searchRow: { flexDirection: "row", gap: 10 },
     searchBox: {
@@ -1411,25 +1393,7 @@ function stylesFor(theme: Theme) {
       padding: 12,
     },
     deleteText: { color: theme.colors.danger, fontSize: 14, fontWeight: "700" },
-    sheetBackdrop: { backgroundColor: "rgba(0,0,0,0.32)", flex: 1, justifyContent: "flex-end" },
-    sheet: {
-      backgroundColor: theme.colors.canvas,
-      borderTopLeftRadius: 22,
-      borderTopRightRadius: 22,
-      gap: 14,
-      maxHeight: "85%",
-      padding: 20,
-      paddingBottom: 30,
-    },
-    sheetHandle: {
-      alignSelf: "center",
-      backgroundColor: theme.colors.divider,
-      borderRadius: 99,
-      height: 4,
-      width: 40,
-    },
-    sheetHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-    sheetTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "700" },
+    sheetContent: { gap: 14, paddingHorizontal: 4, paddingBottom: 12 },
     field: { gap: 7 },
     fieldLabel: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
     input: {

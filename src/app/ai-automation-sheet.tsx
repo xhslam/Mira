@@ -1,5 +1,6 @@
+import { CircleAction } from "./mira-controls";
 import * as Crypto from "expo-crypto";
-import { Trash2, X } from "lucide-react-native";
+import { Trash2, ChevronLeft } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   Modal,
@@ -15,7 +16,9 @@ import {
 import type { AiAutomation, AiAutomationSchedule } from "../ai/automation";
 import type { AiProviderProfile } from "../ai/provider-profile";
 import type { AppServices } from "./app-services";
+import { AppSafeArea } from "./app-safe-area";
 import { useTheme, type Theme } from "./theme";
+import { useReducedMotion } from "./use-reduced-motion";
 
 type ScheduleKind = AiAutomationSchedule["kind"];
 
@@ -29,6 +32,7 @@ export function AiAutomationSheet(
 ) {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const reduceMotion = useReducedMotion();
   const [tasks, setTasks] = useState<readonly AiAutomation[]>(Object.freeze([]));
   const [profiles, setProfiles] = useState<readonly AiProviderProfile[]>(Object.freeze([]));
   const [name, setName] = useState("");
@@ -115,134 +119,140 @@ export function AiAutomationSheet(
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={props.onClose} visible={props.visible}>
-      <View style={styles.screen}>
-        <View style={styles.header}>
-          <View>
-            <Text accessibilityRole="header" style={styles.title}>
-              AI automations
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Close AI automations"
-            onPress={props.onClose}
-            style={styles.icon}
-          >
-            <X color={theme.colors.text} size={22} />
-          </Pressable>
-        </View>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.form}>
-            <Text style={styles.sectionLabel}>NEW TASK</Text>
-            <TextInput
-              onChangeText={setName}
-              placeholder="Task name"
-              placeholderTextColor={theme.colors.mutedText}
-              style={styles.input}
-              value={name}
-            />
-            <TextInput
-              multiline
-              onChangeText={setPrompt}
-              placeholder="What should the AI do?"
-              placeholderTextColor={theme.colors.mutedText}
-              style={[styles.input, styles.prompt]}
-              value={prompt}
-            />
-            <View style={styles.segmented}>
-              {(["app-open", "daily", "weekly"] as const).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => setKind(item)}
-                  style={[styles.segment, kind === item && styles.segmentActive]}
-                >
-                  <Text style={[styles.segmentText, kind === item && styles.segmentTextActive]}>
-                    {item === "app-open" ? "On open" : item}
-                  </Text>
-                </Pressable>
-              ))}
+    <Modal
+      animationType={reduceMotion ? "none" : "slide"}
+      onRequestClose={props.onClose}
+      visible={props.visible}
+    >
+      <AppSafeArea style={{ backgroundColor: theme.colors.background }}>
+        <View style={styles.screen}>
+          <View style={styles.header}>
+            <View>
+              <Text accessibilityRole="header" style={styles.title}>
+                AI automations
+              </Text>
             </View>
-            {kind !== "app-open" ? (
+            <CircleAction label="Close AI automations" onPress={props.onClose} muted>
+              <ChevronLeft color={theme.colors.text} size={22} />
+            </CircleAction>
+          </View>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <View style={styles.form}>
+              <Text style={styles.sectionLabel}>NEW TASK</Text>
               <TextInput
-                accessibilityLabel="Automation local time"
-                onChangeText={setTime}
-                placeholder="09:00"
+                onChangeText={setName}
+                placeholder="Task name"
                 placeholderTextColor={theme.colors.mutedText}
                 style={styles.input}
-                value={time}
+                value={name}
               />
-            ) : null}
-            {kind === "weekly" ? (
-              <View style={styles.weekdays}>
-                {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+              <TextInput
+                multiline
+                onChangeText={setPrompt}
+                placeholder="What should the AI do?"
+                placeholderTextColor={theme.colors.mutedText}
+                style={[styles.input, styles.prompt]}
+                value={prompt}
+              />
+              <View style={styles.segmented}>
+                {(["app-open", "daily", "weekly"] as const).map((item) => (
                   <Pressable
-                    key={day}
-                    onPress={() => setWeekday(day)}
-                    style={[styles.day, weekday === day && styles.dayActive]}
+                    key={item}
+                    onPress={() => setKind(item)}
+                    style={[styles.segment, kind === item && styles.segmentActive]}
                   >
-                    <Text style={weekday === day ? styles.dayTextActive : styles.dayText}>
-                      {["S", "M", "T", "W", "T", "F", "S"][day]}
+                    <Text style={[styles.segmentText, kind === item && styles.segmentTextActive]}>
+                      {item === "app-open" ? "On open" : item}
                     </Text>
                   </Pressable>
                 ))}
               </View>
-            ) : null}
-            <View style={styles.option}>
-              <Text style={styles.optionText}>Provider-native web search</Text>
-              <Switch onValueChange={setRequiresWeb} value={requiresWeb} />
-            </View>
-            <View style={styles.option}>
-              <Text style={styles.optionText}>Allow whole-workspace search for this task</Text>
-              <Switch onValueChange={setRequiresWhole} value={requiresWhole} />
-            </View>
-            <Text style={styles.context}>Context: {props.currentPath ?? "Open a note first"}</Text>
-            <Pressable
-              disabled={
-                busy ||
-                !name.trim() ||
-                !prompt.trim() ||
-                !props.currentPath ||
-                profiles.length === 0
-              }
-              onPress={() => void save()}
-              style={[
-                styles.primary,
-                (busy ||
+              {kind !== "app-open" ? (
+                <TextInput
+                  accessibilityLabel="Automation local time"
+                  onChangeText={setTime}
+                  placeholder="09:00"
+                  placeholderTextColor={theme.colors.mutedText}
+                  style={styles.input}
+                  value={time}
+                />
+              ) : null}
+              {kind === "weekly" ? (
+                <View style={styles.weekdays}>
+                  {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+                    <Pressable
+                      key={day}
+                      onPress={() => setWeekday(day)}
+                      style={[styles.day, weekday === day && styles.dayActive]}
+                    >
+                      <Text style={weekday === day ? styles.dayTextActive : styles.dayText}>
+                        {["S", "M", "T", "W", "T", "F", "S"][day]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+              <View style={styles.option}>
+                <Text style={styles.optionText}>Provider-native web search</Text>
+                <Switch onValueChange={setRequiresWeb} value={requiresWeb} />
+              </View>
+              <View style={styles.option}>
+                <Text style={styles.optionText}>Allow whole-workspace search for this task</Text>
+                <Switch onValueChange={setRequiresWhole} value={requiresWhole} />
+              </View>
+              <Text style={styles.context}>
+                Context: {props.currentPath ?? "Open a note first"}
+              </Text>
+              <Pressable
+                disabled={
+                  busy ||
                   !name.trim() ||
                   !prompt.trim() ||
                   !props.currentPath ||
-                  profiles.length === 0) &&
-                  styles.disabled,
-              ]}
-            >
-              <Text style={styles.primaryText}>Create automation</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.sectionLabel}>TASKS</Text>
-          {tasks.length === 0 ? (
-            <Text style={styles.empty}>No automations yet</Text>
-          ) : (
-            tasks.map((task) => (
-              <View key={task.id} style={styles.task}>
-                <View style={styles.taskCopy}>
-                  <Text style={styles.taskName}>{task.name}</Text>
-                  <Text style={styles.taskMeta}>
-                    {task.schedule.kind} · next foreground · only latest missed run
-                  </Text>
+                  profiles.length === 0
+                }
+                onPress={() => void save()}
+                style={[
+                  styles.primary,
+                  (busy ||
+                    !name.trim() ||
+                    !prompt.trim() ||
+                    !props.currentPath ||
+                    profiles.length === 0) &&
+                    styles.disabled,
+                ]}
+              >
+                <Text style={styles.primaryText}>Create automation</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.sectionLabel}>TASKS</Text>
+            {tasks.length === 0 ? (
+              <Text style={styles.empty}>No automations yet</Text>
+            ) : (
+              tasks.map((task) => (
+                <View key={task.id} style={styles.task}>
+                  <View style={styles.taskCopy}>
+                    <Text style={styles.taskName}>{task.name}</Text>
+                    <Text style={styles.taskMeta}>
+                      {task.schedule.kind} · next foreground · only latest missed run
+                    </Text>
+                  </View>
+                  <Switch onValueChange={() => void toggle(task)} value={task.enabled} />
+                  <Pressable
+                    accessibilityLabel={`Delete ${task.name}`}
+                    onPress={() =>
+                      void props.services.aiStore.removeAutomation(task.id).then(reload)
+                    }
+                    style={styles.icon}
+                  >
+                    <Trash2 color={theme.colors.error} size={18} />
+                  </Pressable>
                 </View>
-                <Switch onValueChange={() => void toggle(task)} value={task.enabled} />
-                <Pressable
-                  accessibilityLabel={`Delete ${task.name}`}
-                  onPress={() => void props.services.aiStore.removeAutomation(task.id).then(reload)}
-                  style={styles.icon}
-                >
-                  <Trash2 color={theme.colors.error} size={18} />
-                </Pressable>
-              </View>
-            ))
-          )}
-        </ScrollView>
-      </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </AppSafeArea>
     </Modal>
   );
 }
@@ -259,7 +269,12 @@ function createStyles(theme: Theme) {
     title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     content: { gap: 16, paddingBottom: 32 },
-    form: { gap: 11, padding: 14, borderRadius: 10, backgroundColor: theme.colors.surface },
+    form: {
+      gap: 11,
+      padding: 14,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.surface,
+    },
     sectionLabel: {
       color: theme.colors.mutedText,
       fontSize: 10,
@@ -269,7 +284,7 @@ function createStyles(theme: Theme) {
     input: {
       minHeight: 45,
       paddingHorizontal: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       color: theme.colors.text,
       backgroundColor: theme.colors.surfaceMuted,
     },
@@ -277,7 +292,7 @@ function createStyles(theme: Theme) {
     segmented: {
       flexDirection: "row",
       padding: 3,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     segment: {
@@ -285,7 +300,7 @@ function createStyles(theme: Theme) {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
     segmentActive: { backgroundColor: theme.colors.background },
     segmentText: { color: theme.colors.mutedText, fontSize: 11 },
@@ -296,7 +311,7 @@ function createStyles(theme: Theme) {
       height: 34,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     dayActive: { backgroundColor: theme.colors.accent },
@@ -315,7 +330,7 @@ function createStyles(theme: Theme) {
       minHeight: 47,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
@@ -327,7 +342,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 7,
       paddingHorizontal: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     taskCopy: { minWidth: 0, flex: 1 },

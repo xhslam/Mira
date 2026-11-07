@@ -8,7 +8,6 @@ import {
   assertSingleDomBundle,
   cleanReleaseDomAssets,
   getReleaseDomAssetDirectories,
-  installExcalidrawReleaseFonts,
   installKatexReleaseFonts,
   readDomAssetInventory,
 } from "./android-release-assets.mjs";
@@ -159,9 +158,6 @@ const buildRelease = async () => {
   await cleanReleaseDomAssets(projectRoot);
   await runGradle([":app:createBundleReleaseJsAndAssets", "--rerun-tasks"], environment);
   await installKatexReleaseFonts(projectRoot, assetDirectories[0]);
-  await installExcalidrawReleaseFonts(projectRoot, assetDirectories[0], {
-    cssDirectory: "_expo/static/css",
-  });
   await verifyFile(nativeBundle, "Native release bundle");
   await verifyDomAssets(assetDirectories.slice(0, 1));
   await runGradle(["assembleRelease"], environment);

@@ -88,9 +88,8 @@ export function StudioScreen({ snapshot, onChange, services, theme }: Props) {
     }
     try {
       setWorking(true);
-      const answer = await collectLearningResponse({
+      const { text: answer } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           {
             role: "system",

@@ -97,6 +97,29 @@ describe("Expo linked workspace sharing", () => {
     expect(image.text).not.toHaveBeenCalled();
   });
 
+  it.each(["Map.excalidraw", "Map.excalidraw.md"])(
+    "shares legacy %s through an unchanged native file copy, not a drawing exporter",
+    async (name) => {
+      const root = new fileSystem.FakeDirectory("content://provider/tree/notes");
+      const drawing = new fileSystem.FakeFile(`${root.uri}/${name}`);
+      root.children = Object.freeze([drawing]);
+      const hash = vi.fn(async () => "hash");
+      const adapter = createExpoWorkspaceAdapter(root as never, grant(), LINKED_CAPABILITIES, hash);
+      const target = parseWorkspacePath(name);
+      if (!target.ok) throw new Error("Invalid test path");
+
+      const destination = `file:///cache/random-${name}`;
+      expect(await adapter.exportFile(target.value, destination)).toMatchObject({
+        ok: true,
+        value: { uri: destination },
+      });
+      expect(drawing.copy).toHaveBeenCalledOnce();
+      expect(drawing.copy.mock.calls[0]?.[0]).toMatchObject({ uri: destination });
+      expect(drawing.text).not.toHaveBeenCalled();
+      expect(hash).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects directories and non-local destinations before copying", async () => {
     const root = new fileSystem.FakeDirectory("content://provider/tree/notes");
     const folder = new fileSystem.FakeDirectory("content://provider/tree/notes/images");

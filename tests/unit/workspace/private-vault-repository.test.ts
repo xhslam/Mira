@@ -84,6 +84,36 @@ describe("private vault recovery", () => {
     expect(reopened).toEqual(created);
   });
 
+  test("keeps the original note readable if renaming cannot save the catalog", async () => {
+    const base = createMemoryVaultStorage();
+    let failCatalogWrite = false;
+    const storage: VaultStorage = {
+      ...base,
+      async write(path, contents) {
+        if (failCatalogWrite && path === "catalog.json") throw new Error("disk full");
+        await base.write(path, contents);
+      },
+    };
+    const repository = createRepository(storage);
+    const created = await repository.create({ path: "notes/original.md", markdown: "original" });
+    expect(created.ok).toBe(true);
+
+    failCatalogWrite = true;
+    await expect(
+      repository.rename({ from: "notes/original.md", to: "notes/renamed.md" }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "IO_FAILURE" } });
+    await expect(createRepository(storage).read("notes/original.md")).resolves.toEqual(created);
+    await expect(base.exists("documents/notes/renamed.md")).resolves.toBe(false);
+
+    failCatalogWrite = false;
+    await expect(
+      repository.rename({ from: "notes/original.md", to: "notes/renamed.md" }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { documentId: DOCUMENT_ID, markdown: "original", path: "notes/renamed.md" },
+    });
+  });
+
   test("keeps a recovery draft when the verified workspace write fails", async () => {
     const base = createMemoryVaultStorage();
     let failTargetWrite = false;

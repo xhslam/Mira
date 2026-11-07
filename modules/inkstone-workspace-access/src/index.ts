@@ -11,6 +11,7 @@ type WorkspaceAccessNativeModule = Readonly<{
   resolveBookmark(serializedBookmark: string): ResolvedWorkspaceBookmark;
   stopAccessing(uri: string): void;
   performClickHaptic?(): boolean;
+  setEditorInputEnabled?(viewId: number, enabled: boolean): Promise<void>;
 }>;
 
 const nativeModule =
@@ -36,4 +37,8 @@ export function stopAccessingWorkspace(uri: string): void {
 
 export function performClickHaptic(): boolean {
   return nativeModule?.performClickHaptic?.() ?? false;
+}
+
+export function setEditorInputEnabled(viewId: number, enabled: boolean): Promise<void> {
+  return nativeModule?.setEditorInputEnabled?.(viewId, enabled) ?? Promise.resolve();
 }

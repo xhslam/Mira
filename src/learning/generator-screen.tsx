@@ -69,9 +69,8 @@ export function GeneratorScreen({
     setBusy(true);
     setError(null);
     try {
-      const response = await collectLearningResponse({
+      const { text: response } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           Object.freeze({
             role: "system" as const,

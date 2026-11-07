@@ -9,15 +9,17 @@ function readSource(relativePath: string): string {
 }
 
 describe("vertical page scrolling", () => {
-  it("keeps the sentence-by-sentence practice page inside a touch-friendly vertical scroller", () => {
+  it("scrolls practice controls and virtualized subtitles on the same vertical surface", () => {
     const source = readSource("src/learning/practice-screen.tsx");
+    const transcript = readSource("src/learning/presentation/transcript/transcript-panel.tsx");
 
-    expect(source).toContain("<ScrollView");
-    expect(source).toContain('keyboardShouldPersistTaps="handled"');
-    expect(source).toContain("nestedScrollEnabled");
-    expect(source).toContain("style={styles.scroll}");
-    expect(source).toContain("contentContainerStyle={styles.content}");
-    expect(source).toContain("scroll: { flex: 1, minHeight: 0 }");
+    expect(source).not.toContain("<ScrollView");
+    expect(source).toMatch(/<TranscriptPanel\s+header=\{\s*<View style=\{styles.content\}>/u);
+    expect(transcript).toContain("<FlatList");
+    expect(transcript).toContain("ListHeaderComponent={");
+    expect(transcript).toContain('keyboardShouldPersistTaps="handled"');
+    expect(transcript).toContain("style={styles.scroll}");
+    expect(transcript).toContain("scroll: { flex: 1, minHeight: 0 }");
   });
 
   it("keeps Markdown import and library content inside a constrained, touch-friendly scroller", () => {
@@ -35,12 +37,9 @@ describe("vertical page scrolling", () => {
 });
 
 describe("nested vertical scrolling", () => {
-  it("keeps inner transcript and vocabulary lists compatible with the learning page scroller", () => {
-    const transcriptPanel = readSource("src/learning/presentation/transcript/transcript-panel.tsx");
+  it("keeps the vocabulary list compatible with the learning page scroller", () => {
     const vocabularyScreen = readSource("src/learning/vocabulary-screen.tsx");
 
-    expect(transcriptPanel).toContain("<FlatList");
-    expect(transcriptPanel).toContain("nestedScrollEnabled");
     expect(vocabularyScreen).toContain("<ScrollView");
     expect(vocabularyScreen).toContain('keyboardShouldPersistTaps="handled"');
     expect(vocabularyScreen).toContain("nestedScrollEnabled");

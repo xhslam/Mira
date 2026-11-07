@@ -1,8 +1,24 @@
 # Product Status
 
-**Last updated:** 2026-08-15
+**Last updated:** 2026-11-05
 
 Status is based on connected production code and executable tests. Physical-device, signing, Figma and assistive-technology walkthroughs are reported separately and are never treated as implemented code.
+
+## Current restructure (2026-11-05)
+
+- Navigation: Personal Agent → 学习 → 笔记 → 设置; default Agent; consistent global sidebar.
+- Drawing: runtime, creation UI, dedicated npm dependencies and font-copy paths removed. Legacy files remain read-only and byte-shareable; recovery drafts remain inspectable and exportable without blocking workspace switches.
+- Agent: persistent manual commitments, source/evidence candidates requiring confirmation, explicit delegation drafts/timezone/activation, per-run coverage/results, handling/snooze/correction, conversation history and retained Provider/proposal support.
+- English coach: moved into Learning with preserved serialized draft saves and practice handoff.
+- Independent worker: runnable Node 24 service, strict authenticated workspace-scoped item-snapshot protocol, daily timezone schedule, leases/restart recovery, bounded retries, result outbox/paging/ack and recent failures. App pairing/manual sync is connected; no actual service was deployed.
+- **Not connected:** real email/messages/calendar accounts, OAuth provisioning and system push. Worker uses the last explicitly uploaded item snapshot, not live source checks; without it the App only performs foreground catch-up. Chat alone cannot create/complete/schedule a task.
+- **Not verified on hardware in this change:** native UI/keyboard/large text, SecureStore/filesystem on device, long-running host and phone network/lifecycle, release APK, installation or true notification arrival. See [release checklist](release-checklist.md).
+
+New evidence is recorded in [the 2026-11-05 verification record](verification/2026-11-05-personal-agent.md); historical counts below are not the current suite size.
+
+## Historical implementation baseline (2026-08-15)
+
+The phase table below records the earlier editor-led implementation; it is not a claim that the restructured App has passed the old device or theme walkthroughs again.
 
 | Phase   | Code status         | Implemented result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Remaining verification gate                                                                                                                                                                       |
 | ------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -15,7 +31,7 @@ Status is based on connected production code and executable tests. Physical-devi
 | Phase 7 | Implemented in code | Direct HTTPS DeepSeek/OpenAI-compatible and OpenAI Responses profiles, OS-secured keys, streaming chat, current/manual-note context, separately gated whole-workspace tools, metadata-only audit, provider-native web citations, revision-bound diff proposals, foreground catch-up automations, and all 13 hash-locked VMark Genie contracts with inline segmented review are connected.                                                                                                                                                                                                                                                                                                                                                                                                                                       | Real provider/model compatibility, cancellation, foreground recovery, and editor proposal journeys require installed-device verification with user-owned API credentials.                         |
 | Phase 8 | Implemented in code | Dynamic light/dark tokens cover native screens and the DOM editor; theme, locale and real editor preferences persist; English/Simplified-Chinese keyed shell/settings copy, dynamic type, reduced-motion behavior, tablet/landscape config, privacy/permission declarations, three Maestro journeys and four checksummed screenshot baselines are present. Android/iOS store identifiers are configured.                                                                                                                                                                                                                                                                                                                                                                                                                        | VoiceOver/TalkBack walkthrough, Maestro execution, final signing, store submission and physical performance matrix require external tools/devices.                                                |
 
-## Current automated evidence
+## Historical automated evidence (2026-08-15)
 
 - Prettier, strict TypeScript and Expo ESLint pass.
 - 107 Vitest files / 608 tests pass.

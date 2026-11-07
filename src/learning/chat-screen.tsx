@@ -136,9 +136,8 @@ export function ChatScreen({
           content: message.content,
         }),
       );
-      const response = await collectLearningResponse({
+      const { text: response } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           Object.freeze({
             role: "system" as const,

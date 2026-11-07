@@ -1,4 +1,4 @@
-import { Clock3, FileSearch, FileText, History, Search, X } from "lucide-react-native";
+import { Clock3, FileSearch, FileText, History, Search, ChevronLeft } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -158,7 +158,7 @@ export function WorkspaceSearchView({
         ) : null}
         {onClose ? (
           <IconButton label={t("search.close")} onPress={onClose}>
-            <X color={theme.colors.text} size={21} />
+            <ChevronLeft color={theme.colors.text} size={21} />
           </IconButton>
         ) : null}
       </View>

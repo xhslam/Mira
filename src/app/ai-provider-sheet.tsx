@@ -1,4 +1,13 @@
-import { Check, ChevronRight, KeyRound, Trash2, X } from "lucide-react-native";
+import { CircleAction } from "./mira-controls";
+import {
+  Check,
+  ChevronRight,
+  KeyRound,
+  Trash2,
+  ChevronDown,
+  ChevronLeft,
+  Plus,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,6 +20,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { AiProviderProfileManager } from "../ai/provider-profile-manager";
 import type { AiProviderProfile } from "../ai/provider-profile";
@@ -85,6 +95,7 @@ export function AiProviderSheet({
   const styles = createStyles(theme);
   const [profiles, setProfiles] = useState<Awaited<ReturnType<typeof manager.list>>>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,14 +112,27 @@ export function AiProviderSheet({
         if (active) setProfiles(loaded);
       })
       .catch(() => {
-        if (active) setError("Provider profiles could not be loaded.");
+        if (active) setError("无法读取模型服务");
       });
     return () => {
       active = false;
     };
   }, [manager, visible]);
 
+  function closeForm(): void {
+    setShowForm(false);
+    setDraft(EMPTY_DRAFT);
+    setError(null);
+  }
+
+  function requestClose(): void {
+    if (busy) return;
+    closeForm();
+    if (!showForm) onClose();
+  }
+
   function edit(profile: AiProviderProfile): void {
+    setShowForm(true);
     setDraft(
       Object.freeze({
         id: profile.id,
@@ -136,13 +160,16 @@ export function AiProviderSheet({
       });
       await settingsStore.update((current) => ({
         ...current,
-        ai: Object.freeze({ ...current.ai, activeProviderProfileId: saved.profile.id }),
+        ai: Object.freeze({
+          ...current.ai,
+          activeProviderProfileId: current.ai.activeProviderProfileId ?? saved.profile.id,
+        }),
       }));
-      setDraft(EMPTY_DRAFT);
       await reload();
+      closeForm();
       onChanged();
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "The provider could not be saved.");
+    } catch {
+      setError("无法保存模型服务，请检查地址、模型 ID 和密钥。");
     } finally {
       setBusy(false);
     }
@@ -154,199 +181,245 @@ export function AiProviderSheet({
     try {
       const result = await connectionTester.test(profile.id);
       await reload();
-      if (!result.ok) setError(`Connection failed: ${result.status}`);
+      if (!result.ok) setError(`连接失败 · ${result.status}`);
     } catch {
-      setError("The provider connection could not be tested.");
+      setError("无法测试连接");
     } finally {
       setBusy(false);
     }
   }
 
   function confirmRemove(profile: AiProviderProfile): void {
-    Alert.alert(
-      "Remove provider?",
-      "Its API key will be deleted from secure storage and dependent tasks will pause.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            void manager
-              .remove(profile.id)
-              .then(async () => {
-                await settingsStore.update((current) => ({
-                  ...current,
-                  ai: Object.freeze({
-                    ...current.ai,
-                    activeProviderProfileId:
-                      current.ai.activeProviderProfileId === profile.id
-                        ? null
-                        : current.ai.activeProviderProfileId,
-                  }),
-                }));
-                await reload();
-                onChanged();
-              })
-              .catch(() => setError("The provider could not be removed."));
-          },
+    Alert.alert("移除模型服务？", "将删除本机保存的密钥，并暂停使用此服务的自动任务。", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "移除",
+        style: "destructive",
+        onPress: () => {
+          void manager
+            .remove(profile.id)
+            .then(async () => {
+              await settingsStore.update((current) => ({
+                ...current,
+                ai: Object.freeze({
+                  ...current.ai,
+                  activeProviderProfileId:
+                    current.ai.activeProviderProfileId === profile.id
+                      ? null
+                      : current.ai.activeProviderProfileId,
+                }),
+              }));
+              await reload();
+              onChanged();
+            })
+            .catch(() => setError("无法移除模型服务"));
         },
-      ],
-    );
+      },
+    ]);
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
+    <Modal animationType="slide" onRequestClose={requestClose} transparent visible={visible}>
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        <SafeAreaView edges={["bottom", "left", "right"]} style={styles.sheet}>
           <View style={styles.header}>
-            <View>
-              <Text accessibilityRole="header" style={styles.title}>
-                AI providers
-              </Text>
-              <Text style={styles.subtitle}>Keys stay in this device&apos;s secure storage.</Text>
-            </View>
-            <Pressable
-              accessibilityLabel="Close provider settings"
-              onPress={onClose}
-              style={styles.iconButton}
+            <CircleAction
+              label={showForm ? "返回模型服务" : "关闭模型服务"}
+              onPress={requestClose}
+              muted
             >
-              <X color={theme.colors.text} size={20} />
-            </Pressable>
+              {showForm ? (
+                <ChevronLeft color={theme.colors.text} size={20} />
+              ) : (
+                <ChevronDown color={theme.colors.text} size={20} />
+              )}
+            </CircleAction>
+            <Text accessibilityRole="header" style={styles.title}>
+              {showForm ? (draft.id ? "编辑模型服务" : "添加模型服务") : "模型服务"}
+            </Text>
+            {!showForm ? (
+              <CircleAction
+                label="添加模型服务"
+                onPress={() => {
+                  setError(null);
+                  setShowForm(true);
+                }}
+                muted
+              >
+                <Plus color={theme.colors.text} size={20} />
+              </CircleAction>
+            ) : null}
           </View>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            {profiles.map(({ profile, hasApiKey }) => (
-              <View key={profile.id} style={styles.profileCard}>
-                <Pressable onPress={() => edit(profile)} style={styles.profileMain}>
-                  <View style={styles.providerIcon}>
-                    {profile.connectionStatus === "connected" ? (
-                      <Check color={theme.colors.success} size={18} />
-                    ) : (
-                      <KeyRound color={theme.colors.mutedText} size={18} />
-                    )}
-                  </View>
-                  <View style={styles.profileCopy}>
-                    <Text style={styles.profileName}>{profile.name}</Text>
-                    <Text numberOfLines={1} style={styles.profileMeta}>
-                      {profile.model} · {hasApiKey ? "Key stored" : "Key required"}
-                    </Text>
-                  </View>
-                  <ChevronRight color={theme.colors.mutedText} size={18} />
-                </Pressable>
-                <View style={styles.profileActions}>
-                  <Pressable disabled={busy || !hasApiKey} onPress={() => void test(profile)}>
-                    <Text style={styles.textAction}>Test connection</Text>
-                  </Pressable>
-                  <Pressable disabled={busy} onPress={() => confirmRemove(profile)}>
-                    <Trash2 color={theme.colors.danger} size={17} />
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-
-            <View style={styles.form}>
-              <Text style={styles.formTitle}>{draft.id ? "Edit provider" : "Add provider"}</Text>
-              <View style={styles.presets}>
-                {PROVIDER_PRESETS.map((preset) => (
-                  <Pressable
-                    key={preset.label}
-                    onPress={() =>
-                      setDraft((current) =>
-                        Object.freeze({
-                          ...current,
-                          name: preset.name,
-                          adapter: preset.adapter,
-                          baseUrl: preset.baseUrl,
-                          model: preset.model,
-                        }),
-                      )
-                    }
-                    style={styles.preset}
-                  >
-                    <Text style={styles.presetText}>{preset.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={styles.segmented}>
-                {(["openai-compatible-chat", "openai-responses"] as const).map((adapter) => (
-                  <Pressable
-                    key={adapter}
-                    onPress={() =>
-                      setDraft((current) =>
-                        Object.freeze({
-                          ...current,
-                          adapter,
-                          ...(adapter === "openai-responses" && !current.id
-                            ? { name: "OpenAI", baseUrl: "https://api.openai.com/v1" }
-                            : {}),
-                        }),
-                      )
-                    }
-                    style={[styles.segment, draft.adapter === adapter && styles.segmentActive]}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        draft.adapter === adapter && styles.segmentTextActive,
-                      ]}
+            {!showForm ? (
+              <>
+                {profiles.length === 0 ? (
+                  <View style={styles.empty}>
+                    <KeyRound color={theme.colors.mutedText} size={24} />
+                    <Text style={styles.emptyTitle}>还没有模型服务</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setError(null);
+                        setShowForm(true);
+                      }}
+                      style={styles.primary}
                     >
-                      {adapter === "openai-compatible-chat" ? "Compatible" : "Responses + Search"}
-                    </Text>
-                  </Pressable>
+                      <Text style={styles.primaryText}>添加模型服务</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                {profiles.map(({ profile, hasApiKey }) => (
+                  <View key={profile.id} style={styles.profileCard}>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={busy}
+                      onPress={() => edit(profile)}
+                      style={styles.profileMain}
+                    >
+                      <View style={styles.providerIcon}>
+                        {profile.connectionStatus === "connected" ? (
+                          <Check color={theme.colors.success} size={18} />
+                        ) : (
+                          <KeyRound color={theme.colors.mutedText} size={18} />
+                        )}
+                      </View>
+                      <View style={styles.profileCopy}>
+                        <Text style={styles.profileName}>{profile.name}</Text>
+                        <Text numberOfLines={1} style={styles.profileMeta}>
+                          {profile.model} · {hasApiKey ? "已保存密钥" : "缺少密钥"}
+                        </Text>
+                      </View>
+                      <ChevronRight color={theme.colors.mutedText} size={18} />
+                    </Pressable>
+                    <View style={styles.profileActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={busy || !hasApiKey}
+                        onPress={() => void test(profile)}
+                      >
+                        <Text style={styles.textAction}>测试连接</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityLabel={`移除 ${profile.name}`}
+                        accessibilityRole="button"
+                        disabled={busy}
+                        onPress={() => confirmRemove(profile)}
+                      >
+                        <Trash2 color={theme.colors.danger} size={17} />
+                      </Pressable>
+                    </View>
+                  </View>
                 ))}
+              </>
+            ) : (
+              <View style={styles.form}>
+                <View style={styles.presets}>
+                  {PROVIDER_PRESETS.map((preset) => (
+                    <Pressable
+                      key={preset.label}
+                      onPress={() =>
+                        setDraft((current) =>
+                          Object.freeze({
+                            ...current,
+                            name: preset.name,
+                            adapter: preset.adapter,
+                            baseUrl: preset.baseUrl,
+                            model: preset.model,
+                          }),
+                        )
+                      }
+                      style={styles.preset}
+                    >
+                      <Text style={styles.presetText}>{preset.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={styles.segmented}>
+                  {(["openai-compatible-chat", "openai-responses"] as const).map((adapter) => (
+                    <Pressable
+                      key={adapter}
+                      onPress={() =>
+                        setDraft((current) =>
+                          Object.freeze({
+                            ...current,
+                            adapter,
+                            ...(adapter === "openai-responses" && !current.id
+                              ? { name: "OpenAI", baseUrl: "https://api.openai.com/v1" }
+                              : {}),
+                          }),
+                        )
+                      }
+                      style={[styles.segment, draft.adapter === adapter && styles.segmentActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          draft.adapter === adapter && styles.segmentTextActive,
+                        ]}
+                      >
+                        {adapter === "openai-compatible-chat" ? "兼容接口" : "Responses 接口"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Field
+                  label="服务名称"
+                  value={draft.name}
+                  onChange={(name) => setDraft({ ...draft, name })}
+                  styles={styles}
+                />
+                <Field
+                  autoCapitalize="none"
+                  label="服务地址（HTTPS）"
+                  value={draft.baseUrl}
+                  onChange={(baseUrl) => setDraft({ ...draft, baseUrl })}
+                  styles={styles}
+                />
+                <Field
+                  autoCapitalize="none"
+                  label="模型 ID"
+                  placeholder="填写服务商提供的模型 ID"
+                  value={draft.model}
+                  onChange={(model) => setDraft({ ...draft, model })}
+                  styles={styles}
+                />
+                <Field
+                  autoCapitalize="none"
+                  label={draft.id ? "更新 API 密钥（可选）" : "API 密钥"}
+                  secure
+                  value={draft.apiKey}
+                  onChange={(apiKey) => setDraft({ ...draft, apiKey })}
+                  styles={styles}
+                />
+                <Pressable
+                  disabled={
+                    busy ||
+                    !draft.name.trim() ||
+                    !draft.model.trim() ||
+                    (!draft.id && !draft.apiKey.trim())
+                  }
+                  onPress={() => void save()}
+                  style={({ pressed }) => [
+                    styles.primary,
+                    (pressed || busy) && styles.primaryPressed,
+                  ]}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryText}>保存模型服务</Text>
+                  )}
+                </Pressable>
               </View>
-              <Field
-                label="Name"
-                value={draft.name}
-                onChange={(name) => setDraft({ ...draft, name })}
-                styles={styles}
-              />
-              <Field
-                autoCapitalize="none"
-                label="Base URL (HTTPS)"
-                value={draft.baseUrl}
-                onChange={(baseUrl) => setDraft({ ...draft, baseUrl })}
-                styles={styles}
-              />
-              <Field
-                autoCapitalize="none"
-                label="Model"
-                placeholder="Provider model identifier"
-                value={draft.model}
-                onChange={(model) => setDraft({ ...draft, model })}
-                styles={styles}
-              />
-              <Field
-                autoCapitalize="none"
-                label={draft.id ? "Replace API key (optional)" : "API key"}
-                secure
-                value={draft.apiKey}
-                onChange={(apiKey) => setDraft({ ...draft, apiKey })}
-                styles={styles}
-              />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable
-                disabled={
-                  busy ||
-                  !draft.name.trim() ||
-                  !draft.model.trim() ||
-                  (!draft.id && !draft.apiKey.trim())
-                }
-                onPress={() => void save()}
-                style={({ pressed }) => [
-                  styles.primary,
-                  (pressed || busy) && styles.primaryPressed,
-                ]}
-              >
-                {busy ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.primaryText}>Save provider</Text>
-                )}
-              </Pressable>
-            </View>
+            )}
+            {error ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>
+                {error}
+              </Text>
+            ) : null}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -390,28 +463,29 @@ function createStyles(theme: Theme) {
     backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: theme.colors.overlay },
     sheet: {
       maxHeight: "92%",
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      minHeight: "45%",
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
       backgroundColor: theme.colors.background,
     },
     header: {
       minHeight: 76,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
+      gap: 12,
+      paddingHorizontal: 16,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.divider,
     },
-    title: { color: theme.colors.text, fontSize: 21, fontWeight: "700" },
-    subtitle: { marginTop: 3, color: theme.colors.mutedText, fontSize: 12 },
-    iconButton: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+    title: { flex: 1, color: theme.colors.text, fontSize: 21, fontWeight: "700" },
+    empty: { alignItems: "center", gap: 16, paddingVertical: 16 },
+    emptyTitle: { color: theme.colors.mutedText, fontSize: 15 },
     content: { gap: 12, padding: 18, paddingBottom: 40 },
     presets: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
     preset: {
       paddingHorizontal: 10,
       paddingVertical: 7,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accentSoft,
     },
     presetText: { color: theme.colors.accent, fontSize: 11, fontWeight: "700" },
@@ -419,7 +493,7 @@ function createStyles(theme: Theme) {
       overflow: "hidden",
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     profileMain: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13 },
@@ -428,7 +502,7 @@ function createStyles(theme: Theme) {
       height: 34,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     profileCopy: { minWidth: 0, flex: 1 },
@@ -448,14 +522,13 @@ function createStyles(theme: Theme) {
       gap: 13,
       marginTop: 4,
       padding: 16,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
-    formTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "700" },
     segmented: {
       flexDirection: "row",
       padding: 3,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     segment: {
@@ -463,7 +536,7 @@ function createStyles(theme: Theme) {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
     segmentActive: { backgroundColor: theme.colors.canvas },
     segmentText: { color: theme.colors.mutedText, fontSize: 12, fontWeight: "600" },
@@ -475,7 +548,7 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 12,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       color: theme.colors.text,
       backgroundColor: theme.colors.canvas,
     },
@@ -484,7 +557,7 @@ function createStyles(theme: Theme) {
       minHeight: 48,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     primaryPressed: { opacity: 0.65 },

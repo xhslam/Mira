@@ -1,3 +1,6 @@
+import * as Crypto from "expo-crypto";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import {
   ArchiveRestore,
   CalendarClock,
@@ -16,6 +19,7 @@ import {
   Keyboard,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -32,11 +36,17 @@ import {
   localResourcePaths,
   resolveLocalResourcePath,
 } from "../formats/local-resource";
+import type { DocumentId } from "../domain/identifiers";
 import type { SearchResult } from "../search/search-index";
 import type { WorkspaceConflictPolicy } from "../workspace/workspace-browser";
 import type { AppServices } from "./app-services";
+import type { RecoveryDraftStore, RecoveryDraft } from "../recovery/recovery-draft-store";
+import { createWorkspaceFileShare } from "../workspace/workspace-file-share";
+import { parseWorkspacePath } from "../workspace/workspace-path";
+import { legacyRecoveryTextExport } from "./workspace-state";
+import { OverlaySideSheet } from "./overlay-side-sheet";
 import { DocumentTabs } from "./document-tabs";
-import { nextEditorMode } from "./editor-mode-cycle";
+import { editorModes } from "./editor-mode-cycle";
 import { StructuredTreeView } from "./structured-tree-view";
 import { StructuredTableView } from "./structured-table-view";
 import {
@@ -50,20 +60,20 @@ import { AiQuickAssistant } from "./ai-quick-assistant";
 import { useLocale, useTranslate } from "./locale";
 import { SearchSheet } from "./search-sheet";
 import { useTheme, type Theme } from "./theme";
+import { MiraSheet, SheetAction } from "./mira-controls";
 import { triggerClickFeedback } from "./press-feedback";
 import { editableNoteName, noteRenameTargetPath } from "./note-rename";
 import { useEditorWorkspace, type EditorWorkspaceController } from "./use-editor-workspace";
-import { WorkspaceHeader } from "./workspace-header";
+import { WorkspaceHeader, WorkspaceModePicker } from "./workspace-header";
 
 type EditorWorkspaceScreenProps = Readonly<{
   services?: AppServices;
   clickVibration?: boolean;
   /**
-   * The app shell hands its primary navigation to this screen so the editor and
-   * overview can each own one stable bottom-nav position without remounting the
-   * editor WebView when switching surfaces.
+   * The app shell can place the editor toolbar beside its navigation control
+   * while keeping the editor WebView mounted across surface changes.
    */
-  bottomNavigation?: ReactNode;
+  renderBottomNavigation?: (toolbar?: ReactNode) => ReactNode;
   onOpenSidebar?: () => void;
   onExitToNotes?: () => void;
   initialPath?: string;
@@ -78,7 +88,7 @@ export function EditorWorkspaceScreen(props: EditorWorkspaceScreenProps = {}) {
 export function EditorWorkspaceView({
   controller,
   clickVibration = true,
-  bottomNavigation,
+  renderBottomNavigation,
   onOpenSidebar,
   onExitToNotes,
   initialPath,
@@ -89,12 +99,14 @@ export function EditorWorkspaceView({
   const t = useTranslate();
   const styles = createStyles(theme);
   const [searchVisible, setSearchVisible] = useState(false);
+  const [legacyRecoveryVisible, setLegacyRecoveryVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPage, setMenuPage] = useState<"note" | "backup">("note");
-  const [renameVisible, setRenameVisible] = useState(false);
+  const [renameDocumentId, setRenameDocumentId] = useState<DocumentId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renameBusy, setRenameBusy] = useState(false);
+  const renameInFlight = useRef(false);
   const [quickAssistantVisible, setQuickAssistantVisible] = useState(false);
   const [command, setCommand] = useState<EditorCommand | null>(null);
   const [editableCodeDocuments, setEditableCodeDocuments] = useState<ReadonlySet<string>>(
@@ -172,7 +184,11 @@ export function EditorWorkspaceView({
   );
   const documentSavedMessage = useMemo(
     () =>
-      activeDocument && controller.state && !activeDocument.dirty && activeDocument.baseHash
+      activeDocument &&
+      controller.state &&
+      !activeDocument.dirty &&
+      !activeDocument.recovered &&
+      activeDocument.baseHash
         ? createEditorSavedMessage({
             sessionId: controller.state.sessionId,
             documentId: activeDocument.documentId,
@@ -182,9 +198,11 @@ export function EditorWorkspaceView({
         : null,
     [activeDocument, controller.state],
   );
+  const legacyDrawing = activeDocument?.formatId === "legacy-drawing";
   const sourceReadOnly =
-    (activeDocument?.formatId === "code" || activeDocument?.formatId === "unknown-text") &&
-    !editableCodeDocuments.has(activeDocument.documentId);
+    legacyDrawing ||
+    ((activeDocument?.formatId === "code" || activeDocument?.formatId === "unknown-text") &&
+      !editableCodeDocuments.has(activeDocument.documentId));
   const usesEditorKernel =
     activeDocument !== null && activeDocument.mode !== "tree" && activeDocument.mode !== "table";
 
@@ -200,24 +218,30 @@ export function EditorWorkspaceView({
   }
 
   function beginRename(): void {
-    if (!activeDocument || !controller.services.browser.capabilities.rename) return;
+    if (
+      !activeDocument ||
+      renameInFlight.current ||
+      !controller.services.browser.capabilities.rename
+    )
+      return;
     closeMenu();
     Keyboard.dismiss();
     setRenameValue(editableNoteName(activeDocument.path));
     setRenameError(null);
-    setRenameVisible(true);
+    setRenameDocumentId(activeDocument.documentId);
   }
 
   function cancelRename(): void {
-    if (renameBusy) return;
+    if (renameInFlight.current) return;
     Keyboard.dismiss();
-    setRenameVisible(false);
+    setRenameDocumentId(null);
     setRenameValue("");
     setRenameError(null);
   }
 
   async function submitRename(conflict: WorkspaceConflictPolicy = "fail"): Promise<void> {
-    if (!activeDocument || renameBusy) return;
+    if (!activeDocument || activeDocument.documentId !== renameDocumentId || renameInFlight.current)
+      return;
     const target = noteRenameTargetPath(activeDocument.path, renameValue);
     if (!target.ok) {
       const key =
@@ -234,20 +258,22 @@ export function EditorWorkspaceView({
       return;
     }
 
+    renameInFlight.current = true;
     setRenameBusy(true);
     setRenameError(null);
     let result: Awaited<ReturnType<typeof controller.renameActiveDocument>>;
     try {
-      result = await controller.renameActiveDocument(target.path, conflict);
+      result = await controller.renameActiveDocument(renameDocumentId, target.path, conflict);
     } catch {
-      setRenameBusy(false);
       setRenameError(t("header.renameFailed"));
       return;
+    } finally {
+      renameInFlight.current = false;
+      setRenameBusy(false);
     }
-    setRenameBusy(false);
     if (result.ok) {
       Keyboard.dismiss();
-      setRenameVisible(false);
+      setRenameDocumentId(null);
       setRenameValue("");
       return;
     }
@@ -501,18 +527,28 @@ export function EditorWorkspaceView({
             />
           )}
         </View>
-        {bottomNavigation}
+        {renderBottomNavigation?.()}
       </View>
     );
   }
+
+  const formattingToolbar =
+    activeDocument.mode === "wysiwyg" ? (
+      <FormattingToolbar
+        onAi={() => {
+          Keyboard.dismiss();
+          setQuickAssistantVisible(true);
+        }}
+        onCommand={issueCommand}
+        onDismissKeyboard={() => Keyboard.dismiss()}
+      />
+    ) : null;
 
   return (
     <View style={styles.screen}>
       <WorkspaceHeader
         canRename={controller.services.browser.capabilities.rename}
         dirty={activeDocument.dirty}
-        editorMode={activeDocument.mode}
-        nextEditorMode={nextEditorMode(activeDocument.mode, activeDocument.formatId)}
         filename={activeDocument.path}
         onOpenDrawer={() => {
           triggerClickFeedback(clickVibration);
@@ -528,14 +564,9 @@ export function EditorWorkspaceView({
           Keyboard.dismiss();
           setSearchVisible(true);
         }}
-        onToggleEditorMode={() => {
-          triggerClickFeedback(clickVibration);
-          Keyboard.dismiss();
-          controller.requestMode(nextEditorMode(activeDocument.mode, activeDocument.formatId));
-        }}
         saveState={controller.state.saveState}
         rename={
-          renameVisible
+          renameDocumentId === activeDocument.documentId
             ? {
                 value: renameValue,
                 error: renameError,
@@ -549,17 +580,22 @@ export function EditorWorkspaceView({
               }
             : null
         }
-        showEditorMode={
-          activeDocument.formatId === "markdown" ||
-          activeDocument.formatId === "json" ||
-          activeDocument.formatId === "yaml" ||
-          activeDocument.formatId === "toml"
-        }
       />
 
       <DocumentTabs
         activeDocumentId={activeDocument.documentId}
         documents={controller.state.documents}
+        trailing={
+          <WorkspaceModePicker
+            key={activeDocument.documentId}
+            mode={activeDocument.mode}
+            modes={editorModes(activeDocument.formatId)}
+            onSelect={(mode) => {
+              triggerClickFeedback(clickVibration);
+              controller.requestMode(mode);
+            }}
+          />
+        }
         onAdd={() => {
           Keyboard.dismiss();
           void controller.addDocument();
@@ -640,7 +676,6 @@ export function EditorWorkspaceView({
             onOpenWiki={requestOpenWiki}
             onPickAttachment={pickLocalAttachment}
             onRendererError={async () => recoverEditorRenderer()}
-            onShareExport={controller.services.shareDrawingExport}
             onProtocolMessage={controller.handleEditorMessage}
             onSnapshot={controller.handleEditorMessage}
             revision={activeDocument.revision}
@@ -651,19 +686,34 @@ export function EditorWorkspaceView({
         )}
         {sourceReadOnly && activeDocument.mode === "source" ? (
           <View accessibilityRole="summary" style={styles.readOnlyBanner}>
-            <Text style={styles.readOnlyText}>{t("editor.viewMode")}</Text>
-            <Pressable
-              accessibilityLabel={t("editor.enableEditing")}
-              accessibilityRole="button"
-              onPress={() =>
-                setEditableCodeDocuments(
-                  (current) => new Set([...current, activeDocument.documentId]),
-                )
-              }
-              style={styles.readOnlyButton}
-            >
-              <Text style={styles.readOnlyButtonText}>{t("editor.enableEditing")}</Text>
-            </Pressable>
+            <Text style={styles.readOnlyText}>
+              {legacyDrawing && activeDocument.recovered
+                ? "保留的恢复草稿（只读），未覆盖原文件"
+                : t("editor.viewMode")}
+            </Text>
+            {legacyDrawing && activeDocument.recovered ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setLegacyRecoveryVisible(true)}
+                style={styles.readOnlyButton}
+              >
+                <Text style={styles.readOnlyButtonText}>查看与导出草稿</Text>
+              </Pressable>
+            ) : null}
+            {legacyDrawing ? null : (
+              <Pressable
+                accessibilityLabel={t("editor.enableEditing")}
+                accessibilityRole="button"
+                onPress={() =>
+                  setEditableCodeDocuments(
+                    (current) => new Set([...current, activeDocument.documentId]),
+                  )
+                }
+                style={styles.readOnlyButton}
+              >
+                <Text style={styles.readOnlyButtonText}>{t("editor.enableEditing")}</Text>
+              </Pressable>
+            )}
           </View>
         ) : null}
         {usesEditorKernel && acknowledgedRendererRecovery.status === "recovering" ? (
@@ -740,99 +790,96 @@ export function EditorWorkspaceView({
         </View>
       ) : null}
 
-      {activeDocument.mode === "wysiwyg" ? (
-        <FormattingToolbar
-          onAi={() => {
-            Keyboard.dismiss();
-            setQuickAssistantVisible(true);
-          }}
-          onCommand={issueCommand}
-          onDismissKeyboard={() => Keyboard.dismiss()}
+      {renderBottomNavigation?.(formattingToolbar) ?? formattingToolbar}
+
+      <MiraSheet
+        onClose={closeMenu}
+        title={menuPage === "note" ? editableNoteName(activeDocument.path) : t("menu.backup")}
+        visible={menuVisible}
+      >
+        {menuPage === "note" ? (
+          <>
+            {controller.services.browser.capabilities.rename ? (
+              <MenuAction icon={Pencil} label={t("menu.renameNote")} onPress={beginRename} />
+            ) : null}
+            <MenuAction
+              icon={Sparkles}
+              label={t("menu.aiAssistant")}
+              onPress={() => {
+                Keyboard.dismiss();
+                closeMenu();
+                setQuickAssistantVisible(true);
+              }}
+            />
+            <MenuAction
+              icon={SearchIcon}
+              label={t("menu.findReplace")}
+              onPress={() => {
+                closeMenu();
+                controller.requestMode("source");
+                issueCommand("find");
+              }}
+            />
+            {activeDocument.formatId === "json" ||
+            activeDocument.formatId === "yaml" ||
+            activeDocument.formatId === "toml" ? (
+              <MenuAction
+                icon={GitCompareArrows}
+                label={t("menu.formatDocument")}
+                onPress={() => {
+                  closeMenu();
+                  confirmStructuredFormatting();
+                }}
+              />
+            ) : null}
+            <View style={styles.menuDivider} />
+            <MenuAction
+              icon={ArchiveRestore}
+              label="绘图恢复草稿"
+              onPress={() => {
+                closeMenu();
+                setLegacyRecoveryVisible(true);
+              }}
+            />
+            <MenuAction
+              icon={ArchiveRestore}
+              label={t("menu.backup")}
+              onPress={() => setMenuPage("backup")}
+            />
+          </>
+        ) : (
+          <>
+            <MenuAction
+              icon={ChevronLeft}
+              label={t("menu.back")}
+              onPress={() => setMenuPage("note")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuAction
+              icon={Download}
+              label={t("menu.exportBackup")}
+              onPress={() => void exportBackup()}
+            />
+            <MenuAction
+              icon={ArchiveRestore}
+              label={t("menu.restoreBackup")}
+              onPress={() => void importBackup()}
+            />
+            <MenuAction
+              icon={CalendarClock}
+              label={t("menu.automaticBackup")}
+              onPress={() => void configureAutomaticBackup()}
+            />
+          </>
+        )}
+      </MiraSheet>
+      {legacyRecoveryVisible ? (
+        <LegacyRecoveryPanel
+          key={controller.services.activeWorkspace.grant.workspaceId}
+          store={controller.services.recoveryStore}
+          visible
+          onClose={() => setLegacyRecoveryVisible(false)}
         />
-      ) : null}
-
-      {bottomNavigation}
-
-      {menuVisible ? (
-        <>
-          <Pressable
-            accessibilityLabel={t("editor.closeActions")}
-            onPress={closeMenu}
-            style={styles.menuScrim}
-          />
-          <View accessibilityRole="menu" style={styles.menu}>
-            {menuPage === "note" ? (
-              <>
-                <Text numberOfLines={1} style={styles.menuTitle}>
-                  {editableNoteName(activeDocument.path)}
-                </Text>
-                {controller.services.browser.capabilities.rename ? (
-                  <MenuAction icon={Pencil} label={t("menu.renameNote")} onPress={beginRename} />
-                ) : null}
-                <MenuAction
-                  icon={Sparkles}
-                  label={t("menu.aiAssistant")}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    closeMenu();
-                    setQuickAssistantVisible(true);
-                  }}
-                />
-                <MenuAction
-                  icon={SearchIcon}
-                  label={t("menu.findReplace")}
-                  onPress={() => {
-                    closeMenu();
-                    controller.requestMode("source");
-                    issueCommand("find");
-                  }}
-                />
-                {activeDocument.formatId === "json" ||
-                activeDocument.formatId === "yaml" ||
-                activeDocument.formatId === "toml" ? (
-                  <MenuAction
-                    icon={GitCompareArrows}
-                    label={t("menu.formatDocument")}
-                    onPress={() => {
-                      closeMenu();
-                      confirmStructuredFormatting();
-                    }}
-                  />
-                ) : null}
-                <View style={styles.menuDivider} />
-                <MenuAction
-                  icon={ArchiveRestore}
-                  label={t("menu.backup")}
-                  onPress={() => setMenuPage("backup")}
-                />
-              </>
-            ) : (
-              <>
-                <MenuAction
-                  icon={ChevronLeft}
-                  label={t("menu.back")}
-                  onPress={() => setMenuPage("note")}
-                />
-                <View style={styles.menuDivider} />
-                <MenuAction
-                  icon={Download}
-                  label={t("menu.exportBackup")}
-                  onPress={() => void exportBackup()}
-                />
-                <MenuAction
-                  icon={ArchiveRestore}
-                  label={t("menu.restoreBackup")}
-                  onPress={() => void importBackup()}
-                />
-                <MenuAction
-                  icon={CalendarClock}
-                  label={t("menu.automaticBackup")}
-                  onPress={() => void configureAutomaticBackup()}
-                />
-              </>
-            )}
-          </View>
-        </>
       ) : null}
       <AiQuickAssistant
         controller={controller}
@@ -863,16 +910,12 @@ function MenuAction({
   onPress: () => void;
 }>) {
   const theme = useTheme();
-  const styles = createStyles(theme);
   return (
-    <Pressable
-      accessibilityRole="menuitem"
+    <SheetAction
+      icon={<Icon color={theme.colors.text} size={19} />}
+      label={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.menuAction, pressed && styles.pressed]}
-    >
-      <Icon color={theme.colors.text} size={19} />
-      <Text style={styles.menuLabel}>{label}</Text>
-    </Pressable>
+    />
   );
 }
 
@@ -1014,48 +1057,6 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
     },
-    menuScrim: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      zIndex: 10,
-    },
-    menu: {
-      position: "absolute",
-      zIndex: 11,
-      top: 52,
-      right: 8,
-      width: 218,
-      padding: 7,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      borderRadius: 16,
-      backgroundColor: theme.colors.canvas,
-      elevation: 8,
-    },
-    menuAction: {
-      minHeight: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      paddingHorizontal: 11,
-      borderRadius: 10,
-    },
-    menuLabel: {
-      color: theme.colors.text,
-      fontSize: 14,
-      fontWeight: "600",
-    },
-    menuTitle: {
-      marginHorizontal: 11,
-      marginTop: 5,
-      marginBottom: 6,
-      color: theme.colors.mutedText,
-      fontSize: 12,
-      fontWeight: "700",
-    },
     menuDivider: {
       height: StyleSheet.hairlineWidth,
       marginVertical: 5,
@@ -1066,4 +1067,144 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.surfaceMuted,
     },
   });
+}
+
+/** Read-only recovery access stays available even after the editor tab closes. */
+function LegacyRecoveryPanel({
+  store,
+  visible,
+  onClose,
+}: Readonly<{
+  store: RecoveryDraftStore;
+  visible: boolean;
+  onClose: () => void;
+}>) {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  const [drafts, setDrafts] = useState<readonly RecoveryDraft[]>([]);
+  const [selected, setSelected] = useState<RecoveryDraft | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    void store
+      .list()
+      .then((items) => {
+        if (active) setDrafts(items.filter((draft) => legacyRecoveryTextExport(draft) !== null));
+      })
+      .catch(() => {
+        if (active) setError("恢复草稿暂时无法读取，请关闭后重试。");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [store, visible]);
+
+  async function exportDraft(draft: RecoveryDraft): Promise<void> {
+    const payload = legacyRecoveryTextExport(draft);
+    const path = parseWorkspacePath(draft.path);
+    if (busy || !payload || !path.ok) return;
+    setBusy(true);
+    setError(null);
+    // Reuse the generic random-cache sharing boundary. Only a new inert .txt
+    // cache file is written; the source file and recovery store are never mutated.
+    const share = createWorkspaceFileShare({
+      cacheDirectoryUri: Paths.cache.uri,
+      createId: Crypto.randomUUID,
+      isAvailable: Sharing.isAvailableAsync,
+      share: Sharing.shareAsync,
+      // Successful share files use the existing inkstone-share-* prefix and
+      // are retained for receiver access; ordinary share maintenance expires them.
+      cleanupExpired: async () => undefined,
+      remove: async (uri) => {
+        new File(uri).delete();
+      },
+      source: {
+        async exportFile(_path, destination) {
+          const file = new File(destination.uri);
+          file.create({ overwrite: false });
+          file.write(payload.contents);
+          if ((await file.text()) !== payload.contents) {
+            throw new Error("Recovery export read-back verification failed");
+          }
+          return { ok: true, value: { uri: destination.uri, contentType: "text/plain" } };
+        },
+      },
+    });
+    try {
+      const result = await share.share(path.value, payload.name);
+      if (!result.ok) setError("无法打开系统分享，请重试。原文件和恢复草稿保持不变。");
+    } catch {
+      setError("无法打开系统分享，请重试。原文件和恢复草稿保持不变。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <OverlaySideSheet visible={visible} onClose={onClose} widthFraction={0.95} maxWidth={680}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background, padding: 16, gap: 12 }}>
+        <Pressable accessibilityRole="button" onPress={onClose} style={styles.readOnlyButton}>
+          <Text style={styles.readOnlyButtonText}>关闭恢复草稿</Text>
+        </Pressable>
+        <Text accessibilityRole="header" style={styles.recoveryTitle}>
+          绘图恢复草稿
+        </Text>
+        <Text style={styles.readOnlyText}>
+          草稿单独保留，不会写回原文件。关闭标签或切换工作区不会删除草稿。
+        </Text>
+        {error ? (
+          <Text accessibilityRole="alert" style={styles.readOnlyText}>
+            {error}
+          </Text>
+        ) : null}
+        {loading ? <ActivityIndicator color={theme.colors.accent} /> : null}
+        <ScrollView
+          style={{ flex: 1, minHeight: 0 }}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
+          {drafts.map((draft) => (
+            <Pressable
+              key={draft.documentId}
+              accessibilityRole="button"
+              onPress={() => setSelected(draft)}
+              style={[styles.readOnlyButton, { minHeight: 48 }]}
+            >
+              <Text style={styles.readOnlyButtonText}>{draft.path}</Text>
+            </Pressable>
+          ))}
+          {!loading && !error && drafts.length === 0 ? (
+            <Text style={styles.readOnlyText}>没有保留的绘图恢复草稿。</Text>
+          ) : null}
+          {selected ? (
+            <>
+              <Text selectable style={styles.readOnlyText}>
+                {selected.path}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                onPress={() => void exportDraft(selected)}
+                style={[styles.readOnlyButton, { minHeight: 48 }]}
+              >
+                <Text style={styles.readOnlyButtonText}>
+                  {busy ? "正在打开分享…" : "导出恢复原文（.txt）"}
+                </Text>
+              </Pressable>
+              <Text selectable style={[styles.readOnlyText, { fontFamily: "monospace" }]}>
+                {selected.markdown}
+              </Text>
+            </>
+          ) : null}
+        </ScrollView>
+      </View>
+    </OverlaySideSheet>
+  );
 }

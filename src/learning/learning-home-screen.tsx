@@ -1,27 +1,36 @@
 import { useMemo } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
+  ArrowRight,
+  BookOpen,
+  ChevronDown,
   ChevronRight,
+  Plus,
   FileText,
   FolderOpen,
   Link2,
-  Play,
-  Sparkles,
+  MessageCircle,
+  Pencil,
   Subtitles,
   Video,
 } from "lucide-react-native";
-import Svg, { Circle } from "react-native-svg";
-import type { Theme } from "../app/theme";
-import { resourceProgress } from "./learning-session";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { type Theme } from "../app/theme";
+import { studyAccent } from "./study-appearance";
+import { learningHomePreview } from "./learning-session";
 import type { LearningImportIntent, LearningResource, LearningSnapshot } from "./learning-types";
 
-type HomeProps = Readonly<{
-  snapshot: LearningSnapshot;
+type HomeActionProps = Readonly<{
   theme: Theme;
   onOpenImport: () => void;
   onOpenLibrary: () => void;
-  onOpenResource: (resource: LearningResource) => void;
 }>;
+
+type HomeProps = HomeActionProps &
+  Readonly<{
+    snapshot: LearningSnapshot;
+    onOpenResource: (resource: LearningResource) => void;
+  }>;
 
 type ImportSheetProps = Readonly<{
   visible: boolean;
@@ -35,183 +44,111 @@ type ImportSheetProps = Readonly<{
 export function LearningHomeScreen(props: HomeProps) {
   const { snapshot, theme, onOpenImport, onOpenLibrary, onOpenResource } = props;
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const preview = learningHomePreview(snapshot);
+  const hasResources = snapshot.resources.length > 0;
   const goalMinutes = Math.max(1, snapshot.goal.dailyMinutes);
-  const studiedMinutes = Math.min(goalMinutes, snapshot.goal.practiceMinutesToday);
-  const percent = Math.min(100, Math.round((studiedMinutes / goalMinutes) * 100));
-  const recents = [...snapshot.resources]
-    .sort((left, right) =>
-      (right.lastOpenedAt ?? right.updatedAt).localeCompare(left.lastOpenedAt ?? left.updatedAt),
-    )
-    .slice(0, 4);
-  const currentResource = recents[0];
-  const otherRecents = recents.slice(1);
+  const studiedMinutes =
+    snapshot.goal.lastActivityDate === new Date().toISOString().slice(0, 10)
+      ? Math.round(snapshot.goal.practiceMinutesToday)
+      : 0;
+  const actionLabel = preview
+    ? preview.resuming
+      ? `继续练第 ${preview.index + 1} 句`
+      : `从第 ${preview.index + 1} 句开始`
+    : hasResources
+      ? "准备学习资料"
+      : "导入第一份资料";
 
   return (
     <View style={styles.screen}>
-      {currentResource ? (
-        <View style={styles.continueSection}>
-          <Text style={styles.sectionTitle}>继续学习</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => onOpenResource(currentResource)}
-            style={({ pressed }) => [styles.continueItem, pressed && styles.pressed]}
-          >
-            <View style={styles.continueArtwork}>
-              <ResourceMediaIcon color="#DCE8FF" resource={currentResource} size={27} />
-            </View>
-            <View style={styles.continueCopy}>
-              <Text numberOfLines={1} style={styles.continueTitle}>
-                {currentResource.title}
+      <View style={styles.feature}>
+        {preview ? (
+          <>
+            <Text numberOfLines={2} style={styles.eyebrow}>
+              {preview.resuming ? "上次练到 · " : "准备开始 · "}
+              {preview.resource.title}
+            </Text>
+            <Text accessibilityRole="header" numberOfLines={4} style={styles.sentence}>
+              {preview.sentence.text}
+            </Text>
+            {preview.sentence.translation ? (
+              <Text numberOfLines={3} style={styles.continueMeta}>
+                {preview.sentence.translation}
               </Text>
-              <Text numberOfLines={1} style={styles.continueMeta}>
-                {resourceKind(currentResource)} · {currentResource.sentences.length} 句
-              </Text>
-              <View style={styles.continueProgressTrack}>
-                <View
-                  style={[
-                    styles.continueProgressFill,
-                    { width: `${resourceProgress(snapshot, currentResource)}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.continueProgressText}>
-                已完成 {resourceProgress(snapshot, currentResource)}%
-              </Text>
-            </View>
-            <View style={styles.continueAction}>
-              <Play color="#FFFFFF" fill="#FFFFFF" size={17} />
-            </View>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View style={styles.goal}>
-        <View style={styles.goalCopy}>
-          <Text style={styles.goalLabel}>今日学习</Text>
-          <Text style={styles.goalNumber}>
-            {Math.round(studiedMinutes)}
-            <Text style={styles.goalUnit}> / {goalMinutes} 分钟</Text>
-          </Text>
-          <Text style={styles.goalCaption}>
-            {percent === 0 ? "从一段喜欢的内容开始。" : "播放和跟读时间已计入进度。"}
-          </Text>
-        </View>
-        <ProgressRing percent={percent} theme={theme} />
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={styles.eyebrow}>逐句学习</Text>
+            <Text accessibilityRole="header" style={styles.emptyTitle}>
+              {hasResources ? "准备好字幕，就能开始" : "从第一句开始"}
+            </Text>
+            <Text style={styles.continueMeta}>
+              {hasResources
+                ? "在资料库为音频或视频添加字幕。"
+                : "导入音频、视频或文本，逐句听和跟读。"}
+            </Text>
+          </>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          onPress={
+            preview
+              ? () => onOpenResource(preview.resource)
+              : hasResources
+                ? onOpenLibrary
+                : onOpenImport
+          }
+          style={({ pressed }) => [styles.continueAction, pressed && styles.pressed]}
+        >
+          <Text style={styles.continueActionText}>{actionLabel}</Text>
+          <ArrowRight color={theme.colors.canvas} size={21} />
+        </Pressable>
       </View>
-
-      {otherRecents.length ? (
-        <View style={styles.recentSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>最近资料</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onOpenLibrary}
-              style={styles.libraryAction}
-            >
-              <Text style={styles.libraryActionText}>查看全部</Text>
-              <ChevronRight color={theme.colors.accent} size={17} />
-            </Pressable>
-          </View>
-          <View style={styles.list}>
-            {otherRecents.map((resource, index) => (
-              <ResourceRow
-                key={resource.id}
-                resource={resource}
-                percent={resourceProgress(snapshot, resource)}
-                index={index}
-                theme={theme}
-                styles={styles}
-                onPress={() => onOpenResource(resource)}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {!currentResource ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>资料库还是空的</Text>
-          <Text style={styles.emptyDescription}>导入后，你可以逐句阅读、查词、跟读和复习。</Text>
-          <Pressable accessibilityRole="button" onPress={onOpenImport} style={styles.emptyAction}>
-            <Text style={styles.emptyActionText}>导入资料</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <Text style={styles.goal}>
+        今日 <Text style={styles.goalNumber}>{studiedMinutes}</Text> / {goalMinutes} 分钟
+      </Text>
     </View>
   );
 }
 
-function ResourceRow(
-  props: Readonly<{
-    resource: LearningResource;
-    percent: number;
-    index: number;
-    theme: Theme;
-    styles: ReturnType<typeof createStyles>;
-    onPress: () => void;
-  }>,
-) {
-  const { resource, percent, index, theme, styles, onPress } = props;
+export function LearningHomeActions({
+  theme,
+  onOpenLibrary,
+  onOpenImport,
+  onOpenCoach,
+}: HomeActionProps & Readonly<{ onOpenCoach: () => void }>) {
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const actions = [
+    { label: "资料库", icon: BookOpen, onPress: onOpenLibrary },
+    { label: "创建资料", icon: Plus, onPress: onOpenImport, featured: true },
+    { label: "英语陪练", icon: MessageCircle, onPress: onOpenCoach },
+  ];
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-    >
-      <View style={[styles.artwork, { backgroundColor: ARTWORKS[index % ARTWORKS.length] }]}>
-        <ResourceMediaIcon color="#FFFFFF" resource={resource} size={18} />
-      </View>
-      <View style={styles.rowCopy}>
-        <View style={styles.rowTitleLine}>
-          <Text numberOfLines={1} style={styles.rowTitle}>
-            {resource.title}
+    <View style={styles.homeActions}>
+      <View pointerEvents="none" style={styles.homeActionsTrack} />
+      {actions.map(({ label, icon: Icon, onPress, featured }) => (
+        <Pressable
+          key={label}
+          accessibilityLabel={label}
+          accessibilityRole="button"
+          onPress={onPress}
+          style={({ pressed }) => [
+            styles.homeAction,
+            featured && styles.createAction,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Icon color={featured ? theme.colors.canvas : theme.colors.text} size={18} />
+          <Text
+            maxFontSizeMultiplier={featured ? 1.15 : 1.6}
+            numberOfLines={1}
+            style={[styles.homeActionText, featured && styles.createActionText]}
+          >
+            {label}
           </Text>
-          {resource.provider === "craft" ? <Text style={styles.craftBadge}>创建</Text> : null}
-        </View>
-        <Text numberOfLines={1} style={styles.rowMeta}>
-          {resourceKind(resource)} · {resource.sentences.length} 句 ·{" "}
-          {resource.language || "未设置语言"}
-        </Text>
-        <View style={styles.smallTrack}>
-          <View style={[styles.smallFill, { width: `${percent}%` }]} />
-        </View>
-      </View>
-      <ChevronRight color={theme.colors.mutedText} size={18} />
-    </Pressable>
-  );
-}
-
-function ProgressRing({ percent, theme }: Readonly<{ percent: number; theme: Theme }>) {
-  const size = 58;
-  const strokeWidth = 5;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  return (
-    <View accessibilityLabel={`今日完成 ${percent}%`} style={stylesForRing.ring}>
-      <Svg height={size} viewBox={`0 0 ${size} ${size}`} width={size}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          fill="none"
-          r={radius}
-          stroke={theme.colors.divider}
-          strokeWidth={strokeWidth}
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          fill="none"
-          origin={`${size / 2}, ${size / 2}`}
-          r={radius}
-          rotation={-90}
-          stroke={theme.colors.accent}
-          strokeDasharray={[circumference, circumference]}
-          strokeDashoffset={circumference * (1 - percent / 100)}
-          strokeLinecap="round"
-          strokeWidth={strokeWidth}
-        />
-      </Svg>
-      <Text style={stylesForRing.text}>{percent}%</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -222,25 +159,24 @@ export function LearningImportSheet(props: ImportSheetProps) {
   const options: readonly Readonly<{
     intent: Exclude<LearningImportIntent, null>;
     title: string;
-    description: string;
+    description?: string;
     icon: typeof FileText;
   }>[] = Object.freeze([
     Object.freeze({
       intent: "subtitle",
       title: "导入 SRT / VTT 字幕",
-      description: "为资料库中已选视频绑定本地时间轴",
+      description: "需先在资料库选择视频",
       icon: Subtitles,
     }),
     Object.freeze({
       intent: "local",
-      title: "从本地导入",
-      description: "选择音频、视频或文件中的学习材料",
+      title: "导入本地文件",
+      description: "音频、视频或文本",
       icon: FolderOpen,
     }),
     Object.freeze({
       intent: "photo",
-      title: "从相册导入",
-      description: "将手机中的视频整理为学习材料",
+      title: "导入相册视频",
       icon: Video,
     }),
   ]);
@@ -269,15 +205,23 @@ export function LearningImportSheet(props: ImportSheetProps) {
           onPress={onClose}
           style={styles.backdrop}
         />
-        <View accessibilityViewIsModal style={styles.sheet}>
+        <SafeAreaView
+          accessibilityViewIsModal
+          edges={["bottom", "left", "right"]}
+          style={styles.sheet}
+        >
           <View style={styles.handle} />
           <View style={styles.sheetHeader}>
             <View style={styles.sheetCopy}>
               <Text style={styles.sheetTitle}>导入资料</Text>
-              <Text style={styles.sheetDescription}>选择一种来源。</Text>
             </View>
-            <Pressable accessibilityRole="button" onPress={onClose} style={styles.doneButton}>
-              <Text style={styles.doneText}>关闭</Text>
+            <Pressable
+              accessibilityLabel="关闭导入资料"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}
+            >
+              <ChevronDown color={theme.colors.text} size={22} />
             </Pressable>
           </View>
           <ScrollView
@@ -294,11 +238,10 @@ export function LearningImportSheet(props: ImportSheetProps) {
               style={styles.option}
             >
               <View style={styles.optionIcon}>
-                <Sparkles color={theme.colors.accent} size={19} />
+                <Pencil color={theme.colors.mutedText} size={19} />
               </View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>创建学习材料</Text>
-                <Text style={styles.optionDescription}>翻译、改写并生成可反复练习的材料</Text>
               </View>
               <ChevronRight color={theme.colors.mutedText} size={18} />
             </Pressable>
@@ -329,203 +272,92 @@ export function LearningImportSheet(props: ImportSheetProps) {
                 </View>
                 <View style={styles.optionCopy}>
                   <Text style={styles.optionTitle}>{title}</Text>
-                  <Text style={styles.optionDescription}>{description}</Text>
+                  {description ? <Text style={styles.optionDescription}>{description}</Text> : null}
                 </View>
                 <ChevronRight color={theme.colors.mutedText} size={18} />
               </Pressable>
             ))}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
 }
 
-function resourceKind(resource: LearningResource): string {
-  return resource.mediaKind === "video" ||
-    resource.mediaKind === "youtube" ||
-    resource.mediaKind === "bilibili"
-    ? "视频"
-    : resource.mediaKind === "audio"
-      ? "音频"
-      : "文本";
-}
-
-function ResourceMediaIcon({
-  color,
-  resource,
-  size,
-}: Readonly<{ color: string; resource: LearningResource; size: number }>) {
-  if (
-    resource.mediaKind === "video" ||
-    resource.mediaKind === "youtube" ||
-    resource.mediaKind === "bilibili"
-  ) {
-    return <Video color={color} size={size} strokeWidth={1.8} />;
-  }
-  if (resource.mediaKind === "audio") {
-    return <Play color={color} size={size} strokeWidth={1.8} />;
-  }
-  return <FileText color={color} size={size} strokeWidth={1.8} />;
-}
-
-const ARTWORKS = ["#3E496A", "#31525B", "#6A493E", "#4D4263", "#5C5137", "#3D465E"] as const;
-
-const stylesForRing = StyleSheet.create({
-  ring: { alignItems: "center", height: 58, justifyContent: "center", width: 58 },
-  text: { color: "#A9B5C9", fontSize: 11, fontWeight: "700", position: "absolute" },
-});
-
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    screen: { gap: 18, paddingHorizontal: 18, paddingTop: 16 },
-    continueSection: { gap: 10 },
-    continueItem: {
-      alignItems: "center",
-      backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.22)",
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      flexDirection: "row",
-      gap: 12,
-      minHeight: 118,
-      overflow: "hidden",
-      padding: 12,
+    screen: { gap: 20, paddingHorizontal: 24, paddingTop: 32 },
+    feature: { gap: 12 },
+    eyebrow: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "600" },
+    sentence: {
+      color: theme.colors.text,
+      fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+      fontSize: 56,
+      fontWeight: "700",
+      lineHeight: 59,
+      letterSpacing: -1.2,
     },
-    continueArtwork: {
-      alignItems: "center",
-      backgroundColor: "#17233A",
-      borderRadius: 10,
-      height: 88,
-      justifyContent: "center",
-      width: 88,
-    },
-    continueCopy: { flex: 1, gap: 4, minWidth: 0 },
-    continueTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "700", lineHeight: 22 },
-    continueMeta: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
-    continueProgressTrack: {
-      backgroundColor: theme.colors.divider,
-      borderRadius: theme.radius.pill,
-      height: 4,
-      marginTop: 3,
-      overflow: "hidden",
-    },
-    continueProgressFill: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: theme.radius.pill,
-      height: "100%",
-    },
-    continueProgressText: { color: theme.colors.mutedText, fontSize: 11 },
+    emptyTitle: { color: theme.colors.text, fontSize: 32, fontWeight: "600" },
+    continueMeta: { color: theme.colors.mutedText, fontSize: 17, lineHeight: 25 },
     continueAction: {
       alignItems: "center",
-      alignSelf: "flex-end",
       backgroundColor: theme.colors.accent,
-      borderRadius: 999,
-      height: 38,
-      justifyContent: "center",
-      width: 38,
-    },
-    goal: {
-      alignItems: "center",
-      backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.18)",
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: theme.radius.pill,
       flexDirection: "row",
+      gap: 8,
       justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    goalCopy: { flex: 1, gap: 2 },
-    goalLabel: { color: theme.colors.text, fontSize: 15, fontWeight: "600" },
-    goalNumber: {
-      color: theme.colors.text,
-      fontSize: 25,
-      fontWeight: "600",
-      letterSpacing: -0.5,
-      lineHeight: 33,
-    },
-    goalUnit: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "400", letterSpacing: 0 },
-    goalCaption: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 18 },
-    recentSection: { gap: 12 },
-    sectionHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-    sectionTitle: {
-      color: theme.colors.text,
-      fontSize: 19,
-      fontWeight: "600",
-      letterSpacing: -0.2,
-    },
-    libraryAction: { alignItems: "center", flexDirection: "row", gap: 1, minHeight: 32 },
-    libraryActionText: { color: theme.colors.accent, fontSize: 14, fontWeight: "500" },
-    list: {
-      backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.18)",
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      overflow: "hidden",
-      paddingHorizontal: 12,
-    },
-    row: {
-      alignItems: "center",
-      borderBottomColor: theme.colors.divider,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      flexDirection: "row",
-      gap: 12,
-      minHeight: 76,
+      marginTop: 20,
+      minHeight: 56,
+      paddingHorizontal: 22,
       paddingVertical: 10,
     },
-    artwork: {
+    continueActionText: {
+      color: theme.colors.canvas,
+      flexShrink: 1,
+      fontSize: 17,
+      fontWeight: "700",
+    },
+    goal: { color: theme.colors.mutedText, fontSize: 15 },
+    goalNumber: { color: studyAccent(theme), fontSize: 19, fontWeight: "700" },
+    homeActions: {
       alignItems: "center",
-      borderRadius: 8,
-      height: 42,
-      justifyContent: "center",
-      width: 42,
+      flexDirection: "row",
     },
-    rowCopy: { flex: 1, gap: 5, minWidth: 0 },
-    rowTitleLine: { alignItems: "center", flexDirection: "row", gap: 6 },
-    rowTitle: { color: theme.colors.text, flex: 1, fontSize: 15, fontWeight: "500" },
-    craftBadge: { color: theme.colors.accent, fontSize: 11, fontWeight: "500" },
-    rowMeta: { color: theme.colors.mutedText, fontSize: 12 },
-    smallTrack: {
-      backgroundColor: theme.colors.divider,
+    homeActionsTrack: {
+      ...StyleSheet.absoluteFill,
+      top: 6,
+      bottom: 6,
+      backgroundColor: theme.colors.surface,
       borderRadius: theme.radius.pill,
-      height: 3,
-      overflow: "hidden",
     },
-    smallFill: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: theme.radius.pill,
-      height: "100%",
-    },
-    pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
-    empty: {
-      borderTopColor: theme.colors.divider,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      gap: 8,
-      paddingVertical: 24,
-    },
-    emptyTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "600" },
-    emptyDescription: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 20 },
-    emptyAction: {
+    homeAction: {
       alignItems: "center",
-      alignSelf: "flex-start",
-      backgroundColor: theme.colors.accent,
-      borderRadius: theme.radius.medium,
+      flex: 1,
+      gap: 2,
       justifyContent: "center",
-      marginTop: 8,
-      minHeight: 42,
-      paddingHorizontal: 16,
+      minHeight: 48,
+      minWidth: 0,
+      paddingHorizontal: 4,
     },
-    emptyActionText: { color: theme.colors.canvas, fontSize: 14, fontWeight: "600" },
+    createAction: {
+      flex: 0,
+      width: 60,
+      height: 60,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.accent,
+    },
+    createActionText: { color: theme.colors.canvas, fontSize: 11 },
+    homeActionText: { color: theme.colors.text, fontSize: 12, fontWeight: "500" },
+    pressed: { opacity: 0.72 },
     modalRoot: { flex: 1, justifyContent: "flex-end" },
     backdrop: { ...StyleSheet.absoluteFill, backgroundColor: theme.colors.overlay },
     sheet: {
       backgroundColor: theme.colors.canvas,
-      borderTopLeftRadius: theme.radius.large,
-      borderTopRightRadius: theme.radius.large,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
       maxHeight: "80%",
-      paddingBottom: 28,
-      paddingHorizontal: 20,
+      paddingBottom: 32,
+      paddingHorizontal: 16,
     },
     handle: {
       alignSelf: "center",
@@ -533,11 +365,11 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.pill,
       height: 4,
       marginBottom: 16,
-      marginTop: 10,
+      marginTop: 8,
       width: 36,
     },
     sheetHeader: {
-      alignItems: "flex-start",
+      alignItems: "center",
       flexDirection: "row",
       gap: 16,
       justifyContent: "space-between",
@@ -545,9 +377,14 @@ function createStyles(theme: Theme) {
     },
     sheetCopy: { flex: 1, gap: 4 },
     sheetTitle: { color: theme.colors.text, fontSize: 21, fontWeight: "600", letterSpacing: -0.3 },
-    sheetDescription: { color: theme.colors.mutedText, fontSize: 13 },
-    doneButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 2 },
-    doneText: { color: theme.colors.accent, fontSize: 14, fontWeight: "500" },
+    doneButton: {
+      minHeight: 48,
+      minWidth: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
+    },
     optionsScroll: { flexShrink: 1 },
     options: { paddingBottom: 4 },
     option: {
@@ -557,10 +394,10 @@ function createStyles(theme: Theme) {
       flexDirection: "row",
       gap: 12,
       minHeight: 68,
-      paddingVertical: 10,
+      paddingVertical: 12,
     },
     optionIcon: { alignItems: "center", height: 30, justifyContent: "center", width: 30 },
-    optionCopy: { flex: 1, gap: 3 },
+    optionCopy: { flex: 1, gap: 4 },
     optionTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "500" },
     optionDescription: { color: theme.colors.mutedText, fontSize: 12, lineHeight: 17 },
   });

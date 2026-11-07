@@ -43,15 +43,18 @@ describe("learning library visual hierarchy", () => {
 
   it("keeps library actions focused and the learning navigation compact", () => {
     const learningScreen = readSource("src/app/learning-screen.tsx");
-    const appShell = readSource("src/app/app-shell-screen.tsx");
+    const navigation = readSource("src/app/primary-navigation.tsx");
 
     expect(learningScreen).toContain('accessibilityLabel="搜索资料"');
     expect(learningScreen).toContain('accessibilityLabel="导入资料"');
     expect(learningScreen).toContain('accessibilityLabel="学习设置"');
     expect(learningScreen).not.toContain('accessibilityLabel="创建学习材料"');
-    expect(learningScreen).toContain("LEARNING_MAIN_TABS.map");
+    expect(learningScreen).toContain('onOpenLibrary={() => navigate("library")}');
+    expect(learningScreen).toContain('section === "library" ? "home" : lastMainSection');
+    expect(learningScreen).not.toContain("LEARNING_MAIN_TABS.map");
     expect(learningScreen).not.toContain("<DiscoverScreen");
     expect(learningScreen).toContain("key={section}");
-    expect(appShell).toContain('selected ? "#3B82FF" : "#858D9E"');
+    expect(navigation).toContain("selected={open}");
+    expect(navigation).toContain("<CircleAction");
   });
 });

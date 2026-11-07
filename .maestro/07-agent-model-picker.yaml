@@ -1,0 +1,20 @@
+appId: app.inkstone.markdown
+name: Agent separates model selection from model service setup
+---
+- launchApp
+- tapOn:
+    text: 应用管理工作区
+    optional: true
+- tapOn: 新建与工具
+- assertNotVisible: 事项与委托
+- tapOn: 新对话
+- tapOn: "选择模型.*"
+- assertVisible: 管理模型服务
+- tapOn: 管理模型服务
+- assertVisible: 模型服务
+- tapOn:
+    text: 添加模型服务
+    index: 0
+- assertVisible: 模型 ID
+- tapOn: 返回模型服务
+- assertVisible: 模型服务

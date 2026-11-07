@@ -1,11 +1,14 @@
-import { X } from "lucide-react-native";
+import { CircleAction } from "./mira-controls";
+import { ChevronLeft } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { createProposalDiffPlan, renderProposalDiffPlan } from "../ai/proposal-diff";
 import type { AiProposal } from "../ai/proposal";
 import { TextDiffView } from "./text-diff-view";
+import { AppSafeArea } from "./app-safe-area";
 import { useTheme, type Theme } from "./theme";
+import { useReducedMotion } from "./use-reduced-motion";
 
 export function AiProposalSheet(
   props: Readonly<{
@@ -18,20 +21,27 @@ export function AiProposalSheet(
 ) {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const reduceMotion = useReducedMotion();
   return (
-    <Modal animationType="slide" onRequestClose={props.onClose} visible={props.proposal !== null}>
-      {props.proposal ? (
-        <ProposalReview
-          busy={props.busy}
-          key={props.proposal.id}
-          onApply={props.onApply}
-          onClose={props.onClose}
-          onReject={props.onReject}
-          proposal={props.proposal}
-          styles={styles}
-          theme={theme}
-        />
-      ) : null}
+    <Modal
+      animationType={reduceMotion ? "none" : "slide"}
+      onRequestClose={props.onClose}
+      visible={props.proposal !== null}
+    >
+      <AppSafeArea style={{ backgroundColor: theme.colors.background }}>
+        {props.proposal ? (
+          <ProposalReview
+            busy={props.busy}
+            key={props.proposal.id}
+            onApply={props.onApply}
+            onClose={props.onClose}
+            onReject={props.onReject}
+            proposal={props.proposal}
+            styles={styles}
+            theme={theme}
+          />
+        ) : null}
+      </AppSafeArea>
     </Modal>
   );
 }
@@ -82,9 +92,9 @@ function ProposalReview(
             {proposal.targetPath}
           </Text>
         </View>
-        <Pressable accessibilityLabel="Close proposal" onPress={props.onClose} style={styles.icon}>
-          <X color={theme.colors.text} size={22} />
-        </Pressable>
+        <CircleAction label="Close proposal" onPress={props.onClose} muted>
+          <ChevronLeft color={theme.colors.text} size={22} />
+        </CircleAction>
       </View>
       {proposal.explanation ? <Text style={styles.explanation}>{proposal.explanation}</Text> : null}
       <View style={styles.diff}>
@@ -169,13 +179,12 @@ function createStyles(theme: Theme) {
     headerCopy: { minWidth: 0, flex: 1 },
     title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     path: { marginTop: 3, color: theme.colors.mutedText, fontSize: 12 },
-    icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     explanation: {
       padding: 10,
       color: theme.colors.text,
       fontSize: 12,
       lineHeight: 18,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     diff: {
@@ -183,9 +192,14 @@ function createStyles(theme: Theme) {
       overflow: "hidden",
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
-    segmentReview: { gap: 7, padding: 9, borderRadius: 10, backgroundColor: theme.colors.surface },
+    segmentReview: {
+      gap: 7,
+      padding: 9,
+      borderRadius: theme.radius.medium,
+      backgroundColor: theme.colors.surface,
+    },
     segmentStatus: {
       color: theme.colors.text,
       fontSize: 11,
@@ -206,7 +220,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       borderWidth: 1,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
     },
     secondaryText: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
     primaryButton: {
@@ -214,7 +228,7 @@ function createStyles(theme: Theme) {
       flex: 2,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.accent,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },

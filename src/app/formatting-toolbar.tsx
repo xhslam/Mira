@@ -29,9 +29,9 @@ import {
   TableRowsSplit,
   Trash2,
   Undo2,
-  KeyboardOff,
 } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet } from "react-native";
+import Svg, { Path, Rect } from "react-native-svg";
 
 import type { EditorCommandName } from "../editor-kernel/editor-kernel.dom";
 import { useTranslate } from "./locale";
@@ -131,7 +131,26 @@ export function FormattingToolbar({
         onPress={onDismissKeyboard}
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
-        <KeyboardOff color={theme.colors.text} size={20} />
+        <Svg accessible={false} width={20} height={20} viewBox="0 0 24 24">
+          <Rect
+            x={2}
+            y={3}
+            width={20}
+            height={12}
+            rx={2}
+            fill="none"
+            stroke={theme.colors.text}
+            strokeWidth={1.8}
+          />
+          <Path
+            d="M6 7h.01M10 7h.01M14 7h.01M18 7h.01M7 11h10m-8 7 3 3 3-3"
+            fill="none"
+            stroke={theme.colors.text}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
       </Pressable>
     </ScrollView>
   );
@@ -141,9 +160,10 @@ function createStyles(theme: Theme) {
   return StyleSheet.create({
     toolbar: {
       flexGrow: 0,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.divider,
-      backgroundColor: theme.colors.background,
+      marginHorizontal: 8,
+      marginVertical: 4,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
     },
     content: {
       alignItems: "center",
@@ -154,7 +174,7 @@ function createStyles(theme: Theme) {
       height: 46,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
     },
     pressed: {
       backgroundColor: theme.colors.surfaceMuted,

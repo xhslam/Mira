@@ -69,6 +69,7 @@ export type EditorWorkspaceController = Readonly<{
     conflict?: WorkspaceConflictPolicy,
   ) => Promise<BrowserCommandResult>;
   renameActiveDocument: (
+    documentId: OpenWorkspaceDocument["documentId"],
     to: string,
     conflict?: WorkspaceConflictPolicy,
   ) => Promise<BrowserCommandResult>;

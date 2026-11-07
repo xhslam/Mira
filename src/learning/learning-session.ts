@@ -6,6 +6,71 @@ import type {
   PracticeProgress,
 } from "./learning-types";
 
+export function learningPassage(snapshot: LearningSnapshot, resource: LearningResource) {
+  const tracks = snapshot.transcriptTracks.filter((track) => track.resourceId === resource.id);
+  const track =
+    tracks.find((item) => item.id === snapshot.ui.activeTranscriptTrackId) ??
+    tracks.find((item) => item.isPrimary) ??
+    null;
+  return { tracks, track, sentences: track?.sentences ?? resource.sentences };
+}
+
+function resumeSentence(
+  snapshot: LearningSnapshot,
+  resource: LearningResource,
+  progress: readonly PracticeProgress[],
+) {
+  const { sentences } = learningPassage(snapshot, resource);
+  const sentenceIds = new Set(sentences.map((item) => item.id));
+  let latest: PracticeProgress | undefined;
+  for (const item of progress) {
+    if (item.resourceId !== resource.id || !sentenceIds.has(item.sentenceId)) continue;
+    if (
+      !latest ||
+      item.updatedAt > latest.updatedAt ||
+      (item.updatedAt === latest.updatedAt && item.selected && !latest.selected)
+    ) {
+      latest = item;
+    }
+  }
+  const sentence = latest ? sentences.find((item) => item.id === latest.sentenceId) : sentences[0];
+  const index = sentence ? sentences.indexOf(sentence) : -1;
+  const resuming =
+    latest !== undefined &&
+    (Boolean(resource.lastOpenedAt) ||
+      latest.updatedAt > resource.createdAt ||
+      latest.listened ||
+      latest.shadowed ||
+      index > 0);
+  return { sentence, resuming, index };
+}
+
+export function learningHomePreview(snapshot: LearningSnapshot) {
+  const byResource = new Map<string, PracticeProgress[]>();
+  for (const item of snapshot.practice) {
+    const existing = byResource.get(item.resourceId);
+    if (existing) existing.push(item);
+    else byResource.set(item.resourceId, [item]);
+  }
+  const previews = snapshot.resources.flatMap((resource) => {
+    const { sentence, resuming, index } = resumeSentence(
+      snapshot,
+      resource,
+      byResource.get(resource.id) ?? [],
+    );
+    return sentence ? [{ resource, sentence, resuming, index }] : [];
+  });
+  return (
+    previews.sort(
+      (left, right) =>
+        Number(right.resuming) - Number(left.resuming) ||
+        (right.resource.lastOpenedAt ?? right.resource.updatedAt).localeCompare(
+          left.resource.lastOpenedAt ?? left.resource.updatedAt,
+        ),
+    )[0] ?? null
+  );
+}
+
 export function openLearningResource(
   snapshot: LearningSnapshot,
   resourceId: string,
@@ -13,11 +78,8 @@ export function openLearningResource(
 ): LearningSnapshot {
   const resource = snapshot.resources.find((item) => item.id === resourceId);
   if (!resource) return snapshot;
-  const progress = snapshot.practice
-    .filter((item) => item.resourceId === resourceId)
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
   const selectedSentenceId =
-    progress?.sentenceId ?? resource.sentences[0]?.id ?? snapshot.ui.selectedSentenceId;
+    resumeSentence(snapshot, resource, snapshot.practice).sentence?.id ?? null;
   return Object.freeze({
     ...snapshot,
     resources: Object.freeze(

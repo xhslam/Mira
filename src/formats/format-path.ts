@@ -29,6 +29,9 @@ export function formatIdForPath(path: string, mimeType?: string | null): string 
   return resolveFormatForPath(path, mimeType).id;
 }
 
+// Repository eligibility is text-based, not an editing permission. Legacy
+// drawings remain readable/listed here; callers must honor adapter.editable
+// at the UI, bridge and persistence boundaries.
 export function isEditableTextFormat(entry: Pick<FileEntry, "name" | "contentType">): boolean {
   const adapter = resolveFormatForPath(entry.name, entry.contentType);
   return adapter.id !== "binary" && isProfileEditable(adapter.securityProfile);

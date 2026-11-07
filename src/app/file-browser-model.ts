@@ -4,7 +4,6 @@ import { parseWorkspacePath, type WorkspacePath } from "../workspace/workspace-p
 
 export const FILE_BROWSER_GROUP_IDS = [
   "markdown",
-  "excalidraw",
   "yaml",
   "json",
   "toml",
@@ -41,7 +40,6 @@ export type FileBrowserModel = Readonly<{
 
 const GROUP_LABELS: Readonly<Record<FileBrowserGroupId, string>> = Object.freeze({
   markdown: "Markdown",
-  excalidraw: "Excalidraw",
   yaml: "YAML",
   json: "JSON",
   toml: "TOML",
@@ -64,7 +62,6 @@ export function browserGroupFor(entry: FileEntry): FileBrowserGroupId {
   const format = DEFAULT_FORMAT_REGISTRY.resolve(entry.name, entry.contentType);
   if (
     format.id === "markdown" ||
-    format.id === "excalidraw" ||
     format.id === "yaml" ||
     format.id === "json" ||
     format.id === "toml" ||

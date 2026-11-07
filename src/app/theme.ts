@@ -1,9 +1,8 @@
 import { createContext, useContext } from "react";
 
 /**
- * Mira 的移动端设计令牌。
- * 界面以信息层级和任务流为先：背景保持安静，颜色只表达状态与操作，
- * 间距使用固定节奏，圆角仅用于真实的交互容器。
+ * Shared surfaces and controls for the Mira mobile interface.
+ * Ink is reserved for primary actions, with color used for identity and status.
  */
 export type ThemeMode = "light" | "dark";
 
@@ -61,39 +60,47 @@ export type Theme = Readonly<{
   }>;
 }>;
 
-const APPLE_COLORS: ThemeColors = Object.freeze({
-  background: "#0B0B0F",
-  canvas: "#101015",
-  surface: "#17171D",
-  surfaceMuted: "#202027",
-  text: "#F2F2F7",
-  mutedText: "#98989F",
-  divider: "rgba(255, 255, 255, 0.13)",
-  accent: "#0A84FF",
-  accentPressed: "#0071D8",
-  accentSoft: "#132B49",
-  overlay: "rgba(0, 0, 0, 0.68)",
-  success: "#64D2FF",
-  warning: "#FF9F0A",
-  warningSurface: "#392608",
-  warningText: "#FFB340",
-  danger: "#FF453A",
-  error: "#FF453A",
+const MIRA_COLORS: ThemeColors = Object.freeze({
+  background: "#FAFAF9",
+  canvas: "#FFFFFF",
+  surface: "#F0F0EF",
+  surfaceMuted: "#E9E9E8",
+  text: "#171717",
+  mutedText: "#626262",
+  divider: "#DDDDDB",
+  accent: "#171717",
+  accentPressed: "#3B3B3A",
+  accentSoft: "#E7E7E6",
+  overlay: "rgba(0, 0, 0, 0.30)",
+  success: "#267A54",
+  warning: "#9A5A12",
+  warningSurface: "#FFF2DB",
+  warningText: "#774406",
+  danger: "#B5273B",
+  error: "#B5273B",
   fileTypes: Object.freeze({
-    markdown: "#F2F2F7",
-    yaml: "#C8C8CF",
-    json: "#B5B5BD",
-    toml: "#D8D8DE",
-    mermaid: "#E4E4EA",
-    code: "#C0C0C7",
-    other: "#98989F",
+    markdown: "#4A63A0",
+    yaml: "#966218",
+    json: "#7B4D91",
+    toml: "#9B5141",
+    mermaid: "#267A68",
+    code: "#396B84",
+    other: "#626262",
   }),
 });
 
-function buildTheme(mode: ThemeMode): Theme {
+export const identityColors = Object.freeze({
+  learn: "#315ECC",
+  notes: "#2C826B",
+  today: "#3478D3",
+  delegations: "#A9541C",
+  results: "#2C826B",
+});
+
+function buildTheme(): Theme {
   return Object.freeze({
-    mode,
-    colors: APPLE_COLORS,
+    mode: "light",
+    colors: MIRA_COLORS,
     spacing: Object.freeze({
       xSmall: 4,
       small: 8,
@@ -103,18 +110,14 @@ function buildTheme(mode: ThemeMode): Theme {
       large: 32,
       xLarge: 40,
     }),
-    radius: Object.freeze({ small: 6, medium: 10, large: 16, pill: 999 }),
-    fontSizes: Object.freeze({ caption: 12, body: 15, title: 17 }),
+    radius: Object.freeze({ small: 8, medium: 16, large: 24, pill: 999 }),
+    fontSizes: Object.freeze({ caption: 12, body: 16, title: 18 }),
   });
 }
 
-/** 视觉使用同一套深色阅读环境，模式字段仅保留作兼容层。 */
-export const LIGHT_THEME = buildTheme("light");
-export const DARK_THEME = buildTheme("dark");
-export const ThemeContext = createContext<Theme>(DARK_THEME);
+export const theme: Theme = buildTheme();
+export const ThemeContext = createContext<Theme>(theme);
 
 export function useTheme(): Theme {
   return useContext(ThemeContext);
 }
-
-export const theme: Theme = DARK_THEME;

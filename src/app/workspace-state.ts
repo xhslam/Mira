@@ -45,7 +45,8 @@ export type WorkspaceStateError = Readonly<{
     | "DOCUMENT_MISMATCH"
     | "STALE_REVISION"
     | "INVALID_CHANGE"
-    | "UNSUPPORTED_MODE";
+    | "UNSUPPORTED_MODE"
+    | "READ_ONLY";
 }>;
 
 export type CreateWorkspaceStateInput = Readonly<{
@@ -140,7 +141,9 @@ function fromSnapshot(
     selection: Object.freeze({ anchor: 0, head: 0 }),
     mode: resolveFormatForPath(document.path).defaultView,
     formatId,
-    dirty: useRecovery,
+    // Retired drawings are immutable views of a draft already persisted in the
+    // recovery store, not pending writes to the original file.
+    dirty: useRecovery && formatId !== "legacy-drawing",
     recovered: useRecovery,
   });
 }
@@ -157,7 +160,7 @@ function fromRecovery(draft: RecoveryDraft): OpenWorkspaceDocument {
     selection: Object.freeze({ anchor: 0, head: 0 }),
     mode: resolveFormatForPath(draft.path).defaultView,
     formatId,
-    dirty: true,
+    dirty: formatId !== "legacy-drawing",
     recovered: true,
   });
 }
@@ -241,6 +244,9 @@ export function applyWorkspaceSnapshot(
     message.revision <= message.baseRevision
   ) {
     return failure(Object.freeze({ code: "STALE_REVISION" }));
+  }
+  if (resolveFormatForPath(state.activeDocument.path).editable === false) {
+    return failure(Object.freeze({ code: "READ_ONLY" }));
   }
   if (!resolveFormatForPath(state.activeDocument.path).supportedViews.includes(message.mode)) {
     return failure(Object.freeze({ code: "UNSUPPORTED_MODE" }));
@@ -596,7 +602,11 @@ export function selectWorkspaceDocument(
     ? freezeState({
         ...state,
         activeDocument,
-        saveState: activeDocument.dirty ? "editing" : "saved",
+        saveState: activeDocument.dirty
+          ? "editing"
+          : activeDocument.recovered
+            ? "recovery-only"
+            : "saved",
         errorMessage: null,
       })
     : state;
@@ -618,7 +628,10 @@ export function openWorkspaceDocument(
   const existing = state.documents.find(
     (document) => document.documentId === snapshot.documentId || document.path === snapshot.path,
   );
-  const activeDocument = existing?.dirty ? existing : fromSnapshot(snapshot, undefined);
+  const activeDocument =
+    existing && (existing.dirty || existing.recovered)
+      ? existing
+      : fromSnapshot(snapshot, undefined);
   const documents = existing
     ? state.documents.map((document) =>
         document.documentId === existing.documentId ? activeDocument : document,
@@ -628,7 +641,11 @@ export function openWorkspaceDocument(
     ...state,
     documents,
     activeDocument,
-    saveState: activeDocument.dirty ? "editing" : "saved",
+    saveState: activeDocument.dirty
+      ? "editing"
+      : activeDocument.recovered
+        ? "recovery-only"
+        : "saved",
     errorMessage: null,
     conflictSnapshot: null,
     diagnostics: Object.freeze([]),
@@ -652,7 +669,11 @@ export function focusWorkspaceDocument(
     ...state,
     documents,
     activeDocument,
-    saveState: activeDocument.dirty ? "editing" : "saved",
+    saveState: activeDocument.dirty
+      ? "editing"
+      : activeDocument.recovered
+        ? "recovery-only"
+        : "saved",
     errorMessage: null,
     diagnostics: Object.freeze([]),
   });
@@ -673,7 +694,11 @@ export function closeWorkspaceDocument(
     ...state,
     documents,
     activeDocument,
-    saveState: activeDocument.dirty ? "editing" : "saved",
+    saveState: activeDocument.dirty
+      ? "editing"
+      : activeDocument.recovered
+        ? "recovery-only"
+        : "saved",
     errorMessage: null,
     diagnostics:
       state.activeDocument.documentId === activeDocument.documentId
@@ -692,11 +717,61 @@ export function pathAfterBrowserMutation(
   return `${destinationPath}${activePath.slice(sourcePath.length)}`;
 }
 
+export type WorkspacePathMutation = Readonly<{ from: string; to: string | null }>;
+
+export function reconcileWorkspaceAfterPathMutation(
+  previous: WorkspaceState,
+  reloaded: WorkspaceState,
+  mutation: WorkspacePathMutation,
+): WorkspaceState {
+  const refreshed = new Map(reloaded.documents.map((document) => [document.path, document]));
+  const open = new Map<string, OpenWorkspaceDocument>();
+  for (const document of previous.documents) {
+    const path = pathAfterBrowserMutation(document.path, mutation.from, mutation.to);
+    const snapshot = path === null ? undefined : refreshed.get(path);
+    // Edits arriving during the file operation keep their original save base.
+    // A late edit to a deleted file stays recoverable at the original path.
+    const next = document.dirty
+      ? freezeDocument({ ...document, path: path ?? document.path })
+      : snapshot?.baseHash != null
+        ? snapshot.markdown === document.markdown && snapshot.formatId === document.formatId
+          ? freezeDocument({ ...snapshot, selection: document.selection, mode: document.mode })
+          : snapshot
+        : path === document.path && (document.baseHash === null || document.recovered)
+          ? document
+          : undefined;
+    if (next && !open.get(next.path)?.dirty) open.set(next.path, next);
+  }
+  // Reload can also discover a recovery draft that was not previously open.
+  const openIds = new Set([...open.values()].map((document) => document.documentId));
+  for (const document of reloaded.documents) {
+    if (document.recovered && !open.has(document.path) && !openIds.has(document.documentId)) {
+      open.set(document.path, document);
+    }
+  }
+  const first = open.values().next().value;
+  if (first === undefined)
+    return focusWorkspaceDocument(reloaded, reloaded.activeDocument.documentId);
+
+  const documents = [...open.values()];
+  const activePath = pathAfterBrowserMutation(
+    previous.activeDocument.path,
+    mutation.from,
+    mutation.to,
+  );
+  const activeDocument = open.get(activePath ?? previous.activeDocument.path) ?? first;
+  return selectWorkspaceDocument(
+    freezeState({ ...reloaded, documents, activeDocument }),
+    activeDocument.documentId,
+  );
+}
+
 export function addBlankWorkspaceDocument(
   state: WorkspaceState,
   documentId: DocumentId,
+  occupiedPaths: readonly string[] = [],
 ): WorkspaceState {
-  const paths = new Set(state.documents.map((document) => document.path));
+  const paths = new Set([...occupiedPaths, ...state.documents.map((document) => document.path)]);
   let sequence = 1;
   let path = "Untitled.md";
   while (paths.has(path)) {
@@ -724,4 +799,14 @@ export function addBlankWorkspaceDocument(
     saveState: "saved",
     errorMessage: null,
   });
+}
+
+/** Exports a preserved draft as inert text; never serializes a drawing scene. */
+export function legacyRecoveryTextExport(draft: RecoveryDraft): Readonly<{
+  name: string;
+  contents: string;
+}> | null {
+  if (resolveFormatForPath(draft.path).id !== "legacy-drawing") return null;
+  const leaf = draft.path.split("/").at(-1) ?? "drawing";
+  return Object.freeze({ name: `${leaf}.recovery.txt`, contents: draft.markdown });
 }

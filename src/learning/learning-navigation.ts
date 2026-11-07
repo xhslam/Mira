@@ -2,15 +2,13 @@ import type { LearningSection } from "./learning-types";
 
 export type LearningMainSection = "home" | "library";
 export type LearningSurface =
-  LearningMainSection | "craft" | "url-import" | "practice" | "phrase-memory" | "settings";
-
-export const LEARNING_MAIN_TABS: readonly Readonly<{
-  id: LearningMainSection;
-  label: string;
-}>[] = Object.freeze([
-  Object.freeze({ id: "home", label: "今天" }),
-  Object.freeze({ id: "library", label: "资料" }),
-]);
+  | LearningMainSection
+  | "craft"
+  | "url-import"
+  | "practice"
+  | "phrase-memory"
+  | "settings"
+  | "english-coach";
 
 /**
  * Keeps the visible learning information architecture intentionally small while
@@ -18,6 +16,7 @@ export const LEARNING_MAIN_TABS: readonly Readonly<{
  */
 export function resolveLearningSurface(section: LearningSection): LearningSurface {
   if (section === "discover" || section === "library") return "library";
+  if (section === "english-coach") return "english-coach";
   if (section === "practice") return "practice";
   if (section === "settings") return "settings";
   if (section === "phrase-memory" || section === "vocabulary") return "phrase-memory";

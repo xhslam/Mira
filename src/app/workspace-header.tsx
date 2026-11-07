@@ -1,9 +1,19 @@
-import { Check, Eye, MoreVertical, Pencil, Search, X } from "lucide-react-native";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Check, ChevronDown, MoreHorizontal, Pencil, Search, Undo2 } from "lucide-react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import type { EditorMode } from "../session/document-session";
 import type { TranslationKey } from "./i18n";
 import { useTranslate } from "./locale";
+import { MiraSheet } from "./mira-controls";
 import { useTheme, type Theme } from "./theme";
 import type { WorkspaceSaveState } from "./workspace-state";
 import { SidebarToggleIcon } from "./sidebar-toggle-icon";
@@ -30,15 +40,11 @@ const SAVE_KEYS: Readonly<Record<WorkspaceSaveState, TranslationKey>> = Object.f
 type WorkspaceHeaderProps = Readonly<{
   filename: string;
   dirty: boolean;
-  editorMode: EditorMode;
-  nextEditorMode: EditorMode;
-  showEditorMode: boolean;
   saveState: WorkspaceSaveState;
   onOpenDrawer: () => void;
   onOpenSearch: () => void;
   onOpenMenu: () => void;
   onBeginRename: () => void;
-  onToggleEditorMode: () => void;
   canRename: boolean;
   rename: Readonly<{
     value: string;
@@ -53,15 +59,11 @@ type WorkspaceHeaderProps = Readonly<{
 export function WorkspaceHeader({
   filename,
   dirty,
-  editorMode,
-  nextEditorMode,
-  showEditorMode,
   saveState,
   onOpenDrawer,
   onOpenSearch,
   onOpenMenu,
   onBeginRename,
-  onToggleEditorMode,
   canRename,
   rename,
 }: WorkspaceHeaderProps) {
@@ -71,10 +73,11 @@ export function WorkspaceHeader({
   const failing = saveState === "conflict" || saveState === "error";
   return (
     <View accessibilityRole="header" style={styles.header}>
-      <IconButton label={t("header.openWorkspace")} onPress={onOpenDrawer}>
-        <SidebarToggleIcon color={theme.colors.text} expanded={false} size={22} />
+      <IconButton label={t("header.openWorkspace")} onPress={onOpenDrawer} plain>
+        <View style={styles.sidebarCircle}>
+          <SidebarToggleIcon color={theme.colors.text} expanded={false} size={19} />
+        </View>
       </IconButton>
-      <View accessibilityElementsHidden style={styles.fileMark} />
       {rename ? (
         <View style={styles.renameBlock}>
           <TextInput
@@ -115,7 +118,7 @@ export function WorkspaceHeader({
             >
               {editableNoteName(filename)}
             </Text>
-            {canRename ? <Pencil color={theme.colors.mutedText} size={12} strokeWidth={2} /> : null}
+            {canRename ? <Pencil color={theme.colors.text} size={16} strokeWidth={2} /> : null}
             {dirty ? (
               <View
                 accessibilityLabel={t("header.unsavedChanges")}
@@ -124,19 +127,24 @@ export function WorkspaceHeader({
               />
             ) : null}
           </View>
-          <Text
-            accessibilityLiveRegion="polite"
-            numberOfLines={1}
-            style={[styles.saveState, failing && styles.saveStateError]}
-          >
-            {t(SAVE_KEYS[saveState])}
-          </Text>
+          <View style={styles.saveLine}>
+            {saveState === "saved" ? (
+              <Check color={theme.colors.mutedText} size={14} strokeWidth={2} />
+            ) : null}
+            <Text
+              accessibilityLiveRegion="polite"
+              numberOfLines={1}
+              style={[styles.saveState, failing && styles.saveStateError]}
+            >
+              {t(SAVE_KEYS[saveState])}
+            </Text>
+          </View>
         </Pressable>
       )}
       {rename ? (
         <>
           <IconButton label={t("header.cancelRename")} onPress={rename.onCancel}>
-            <X color={theme.colors.mutedText} size={20} strokeWidth={2} />
+            <Undo2 color={theme.colors.mutedText} size={20} strokeWidth={2} />
           </IconButton>
           <IconButton
             disabled={rename.busy}
@@ -152,32 +160,73 @@ export function WorkspaceHeader({
         </>
       ) : (
         <>
-          <IconButton label={t("header.searchNotes")} onPress={onOpenSearch}>
-            <Search color={theme.colors.text} size={21} strokeWidth={2} />
+          <IconButton label={t("header.searchNotes")} onPress={onOpenSearch} plain>
+            <Search color={theme.colors.text} size={22} strokeWidth={2} />
           </IconButton>
-          {showEditorMode ? (
-            <Pressable
-              accessibilityLabel={t("header.switchMode", { mode: t(MODE_KEYS[nextEditorMode]) })}
-              accessibilityRole="button"
-              onPress={onToggleEditorMode}
-              style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}
-            >
-              {editorMode === "reading" ? (
-                <Eye color={theme.colors.accent} size={14} strokeWidth={2.2} />
-              ) : null}
-              <Text
-                style={[styles.modeButtonText, editorMode === "reading" && styles.readingModeText]}
-              >
-                {t(MODE_KEYS[editorMode])}
-              </Text>
-            </Pressable>
-          ) : null}
-          <IconButton label={t("header.moreActions")} onPress={onOpenMenu}>
-            <MoreVertical color={theme.colors.text} size={22} strokeWidth={2} />
+          <IconButton label={t("header.moreActions")} onPress={onOpenMenu} plain>
+            <MoreHorizontal color={theme.colors.text} size={23} strokeWidth={2} />
           </IconButton>
         </>
       )}
     </View>
+  );
+}
+
+export function WorkspaceModePicker({
+  mode,
+  modes,
+  onSelect,
+}: Readonly<{
+  mode: EditorMode;
+  modes: readonly EditorMode[];
+  onSelect: (mode: EditorMode) => void;
+}>) {
+  const theme = useTheme();
+  const t = useTranslate();
+  const styles = createStyles(theme);
+  const [visible, setVisible] = useState(false);
+  if (modes.length < 2) return null;
+
+  return (
+    <>
+      <Pressable
+        accessibilityLabel={t("header.editorMode", { mode: t(MODE_KEYS[mode]) })}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: visible }}
+        hitSlop={{ top: 7, bottom: 7 }}
+        onPress={() => {
+          Keyboard.dismiss();
+          setVisible(true);
+        }}
+        style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}
+      >
+        <Text numberOfLines={1} style={styles.modeButtonText}>
+          {t(MODE_KEYS[mode])}
+        </Text>
+        <ChevronDown color={theme.colors.text} size={16} strokeWidth={2} />
+      </Pressable>
+      <MiraSheet
+        onClose={() => setVisible(false)}
+        title={t("header.editorModes")}
+        visible={visible}
+      >
+        {modes.map((option) => (
+          <Pressable
+            key={option}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: option === mode }}
+            onPress={() => {
+              setVisible(false);
+              if (option !== mode) onSelect(option);
+            }}
+            style={({ pressed }) => [styles.modeOption, pressed && styles.pressed]}
+          >
+            <Text style={styles.modeOptionText}>{t(MODE_KEYS[option])}</Text>
+            {option === mode ? <Check color={theme.colors.text} size={19} /> : null}
+          </Pressable>
+        ))}
+      </MiraSheet>
+    </>
   );
 }
 
@@ -186,9 +235,16 @@ type IconButtonProps = Readonly<{
   onPress: () => void;
   children: React.ReactNode;
   disabled?: boolean;
+  plain?: boolean;
 }>;
 
-export function IconButton({ label, onPress, children, disabled = false }: IconButtonProps) {
+export function IconButton({
+  label,
+  onPress,
+  children,
+  disabled = false,
+  plain = false,
+}: IconButtonProps) {
   const theme = useTheme();
   const styles = createStyles(theme);
   return (
@@ -201,6 +257,7 @@ export function IconButton({ label, onPress, children, disabled = false }: IconB
       onPress={onPress}
       style={({ pressed }) => [
         styles.iconButton,
+        plain && styles.plainIconButton,
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}
@@ -213,72 +270,76 @@ export function IconButton({ label, onPress, children, disabled = false }: IconB
 function createStyles(theme: Theme) {
   return StyleSheet.create({
     header: {
-      minHeight: 64,
+      minHeight: 66,
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
-      backgroundColor: theme.colors.canvas,
-      shadowColor: "#10131A",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: theme.mode === "dark" ? 0.22 : 0.06,
-      shadowRadius: 8,
-      elevation: 2,
+      paddingLeft: 12,
+      paddingRight: 4,
+      paddingTop: 10,
+      backgroundColor: theme.colors.background,
     },
     iconButton: {
       width: 44,
       height: 44,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.canvas,
+    },
+    plainIconButton: { backgroundColor: "transparent" },
+    sidebarCircle: {
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surfaceMuted,
     },
     modeButton: {
-      minWidth: 52,
-      height: 36,
+      maxWidth: "36%",
+      minHeight: 30,
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 10,
-      borderWidth: 1,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.surfaceMuted,
       flexDirection: "row",
-      gap: 5,
+      gap: 4,
     },
     modeButtonText: {
       color: theme.colors.text,
-      fontSize: 12,
-      fontWeight: "700",
+      flexShrink: 1,
+      fontSize: 13,
+      fontWeight: "600",
     },
-    readingModeText: {
-      color: theme.colors.accent,
+    modeOption: {
+      minHeight: 48,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      borderRadius: theme.radius.medium,
     },
+    modeOptionText: { flex: 1, color: theme.colors.text, fontSize: 16 },
     pressed: {
       backgroundColor: theme.colors.surfaceMuted,
       opacity: 0.78,
     },
-    fileMark: {
-      width: 5,
-      height: 30,
-      marginLeft: 4,
-      marginRight: 12,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
-    },
     filename: {
       minWidth: 0,
-      flex: 1,
+      flexShrink: 1,
       color: theme.colors.text,
-      fontSize: 17,
+      fontSize: 18,
       fontWeight: "700",
-      lineHeight: 23,
     },
     title: {
       minWidth: 0,
       flex: 1,
       justifyContent: "center",
       borderRadius: 8,
+      marginLeft: 4,
+      marginRight: 12,
     },
     titlePressed: { opacity: 0.66 },
     titleRow: {
@@ -287,10 +348,11 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 7,
     },
+    saveLine: { flexDirection: "row", alignItems: "center", gap: 4 },
     saveState: {
+      flexShrink: 1,
       color: theme.colors.mutedText,
-      fontSize: 11,
-      fontWeight: "600",
+      fontSize: 12,
     },
     saveStateError: {
       color: theme.colors.error,
@@ -306,6 +368,7 @@ function createStyles(theme: Theme) {
       flex: 1,
       justifyContent: "center",
       gap: 2,
+      marginHorizontal: 12,
     },
     renameInput: {
       minWidth: 0,

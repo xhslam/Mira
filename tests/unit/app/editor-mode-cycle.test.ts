@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { nextEditorMode } from "../../../src/app/editor-mode-cycle";
+import { editorModes, nextEditorMode } from "../../../src/app/editor-mode-cycle";
 
 describe("nextEditorMode", () => {
   it("cycles Markdown through rich text, source, and reading modes", () => {
@@ -13,5 +13,15 @@ describe("nextEditorMode", () => {
     expect(nextEditorMode("tree", "json")).toBe("table");
     expect(nextEditorMode("table", "yaml")).toBe("source");
     expect(nextEditorMode("source", "toml")).toBe("tree");
+  });
+});
+
+describe("editorModes", () => {
+  it("offers only the modes supported by the active file format", () => {
+    expect(editorModes("markdown")).toEqual(["wysiwyg", "source", "reading"]);
+    for (const format of ["json", "yaml", "toml"]) {
+      expect(editorModes(format)).toEqual(["tree", "table", "source"]);
+    }
+    expect(editorModes("text")).toEqual(["source"]);
   });
 });

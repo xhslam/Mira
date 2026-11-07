@@ -1,14 +1,15 @@
 import * as Crypto from "expo-crypto";
 import {
-  Bot,
+  ArrowUp,
   Clock3,
+  ChevronLeft,
+  ChevronDown,
+  FileText,
   Globe2,
   Inbox,
   MoreHorizontal,
   Plus,
-  Send,
   Square,
-  X,
 } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -24,7 +25,8 @@ import {
 } from "react-native";
 
 import { aiProviderCapabilities, type AiProviderProfile } from "../ai/provider-profile";
-import type { AiConversationId, AiConversationMessage } from "../ai/conversation";
+import { pickDefaultAiProviderProfile } from "../ai/provider-profile-manager";
+import type { AiConversation, AiConversationId, AiConversationMessage } from "../ai/conversation";
 import type { AiProposal } from "../ai/proposal";
 import { createAiWorkspaceToolRuntime } from "../ai/workspace-tool-runtime";
 import type { EditorWorkspaceController } from "./editor-workspace-controller";
@@ -32,15 +34,13 @@ import type { AppServices } from "./app-services";
 import { describeAiSendFailure } from "./ai-error-message";
 import { AiContextSheet } from "./ai-context-sheet";
 import { AiAutomationSheet } from "./ai-automation-sheet";
+import { AiModelPicker } from "./ai-model-picker";
 import { AiProviderSheet } from "./ai-provider-sheet";
 import { AiProposalSheet } from "./ai-proposal-sheet";
 import { AiProposalInbox } from "./ai-proposal-inbox";
-import { EnglishCoachScreen } from "./english-coach-screen";
-import { createExpoLearningStore } from "../learning/expo-learning-store";
-import type { LearningSnapshot } from "../learning/learning-types";
+import { CircleAction, MiraAvatar, MiraSheet, SheetAction } from "./mira-controls";
 import { useTheme, type Theme } from "./theme";
 import { useUiSound } from "./ui-sound-context";
-import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 type DisplayMessage = AiConversationMessage & Readonly<{ localError?: boolean }>;
 type Citation = Readonly<{ url: string; title: string | null }>;
@@ -150,25 +150,52 @@ function AiMessageContent({
   return <View style={styles.messageContent}>{blocks}</View>;
 }
 
-export function AiWorkspaceScreen({
+export function AgentConversationScreen({
   services,
   controller,
-  onOpenLearningPractice,
-  onOpenSidebar,
+  onBack,
+  initialConversation,
+  threadTitle,
+  avatarLook,
+  splitPane = false,
+  sharedDrafts,
+  providerRefresh = 0,
+  onThreadActivity,
 }: Readonly<{
   services: AppServices;
   controller: EditorWorkspaceController;
-  onOpenLearningPractice: () => void;
-  onOpenSidebar: () => void;
+  onBack: () => void;
+  initialConversation: AiConversation | null;
+  threadTitle?: string;
+  avatarLook?: Readonly<{ color: string; shape: string }>;
+  splitPane?: boolean;
+  sharedDrafts?: Map<AiConversationId | null, string>;
+  providerRefresh?: number;
+  onThreadActivity?: (id: AiConversationId | null) => void;
 }>) {
   const theme = useTheme();
   const styles = createStyles(theme);
   const uiSound = useUiSound();
   const [profiles, setProfiles] = useState<readonly AiProviderProfile[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<AiConversationId | null>(null);
+  const [activeProfileId, setActiveProfileId] = useState(
+    initialConversation?.providerProfileId ?? null,
+  );
+  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
+  const [modelPickerVisible, setModelPickerVisible] = useState(false);
+  const [menu, setMenu] = useState<"options" | null>(null);
+  const timeline = useRef<FlatList<DisplayMessage>>(null);
+  const followLatest = useRef(true);
+  const [conversationId, setConversationId] = useState<AiConversationId | null>(
+    initialConversation?.id ?? null,
+  );
+  const [threadState, setThreadState] = useState<"loading" | "ready" | "error">(
+    initialConversation ? "loading" : "ready",
+  );
+  const [threadRetry, setThreadRetry] = useState(0);
   const [messages, setMessages] = useState<readonly DisplayMessage[]>([]);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(
+    () => sharedDrafts?.get(initialConversation?.id ?? null) ?? "",
+  );
   const [sending, setSending] = useState(false);
   const [providerSheetVisible, setProviderSheetVisible] = useState(false);
   const [contextSheetVisible, setContextSheetVisible] = useState(false);
@@ -183,47 +210,47 @@ export function AiWorkspaceScreen({
   const [reviewingProposal, setReviewingProposal] = useState<AiProposal | null>(null);
   const [proposalBusy, setProposalBusy] = useState(false);
   const [inboxVisible, setInboxVisible] = useState(false);
-  const [mode, setMode] = useState<"markdown" | "english">("markdown");
-  const learningStore = useMemo(() => createExpoLearningStore(), []);
-  const [learningSnapshot, setLearningSnapshot] = useState<LearningSnapshot | null>(null);
-  const [learningLoadError, setLearningLoadError] = useState<string | null>(null);
-  const [learningLoadRevision, setLearningLoadRevision] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
+  const lifecycle = useRef(false);
   useEffect(() => {
+    lifecycle.current = true;
+    return () => {
+      lifecycle.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (prompt) sharedDrafts?.set(conversationId, prompt);
+    else sharedDrafts?.delete(conversationId);
+  }, [conversationId, prompt, sharedDrafts]);
+
+  useEffect(() => {
+    if (!initialConversation) return;
     let active = true;
-    void (async () => {
-      try {
-        await learningStore.initialize();
-        const loaded = await learningStore.load();
-        if (active) {
-          setLearningSnapshot(loaded);
-          setLearningLoadError(null);
-        }
-      } catch (error) {
-        if (active) {
-          setLearningSnapshot(null);
-          setLearningLoadError(
-            error instanceof Error ? error.message : "Learning 数据暂时无法打开。",
-          );
-        }
-      }
-    })();
+    void services.aiStore
+      .listMessages(initialConversation.id)
+      .then((messages) => {
+        if (!active) return;
+        setMessages(messages);
+        setThreadState("ready");
+      })
+      .catch(() => {
+        if (active) setThreadState("error");
+      });
     return () => {
       active = false;
     };
-  }, [learningLoadRevision, learningStore]);
-  async function updateLearningSnapshot(next: LearningSnapshot): Promise<void> {
-    await learningStore.save(next);
-    setLearningSnapshot(next);
-  }
-  function selectEnglishMode(): void {
-    abortRef.current?.abort();
-    setMode("english");
-  }
+  }, [initialConversation, services.aiStore, threadRetry]);
+
   const activeProfile = useMemo(
-    () => profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null,
-    [activeProfileId, profiles],
+    () =>
+      profiles.find((profile) => profile.id === activeProfileId) ??
+      profiles.find((profile) => profile.id === defaultProfileId) ??
+      profiles[0] ??
+      null,
+    [activeProfileId, defaultProfileId, profiles],
   );
   const canSearch = activeProfile
     ? aiProviderCapabilities(activeProfile.adapter).nativeWebSearch
@@ -238,25 +265,16 @@ export function AiWorkspaceScreen({
     void Promise.all([services.aiProviderProfiles.list(), services.settingsStore.load()])
       .then(async ([summaries, settings]) => {
         if (!active) return;
-        const nextProfiles = Object.freeze(summaries.map((item) => item.profile));
-        setProfiles(nextProfiles);
-        const configured = settings.ok ? settings.value.ai.activeProviderProfileId : null;
-        setActiveProfileId(
-          nextProfiles.some((profile) => profile.id === configured)
-            ? configured
-            : (nextProfiles[0]?.id ?? null),
+        setProfiles(
+          Object.freeze(summaries.filter((item) => item.hasApiKey).map((item) => item.profile)),
         );
+        const configured = settings.ok ? settings.value.ai.activeProviderProfileId : null;
+        setDefaultProfileId(pickDefaultAiProviderProfile(summaries, configured)?.id ?? null);
         setAllowWholeWorkspace(settings.ok && settings.value.ai.allowWholeWorkspaceSearch);
-        const [conversations, storedProposals] = await Promise.all([
-          services.aiStore.listConversations(services.activeWorkspace.grant.workspaceId),
-          services.aiStore.listProposals(services.activeWorkspace.grant.workspaceId),
-        ]);
+        const storedProposals = await services.aiStore.listProposals(
+          services.activeWorkspace.grant.workspaceId,
+        );
         if (active) setProposals(storedProposals);
-        if (!active || conversations.length === 0) return;
-        const latest = conversations[0];
-        if (!latest) return;
-        setConversationId(latest.id);
-        setMessages(await services.aiStore.listMessages(latest.id));
       })
       .catch(() => {
         // The empty state remains actionable through provider settings.
@@ -264,15 +282,7 @@ export function AiWorkspaceScreen({
     return () => {
       active = false;
     };
-  }, [providerRevision, services]);
-
-  async function selectProfile(profile: AiProviderProfile): Promise<void> {
-    setActiveProfileId(profile.id);
-    await services.settingsStore.update((current) => ({
-      ...current,
-      ai: Object.freeze({ ...current.ai, activeProviderProfileId: profile.id }),
-    }));
-  }
+  }, [providerRefresh, providerRevision, services]);
 
   function toggleSelectedPath(path: string): void {
     setSelectedPaths((current) =>
@@ -380,7 +390,7 @@ export function AiWorkspaceScreen({
 
   async function send(): Promise<void> {
     const text = prompt.trim();
-    if (!text || sending || activeProfile === null) return;
+    if (!text || sending || threadState !== "ready" || activeProfile === null) return;
     uiSound.play("send");
     // Keep the user input available for retry if capture/provider setup fails.
     setPrompt("");
@@ -389,11 +399,12 @@ export function AiWorkspaceScreen({
     setToolSummaries(Object.freeze([]));
     const abort = new AbortController();
     abortRef.current = abort;
+    let changedThread = conversationId;
     try {
-      const document = await controller.captureAiSnapshot();
+      const document = activeDocument ? await controller.captureAiSnapshot() : null;
       const selectedReads = await Promise.all(
         selectedPaths
-          .filter((path) => path !== document.path)
+          .filter((path) => path !== document?.path)
           .map(async (path) => ({ path, result: await services.repository.read(path) })),
       );
       const unavailable = selectedReads.find((item) => !item.result.ok);
@@ -407,16 +418,20 @@ export function AiWorkspaceScreen({
         repository: services.repository,
         search: services.workspaceSearch,
         allowWholeWorkspaceSearch: allowWholeWorkspace,
-        authorizedPaths: Object.freeze([document.path, ...selectedPaths]),
+        authorizedPaths: Object.freeze([...(document ? [document.path] : []), ...selectedPaths]),
         createId: Crypto.randomUUID,
-        writableNotes: Object.freeze([
-          Object.freeze({
-            path: document.path,
-            baseRevision: `editor:${document.documentId}:${document.revision}`,
-            baseHash: document.baseHash,
-            baseContent: document.markdown,
-          }),
-        ]),
+        writableNotes: Object.freeze(
+          document
+            ? [
+                Object.freeze({
+                  path: document.path,
+                  baseRevision: `editor:${document.documentId}:${document.revision}`,
+                  baseHash: document.baseHash,
+                  baseContent: document.markdown,
+                }),
+              ]
+            : [],
+        ),
         createReplaceProposal: async (candidate) => {
           const now = new Date().toISOString();
           const proposal = Object.freeze({
@@ -445,11 +460,15 @@ export function AiWorkspaceScreen({
         ...(conversationId ? { conversationId } : {}),
         prompt: text,
         context: Object.freeze([
-          Object.freeze({
-            label: document.path,
-            content: document.markdown,
-            unsaved: document.dirty,
-          }),
+          ...(document
+            ? [
+                Object.freeze({
+                  label: document.path,
+                  content: document.markdown,
+                  unsaved: document.dirty,
+                }),
+              ]
+            : []),
           ...selectedContext,
         ]),
         tools,
@@ -457,7 +476,9 @@ export function AiWorkspaceScreen({
         signal: abort.signal,
       })) {
         if (event.type === "started") {
-          setConversationId(event.conversation.id);
+          changedThread = event.conversation.id;
+          setConversationId(changedThread);
+          if (lifecycle.current) onThreadActivity?.(changedThread);
           setMessages((current) => Object.freeze([...current, event.userMessage]));
         } else if (event.type === "assistant-delta") {
           updateAssistant(event.messageId, event.text);
@@ -510,263 +531,135 @@ export function AiWorkspaceScreen({
       );
     } finally {
       abortRef.current = null;
+      if (lifecycle.current) onThreadActivity?.(changedThread);
       setSending(false);
     }
   }
 
-  if (mode === "english") {
-    if (!learningSnapshot) {
-      return (
-        <View style={styles.screen}>
-          <View style={styles.modeHeader}>
-            <View style={styles.modeHeaderSlot} />
-            <View style={styles.modeSwitch}>
-              <Pressable
-                accessibilityRole="tab"
-                onPress={() => setMode("markdown")}
-                style={styles.modeOption}
-              >
-                <Text style={styles.modeText}>Markdown</Text>
-              </Pressable>
-              <View style={[styles.modeOption, styles.modeOptionActive]}>
-                <Text style={[styles.modeText, styles.modeTextActive]}>英语陪练</Text>
-              </View>
-            </View>
-            <View style={styles.modeHeaderSlot} />
-          </View>
-          <View style={styles.loadingMode}>
-            {learningLoadError ? (
-              <>
-                <Text style={styles.loadingModeText}>Learning 数据暂时无法打开</Text>
-                <Text style={styles.loadingModeDetail}>{learningLoadError}</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setLearningLoadRevision((value) => value + 1)}
-                  style={styles.loadingModeRetry}
-                >
-                  <Text style={styles.loadingModeRetryText}>重新尝试</Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <ActivityIndicator color={theme.colors.accent} />
-                <Text style={styles.loadingModeText}>正在准备 Learning 数据</Text>
-              </>
-            )}
-          </View>
-        </View>
-      );
-    }
-    return (
-      <EnglishCoachScreen
-        services={services}
-        snapshot={learningSnapshot}
-        onSnapshotChange={updateLearningSnapshot}
-        onSelectMarkdown={() => setMode("markdown")}
-        onOpenPractice={onOpenLearningPractice}
-        onOpenSidebar={onOpenSidebar}
-      />
-    );
-  }
+  const hasPendingProposal = proposals.some((proposal) => proposal.state === "pending");
+
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={86}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
-      <View style={styles.modeHeader}>
-        <View style={styles.modeHeaderSlot}>
-          <Pressable
-            accessibilityLabel="打开全局侧边栏"
-            accessibilityRole="button"
-            onPress={onOpenSidebar}
-            style={styles.iconAction}
-          >
-            <SidebarToggleIcon color={theme.colors.text} expanded={false} size={23} />
-          </Pressable>
-        </View>
-        <View accessibilityRole="tablist" style={styles.modeSwitch}>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: true }}
-            style={[styles.modeOption, styles.modeOptionActive]}
-          >
-            <Text style={[styles.modeText, styles.modeTextActive]}>Markdown</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: false }}
-            onPress={selectEnglishMode}
-            style={styles.modeOption}
-          >
-            <Text style={styles.modeText}>英语陪练</Text>
-          </Pressable>
-        </View>
-        <View style={styles.modeHeaderSlot} />
-      </View>
       <View style={styles.header}>
-        <View style={styles.identity}>
-          <View style={styles.spark}>
-            <Bot color={theme.colors.accent} size={19} />
-          </View>
-          <View>
-            <Text accessibilityRole="header" style={styles.title}>
-              Mira 智能助手
-            </Text>
-            <Pressable
-              accessibilityLabel="选择 AI 服务"
-              disabled={profiles.length < 2}
-              onPress={() => {
-                if (profiles.length < 2) return;
-                const index = activeProfile ? profiles.indexOf(activeProfile) : -1;
-                const next = profiles[(index + 1) % profiles.length];
-                if (next) void selectProfile(next);
-              }}
-            >
-              <Text style={styles.providerStatus}>
-                <Text
-                  style={{
-                    color:
-                      activeProfile?.connectionStatus === "connected"
-                        ? theme.colors.success
-                        : theme.colors.warning,
-                  }}
-                >
-                  ●
-                </Text>{" "}
-                {activeProfile ? `${activeProfile.name} · ${activeProfile.model}` : "尚未连接服务"}
-              </Text>
-            </Pressable>
-          </View>
+        <View style={styles.headerSide}>
+          {!splitPane ? (
+            <CircleAction label="返回 Agent" onPress={onBack}>
+              <ChevronLeft color={theme.colors.text} size={24} />
+            </CircleAction>
+          ) : null}
         </View>
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityLabel="AI 自动任务"
-            onPress={() => setAutomationSheetVisible(true)}
-            style={styles.iconAction}
-          >
-            <Clock3 color={theme.colors.mutedText} size={20} />
-          </Pressable>
-          <Pressable
-            accessibilityLabel="AI 修改建议"
-            onPress={() => setInboxVisible(true)}
-            style={styles.iconAction}
-          >
-            <Inbox color={theme.colors.mutedText} size={20} />
-            {proposals.some((proposal) => proposal.state === "pending") ? (
-              <View style={styles.badge} />
-            ) : null}
-          </Pressable>
-          <Pressable
-            accessibilityLabel="AI 服务设置"
-            onPress={() => setProviderSheetVisible(true)}
-            style={styles.iconAction}
-          >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={activeProfile ? `选择模型：${activeProfile.model}` : "选择模型"}
+          accessibilityState={{ disabled: sending }}
+          disabled={sending}
+          onPress={() => setModelPickerVisible(true)}
+          style={({ pressed }) => [styles.identity, pressed && styles.pressed]}
+        >
+          <MiraAvatar size={33} {...avatarLook} />
+          <View style={styles.identityCopy}>
+            <Text numberOfLines={1} style={styles.title}>
+              {threadTitle ?? "Mira"}
+            </Text>
+            <Text numberOfLines={1} style={styles.identityModel}>
+              {activeProfile?.model ?? "选择模型"}
+            </Text>
+          </View>
+          <ChevronDown color={theme.colors.mutedText} size={16} />
+        </Pressable>
+        <View style={styles.headerSide}>
+          <CircleAction label="对话选项" onPress={() => setMenu("options")}>
             <MoreHorizontal color={theme.colors.text} size={22} />
-          </Pressable>
+            {hasPendingProposal ? <View style={styles.badge} /> : null}
+          </CircleAction>
         </View>
       </View>
-
-      <View style={styles.contextCard}>
-        <View style={styles.contextHeader}>
-          <Text style={styles.contextLabel}>笔记上下文</Text>
-          <Pressable onPress={() => setContextSheetVisible(true)}>
-            <Text style={styles.permissionText}>
-              整个工作区 · {allowWholeWorkspace ? "已允许" : "未开启"}
-            </Text>
-          </Pressable>
-        </View>
-        <View style={styles.contextRow}>
-          <View style={styles.contextChip}>
-            <Text numberOfLines={1} style={styles.contextChipText}>
-              {activeDocument?.path ?? "No note open"}
-              {activeDocument?.dirty ? " · unsaved" : ""}
-            </Text>
-          </View>
-          {selectedPaths.slice(0, 2).map((path) => (
-            <Pressable
-              accessibilityLabel={`Remove ${path} from context`}
-              key={path}
-              onPress={() => toggleSelectedPath(path)}
-              style={styles.contextChipSecondary}
-            >
-              <Text numberOfLines={1} style={styles.contextChipSecondaryText}>
-                {path}
-              </Text>
-              <X color={theme.colors.mutedText} size={12} />
-            </Pressable>
-          ))}
-          {selectedPaths.length > 2 ? (
-            <Text style={styles.moreContext}>+{selectedPaths.length - 2}</Text>
-          ) : null}
-          <Pressable
-            accessibilityLabel="添加笔记上下文"
-            onPress={() => setContextSheetVisible(true)}
-            style={styles.addContext}
-          >
-            <Plus color={theme.colors.accent} size={16} />
-            <Text style={styles.addContextText}>Add</Text>
-          </Pressable>
-          {canSearch ? (
-            <Pressable
-              accessibilityLabel="Use provider web search"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: webSearchEnabled }}
-              onPress={() => setWebSearch((current) => !current)}
-              style={[styles.webToggle, webSearchEnabled && styles.webToggleActive]}
-            >
-              <Globe2
-                color={webSearchEnabled ? theme.colors.accent : theme.colors.mutedText}
-                size={15}
-              />
-              <Text style={[styles.webToggleText, webSearchEnabled && styles.webToggleTextActive]}>
-                Web
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      {activeProfile === null ? (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIcon}>
-            <Bot color={theme.colors.accent} size={28} />
-          </View>
-          <Text style={styles.emptyTitle}>Connect your model</Text>
-          <Pressable onPress={() => setProviderSheetVisible(true)} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Add provider</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          contentContainerStyle={styles.timeline}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.message,
-                item.role === "user" ? styles.userMessage : styles.assistantMessage,
-                item.localError && styles.errorMessage,
-              ]}
-            >
-              {item.role === "user" ? (
-                <Text selectable style={styles.userMessageText}>
-                  {item.content}
-                </Text>
+      <FlatList
+        ref={timeline}
+        style={styles.timelineList}
+        contentContainerStyle={[styles.timeline, messages.length === 0 && styles.timelineEmpty]}
+        keyboardShouldPersistTaps="handled"
+        data={messages}
+        keyExtractor={(item) => item.id}
+        onContentSizeChange={() => {
+          if (messages.length > 0 && followLatest.current) {
+            timeline.current?.scrollToEnd({ animated: false });
+          }
+        }}
+        onScroll={({ nativeEvent }) => {
+          const { contentSize, contentOffset, layoutMeasurement } = nativeEvent;
+          followLatest.current =
+            contentSize.height - contentOffset.y - layoutMeasurement.height < 96;
+        }}
+        scrollEventThrottle={32}
+        ListEmptyComponent={
+          threadState !== "ready" ? (
+            <View style={styles.emptyState}>
+              {threadState === "loading" ? (
+                <ActivityIndicator color={theme.colors.accent} />
               ) : (
-                <AiMessageContent
-                  content={
-                    item.content ||
-                    (item.status === "incomplete" ? "上次请求未完成，请检查 API 配置后重试。" : "")
-                  }
-                  styles={styles}
-                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setThreadState("loading");
+                    setThreadRetry((value) => value + 1);
+                  }}
+                  style={styles.primaryButton}
+                >
+                  <Text style={styles.primaryButtonText}>会话暂时无法打开，点击重试</Text>
+                </Pressable>
               )}
             </View>
-          )}
-        />
-      )}
+          ) : (
+            <View style={styles.emptyState}>
+              <MiraAvatar size={66} />
+              <Text accessibilityRole="header" style={styles.emptyTitle}>
+                {activeProfile ? "给 Mira 发条消息" : "连接一个模型"}
+              </Text>
+              <Text style={styles.emptyCopy}>
+                {activeProfile
+                  ? "可以先添加一篇笔记，再告诉 Mira 你想做什么。"
+                  : "连接后就能发送消息，也可以先在下方写好草稿。"}
+              </Text>
+              {activeProfile ? null : (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setProviderSheetVisible(true)}
+                  style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.primaryButtonText}>设置模型</Text>
+                </Pressable>
+              )}
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <View
+            style={[
+              styles.message,
+              item.role === "user" ? styles.userMessage : styles.assistantMessage,
+              item.localError && styles.errorMessage,
+            ]}
+          >
+            {item.role === "user" ? (
+              <Text selectable style={styles.userMessageText}>
+                {item.content}
+              </Text>
+            ) : (
+              <AiMessageContent
+                content={
+                  item.content ||
+                  (item.status === "incomplete" ? "上次请求未完成，请检查 API 配置后重试。" : "")
+                }
+                styles={styles}
+              />
+            )}
+          </View>
+        )}
+      />
 
       {citations.length > 0 ? (
         <View style={styles.citations}>
@@ -807,48 +700,136 @@ export function AiWorkspaceScreen({
         </View>
       ) : null}
 
-      {activeProfile ? (
-        <View style={styles.composer}>
+      {activeDocument || selectedPaths.length > 0 || allowWholeWorkspace || canSearch ? (
+        <View style={styles.contextRow}>
+          {activeDocument || selectedPaths.length > 0 || allowWholeWorkspace ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="查看笔记上下文"
+              onPress={() => setContextSheetVisible(true)}
+              style={styles.contextChip}
+            >
+              <FileText color={theme.colors.mutedText} size={15} />
+              <Text numberOfLines={1} style={styles.contextChipText}>
+                {activeDocument?.path ?? "笔记上下文"}
+                {activeDocument?.dirty ? " · 未保存" : ""}
+                {selectedPaths.length > 0 ? ` +${selectedPaths.length}` : ""}
+                {allowWholeWorkspace ? " · 可搜索工作区" : ""}
+              </Text>
+            </Pressable>
+          ) : null}
+          {canSearch ? (
+            <Pressable
+              accessibilityLabel="联网搜索"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: webSearchEnabled }}
+              onPress={() => setWebSearch((current) => !current)}
+              style={[styles.contextChip, webSearchEnabled && styles.webToggleActive]}
+            >
+              <Globe2
+                color={webSearchEnabled ? theme.colors.canvas : theme.colors.mutedText}
+                size={15}
+              />
+              <Text
+                style={[styles.contextChipText, webSearchEnabled && styles.webToggleTextActive]}
+              >
+                联网
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {sending ? (
+        <View style={styles.activity} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={theme.colors.accent} size="small" />
+          <Text style={styles.providerStatus}>Mira 正在回复</Text>
+        </View>
+      ) : null}
+      <View style={styles.composer}>
+        <View style={styles.inputPill}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="添加笔记上下文"
+            onPress={() => setContextSheetVisible(true)}
+            style={({ pressed }) => [styles.attachButton, pressed && styles.pressed]}
+          >
+            <Plus color={theme.colors.mutedText} size={23} />
+          </Pressable>
           <TextInput
-            accessibilityLabel="向 Mira 智能助手提问"
+            accessibilityLabel="向 Agent 对话提问"
             multiline
             onChangeText={setPrompt}
-            placeholder="询问、整理或改写你的笔记…"
+            placeholder={`给 ${threadTitle ?? "Mira"} 发消息…`}
             placeholderTextColor={theme.colors.mutedText}
             style={styles.composerInput}
             value={prompt}
           />
-          <View style={styles.composerFooter}>
+          {sending ? (
             <Pressable
-              accessibilityLabel="添加笔记上下文"
-              onPress={() => setContextSheetVisible(true)}
-              style={styles.composerAdd}
+              accessibilityRole="button"
+              accessibilityLabel="停止 AI 回复"
+              onPress={() => abortRef.current?.abort()}
+              style={({ pressed }) => [styles.sendButton, pressed && styles.pressed]}
             >
-              <Plus color={theme.colors.mutedText} size={21} />
+              <Square color={theme.colors.canvas} fill={theme.colors.canvas} size={14} />
             </Pressable>
-            {sending ? (
-              <Pressable
-                accessibilityLabel="停止 AI 回复"
-                onPress={() => abortRef.current?.abort()}
-                style={styles.sendButton}
-              >
-                <Square color="#FFFFFF" fill="#FFFFFF" size={14} />
-              </Pressable>
-            ) : (
-              <Pressable
-                accessibilityLabel="发送消息"
-                disabled={!prompt.trim()}
-                onPress={() => void send()}
-                style={[styles.sendButton, !prompt.trim() && styles.sendButtonDisabled]}
-              >
-                <Send color="#FFFFFF" size={17} />
-              </Pressable>
-            )}
-          </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="发送消息"
+              accessibilityState={{
+                disabled: threadState !== "ready" || !activeProfile || !prompt.trim(),
+              }}
+              disabled={threadState !== "ready" || !activeProfile || !prompt.trim()}
+              onPress={() => {
+                followLatest.current = true;
+                void send();
+              }}
+              style={({ pressed }) => [
+                styles.sendButton,
+                (threadState !== "ready" || !activeProfile || !prompt.trim()) &&
+                  styles.sendButtonDisabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <ArrowUp color={theme.colors.canvas} size={20} />
+            </Pressable>
+          )}
         </View>
-      ) : null}
-      {sending ? <ActivityIndicator color={theme.colors.accent} style={styles.activity} /> : null}
+      </View>
+      <MiraSheet onClose={() => setMenu(null)} title="对话选项" visible={menu !== null}>
+        <SheetAction
+          icon={<Clock3 color={theme.colors.text} size={20} />}
+          label="AI 自动任务"
+          onPress={() => {
+            setMenu(null);
+            setAutomationSheetVisible(true);
+          }}
+        />
+        <SheetAction
+          icon={<Inbox color={theme.colors.text} size={20} />}
+          label={hasPendingProposal ? "AI 修改建议 · 待确认" : "AI 修改建议"}
+          onPress={() => {
+            setMenu(null);
+            setInboxVisible(true);
+          }}
+        />
+      </MiraSheet>
 
+      <AiModelPicker
+        activeProfileId={activeProfile?.id ?? null}
+        onClose={() => setModelPickerVisible(false)}
+        onManage={() => {
+          setModelPickerVisible(false);
+          setProviderSheetVisible(true);
+        }}
+        onSelect={(profile) => {
+          setActiveProfileId(profile.id);
+          setModelPickerVisible(false);
+        }}
+        profiles={profiles}
+        visible={modelPickerVisible}
+      />
       <AiProviderSheet
         connectionTester={services.aiConnectionTester}
         manager={services.aiProviderProfiles}
@@ -899,66 +880,41 @@ export function AiWorkspaceScreen({
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    screen: { flex: 1, paddingHorizontal: 16, backgroundColor: theme.colors.background },
-    modeHeader: {
-      minHeight: 58,
+    screen: { flex: 1, backgroundColor: theme.colors.background, paddingHorizontal: 12 },
+    header: {
+      minHeight: 60,
       flexDirection: "row",
       alignItems: "center",
+      gap: 8,
       justifyContent: "space-between",
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
-      marginHorizontal: -16,
-      paddingHorizontal: 16,
     },
-    modeHeaderSlot: { width: 74 },
-    modeSwitch: {
-      flexDirection: "row",
-      padding: 3,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+    headerSide: { width: 48, height: 48 },
+    attachButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      margin: 3,
+      alignItems: "center",
+      justifyContent: "center",
       backgroundColor: theme.colors.surface,
     },
-    modeOption: { minHeight: 31, justifyContent: "center", paddingHorizontal: 11, borderRadius: 9 },
-    modeOptionActive: { backgroundColor: "#132B49" },
-    modeText: { color: theme.colors.mutedText, fontSize: 14, fontWeight: "600" },
-    modeTextActive: { color: theme.colors.accent },
-    loadingMode: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-    loadingModeText: { color: theme.colors.mutedText, fontSize: 14, textAlign: "center" },
-    loadingModeDetail: {
-      maxWidth: 280,
-      color: theme.colors.mutedText,
-      fontSize: 12,
-      lineHeight: 18,
-      textAlign: "center",
-    },
-    loadingModeRetry: {
-      minHeight: 42,
-      paddingHorizontal: 16,
-      justifyContent: "center",
-      alignItems: "center",
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: theme.colors.divider,
-    },
-    loadingModeRetryText: { color: theme.colors.accent, fontSize: 14, fontWeight: "700" },
-    header: {
-      minHeight: 76,
+    identity: {
+      minWidth: 0,
+      flexShrink: 1,
+      maxWidth: "74%",
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      paddingTop: 10,
+      gap: 8,
+      minHeight: 48,
+      paddingLeft: 6,
+      paddingRight: 14,
+      borderRadius: 24,
+      backgroundColor: theme.colors.canvas,
     },
-    identity: { minWidth: 0, flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
-    spark: {
-      width: 38,
-      height: 38,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 10,
-      backgroundColor: theme.colors.accentSoft,
-    },
-    title: { color: theme.colors.text, fontSize: 19, fontWeight: "700" },
+    identityCopy: { minWidth: 0, flexShrink: 1 },
+    identityModel: { color: theme.colors.mutedText, fontSize: 11 },
+    title: { color: theme.colors.text, flexShrink: 1, fontSize: 16, fontWeight: "600" },
+    pressed: { opacity: 0.66 },
     messageContent: { gap: 4 },
     messageSpace: { height: 5 },
     messageHeading: { color: theme.colors.text, fontSize: 16, fontWeight: "600", lineHeight: 23 },
@@ -979,101 +935,46 @@ function createStyles(theme: Theme) {
     },
     bulletRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
     bulletMark: { color: theme.colors.accent, fontSize: 15, lineHeight: 21 },
-    providerStatus: { marginTop: 2, color: theme.colors.mutedText, fontSize: 11 },
-    headerActions: { flexDirection: "row", alignItems: "center", gap: 2 },
-    iconAction: { width: 42, height: 44, alignItems: "center", justifyContent: "center" },
+    providerStatus: { color: theme.colors.mutedText, fontSize: 11 },
     badge: {
       position: "absolute",
       top: 8,
-      right: 7,
+      right: 8,
       width: 7,
       height: 7,
-      borderRadius: 10,
+      borderRadius: 4,
       backgroundColor: theme.colors.error,
     },
-    contextCard: {
-      gap: 9,
-      padding: 12,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      borderRadius: 10,
-      backgroundColor: theme.colors.surface,
-    },
-    contextHeader: { flexDirection: "row", justifyContent: "space-between" },
-    contextLabel: {
-      color: theme.colors.mutedText,
-      fontSize: 10,
-      fontWeight: "700",
-      letterSpacing: 0.8,
-    },
-    permissionText: { color: theme.colors.mutedText, fontSize: 11 },
-    contextRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    contextRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
     contextChip: {
       minWidth: 0,
-      maxWidth: "58%",
-      paddingHorizontal: 9,
-      paddingVertical: 6,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-    },
-    contextChipText: { color: theme.colors.accent, fontSize: 12, fontWeight: "600" },
-    contextChipSecondary: {
-      maxWidth: 110,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 6,
-      borderRadius: 10,
-      backgroundColor: theme.colors.surfaceMuted,
-    },
-    contextChipSecondaryText: {
-      minWidth: 0,
       flexShrink: 1,
-      color: theme.colors.text,
-      fontSize: 11,
-    },
-    moreContext: { color: theme.colors.mutedText, fontSize: 11 },
-    addContext: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 3 },
-    addContextText: { color: theme.colors.accent, fontSize: 12, fontWeight: "600" },
-    webToggle: {
-      minHeight: 32,
       flexDirection: "row",
       alignItems: "center",
-      gap: 4,
-      marginLeft: "auto",
-      paddingHorizontal: 8,
-      borderRadius: 10,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+      gap: 6,
+      paddingHorizontal: 12,
+      minHeight: 44,
+      borderRadius: 22,
+      backgroundColor: theme.colors.surface,
     },
+    contextChipText: { flexShrink: 1, color: theme.colors.text, fontSize: 12 },
     webToggleActive: { backgroundColor: theme.colors.text },
-    webToggleText: { color: theme.colors.mutedText, fontSize: 11, fontWeight: "600" },
-    webToggleTextActive: { color: theme.colors.background },
-    timeline: { flexGrow: 1, gap: 12, paddingVertical: 18 },
-    message: { maxWidth: "88%", paddingHorizontal: 0, paddingVertical: 11, borderRadius: 0 },
+    webToggleTextActive: { color: theme.colors.canvas },
+    timelineList: { flex: 1 },
+    timeline: { flexGrow: 1, gap: 8, paddingVertical: 16 },
+    timelineEmpty: { justifyContent: "center" },
+    message: { maxWidth: "86%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 22 },
     userMessage: {
       alignSelf: "flex-end",
-      borderBottomRightRadius: 20,
-      backgroundColor: theme.colors.text,
+      backgroundColor: "#BB460A",
     },
     assistantMessage: {
       alignSelf: "flex-start",
-      borderBottomLeftRadius: 20,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
     },
-    errorMessage: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.error },
-    userMessageText: {
-      color: theme.colors.background,
-      fontSize: 14,
-      lineHeight: 20,
-      paddingHorizontal: 13,
-    },
-    messageText: { color: theme.colors.text, fontSize: 14, lineHeight: 21, paddingHorizontal: 13 },
+    errorMessage: { backgroundColor: theme.colors.warningSurface },
+    userMessageText: { color: theme.colors.canvas, fontSize: 15, lineHeight: 22 },
+    messageText: { color: theme.colors.text, fontSize: 15, lineHeight: 22, flexShrink: 1 },
     citations: { gap: 3, marginBottom: 8, paddingHorizontal: 4 },
     citationTitle: {
       color: theme.colors.mutedText,
@@ -1100,59 +1001,57 @@ function createStyles(theme: Theme) {
     proposalPath: { marginTop: 2, color: theme.colors.mutedText, fontSize: 11 },
     reviewButton: { minHeight: 38, justifyContent: "center", paddingHorizontal: 10 },
     reviewText: { color: theme.colors.accent, fontSize: 12, fontWeight: "700" },
-    composer: {
+    composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingVertical: 8 },
+    inputPill: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 48,
+      flexDirection: "row",
+      alignItems: "flex-end",
       gap: 4,
-      marginBottom: 6,
-      padding: 10,
+      paddingLeft: 2,
+      borderRadius: 28,
+      backgroundColor: theme.colors.canvas,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.divider,
-      borderRadius: 10,
-      backgroundColor: theme.colors.background,
     },
     composerInput: {
-      maxHeight: 112,
-      minHeight: 42,
-      paddingHorizontal: 2,
-      color: theme.colors.text,
-      fontSize: 14,
-      lineHeight: 20,
-      textAlignVertical: "top",
-    },
-    composerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    composerAdd: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-    sendButton: {
-      width: 38,
-      height: 38,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 10,
-      backgroundColor: theme.colors.text,
-    },
-    sendButtonDisabled: { opacity: 0.38 },
-    activity: { position: "absolute", right: 24, bottom: 66 },
-    emptyState: {
       flex: 1,
+      minWidth: 0,
+      maxHeight: 112,
+      minHeight: 48,
+      color: theme.colors.text,
+      fontSize: 15,
+      lineHeight: 22,
+      paddingVertical: 12,
+    },
+    sendButton: {
+      width: 44,
+      height: 44,
+      margin: 2,
       alignItems: "center",
       justifyContent: "center",
-      gap: 10,
-      paddingHorizontal: 36,
+      borderRadius: 22,
+      backgroundColor: "#BB460A",
     },
-    emptyIcon: {
-      width: 58,
-      height: 58,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 10,
-      backgroundColor: theme.colors.accentSoft,
+    sendButtonDisabled: { opacity: 0.35 },
+    activity: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 4 },
+    emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
+    emptyTitle: { color: theme.colors.text, fontSize: 23, fontWeight: "600", letterSpacing: -0.4 },
+    emptyCopy: {
+      maxWidth: 320,
+      color: theme.colors.mutedText,
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: "center",
     },
-    emptyTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     primaryButton: {
       minHeight: 46,
       alignItems: "center",
       justifyContent: "center",
       marginTop: 6,
       paddingHorizontal: 20,
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.text,
     },
     primaryButtonText: { color: theme.colors.background, fontSize: 14, fontWeight: "700" },

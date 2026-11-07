@@ -1,27 +1,23 @@
-import { Bot, Check, Minus, Plus, ScrollText, Shield, Volume2 } from "lucide-react-native";
+import {
+  Bot,
+  Check,
+  ChevronRight,
+  Minus,
+  Plus,
+  ScrollText,
+  Shield,
+  Volume2,
+} from "lucide-react-native";
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
-import {
-  resolveThemeMode,
-  type AppSettings,
-  type SettingsStore,
-  type ThemePreference,
-} from "./settings-store";
-import { translate, type LocalePreference } from "./i18n";
+import { type AppSettings, type SettingsStore } from "./settings-store";
+import { translate } from "./i18n";
 import { LocaleContext, useTranslate, type Translator } from "./locale";
-import { DARK_THEME, LIGHT_THEME, ThemeContext, useTheme } from "./theme";
+import { useTheme } from "./theme";
 import { triggerClickFeedback } from "./press-feedback";
 import { useUiSound } from "./ui-sound-context";
+import { MiraAvatar, MiraSheet } from "./mira-controls";
 import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export type SettingsScreenProps = Readonly<{
@@ -41,7 +37,6 @@ export function SettingsScreen({
   onOpenSidebar,
   store,
 }: SettingsScreenProps) {
-  const systemDark = useColorScheme() === "dark";
   const [settings, setSettings] = useState<AppSettings | null>(null);
   // Resolved from the just-persisted preference so this screen switches
   // language immediately, before the shell reloads its own copy.
@@ -57,22 +52,6 @@ export function SettingsScreen({
       active = false;
     };
   }, [store]);
-
-  async function updateThemePreference(preference: ThemePreference): Promise<void> {
-    const next = await store.update((current) => ({ ...current, themePreference: preference }));
-    if (next.ok) {
-      setSettings(next.value);
-      onSettingsChanged?.();
-    }
-  }
-
-  async function updateLocalePreference(preference: LocalePreference): Promise<void> {
-    const next = await store.update((current) => ({ ...current, localePreference: preference }));
-    if (next.ok) {
-      setSettings(next.value);
-      onSettingsChanged?.();
-    }
-  }
 
   async function updateEditor(patch: Partial<AppSettings["editor"]>): Promise<void> {
     const next = await store.update((current) => ({
@@ -131,34 +110,25 @@ export function SettingsScreen({
     ]);
   }
 
-  const resolvedMode = resolveThemeMode(settings?.themePreference ?? "system", systemDark);
-  const themeContext = resolvedMode === "dark" ? DARK_THEME : LIGHT_THEME;
-
   return (
     <LocaleContext.Provider value={locale}>
-      <ThemeContext.Provider value={themeContext}>
-        <SettingsContent
-          confirmClearSearchHistory={confirmClearSearchHistory}
-          onThemeChange={(preference) => void updateThemePreference(preference)}
-          onLocaleChange={(preference) => void updateLocalePreference(preference)}
-          onEditorChange={(patch) => void updateEditor(patch)}
-          onClipboardReadChange={(value) => void updateClipboardRead(value)}
-          onInteractionChange={(patch) => void updateInteraction(patch)}
-          onOpenSidebar={onOpenSidebar}
-          onWholeWorkspaceAiSearchChange={(value) => void updateWholeWorkspaceAiSearch(value)}
-          {...(onClearAiConversations ? { onClearAiConversations } : {})}
-          {...(onClearAiAudit ? { onClearAiAudit } : {})}
-          settings={settings}
-        />
-      </ThemeContext.Provider>
+      <SettingsContent
+        confirmClearSearchHistory={confirmClearSearchHistory}
+        onEditorChange={(patch) => void updateEditor(patch)}
+        onClipboardReadChange={(value) => void updateClipboardRead(value)}
+        onInteractionChange={(patch) => void updateInteraction(patch)}
+        onOpenSidebar={onOpenSidebar}
+        onWholeWorkspaceAiSearchChange={(value) => void updateWholeWorkspaceAiSearch(value)}
+        {...(onClearAiConversations ? { onClearAiConversations } : {})}
+        {...(onClearAiAudit ? { onClearAiAudit } : {})}
+        settings={settings}
+      />
     </LocaleContext.Provider>
   );
 }
 
 function SettingsContent({
   confirmClearSearchHistory,
-  onThemeChange,
-  onLocaleChange,
   onEditorChange,
   onClipboardReadChange,
   onInteractionChange,
@@ -169,8 +139,6 @@ function SettingsContent({
   settings,
 }: Readonly<{
   confirmClearSearchHistory: () => void;
-  onThemeChange: (preference: ThemePreference) => void;
-  onLocaleChange: (preference: LocalePreference) => void;
   onEditorChange: (patch: Partial<AppSettings["editor"]>) => void;
   onClipboardReadChange: (value: boolean) => void;
   onInteractionChange: (patch: Partial<AppSettings["interaction"]>) => void;
@@ -185,12 +153,18 @@ function SettingsContent({
   const t = useTranslate();
   const uiSound = useUiSound();
 
+  const [category, setCategory] = useState<"editor" | "interaction" | "security" | "ai" | null>(
+    null,
+  );
+  const categories = [
+    { id: "editor", icon: ScrollText, label: t("settings.editor") },
+    { id: "interaction", icon: Volume2, label: t("settings.interaction") },
+    { id: "security", icon: Shield, label: t("settings.security") },
+    { id: "ai", icon: Bot, label: t("settings.ai") },
+  ] as const;
+
   return (
-    <ScrollView
-      accessibilityLabel={t("settings.title")}
-      contentContainerStyle={styles.content}
-      style={styles.scroll}
-    >
+    <View style={styles.scroll}>
       <View style={styles.pageHeader}>
         <Pressable
           accessibilityLabel="打开全局侧边栏"
@@ -204,250 +178,281 @@ function SettingsContent({
           {t("settings.title")}
         </Text>
       </View>
-      <Section title={t("settings.editor")} styles={styles} theme={theme}>
-        <SettingRow
-          icon={null}
-          label={t("settings.fontSize")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Stepper
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.identity}>
+          <MiraAvatar size={56} />
+          <View style={styles.identityCopy}>
+            <Text style={styles.identityTitle}>Mira</Text>
+            <Text style={styles.identityMeta}>{t("settings.title")}</Text>
+          </View>
+        </View>
+        {categories.map(({ id, icon: Icon, label }) => (
+          <Pressable
+            key={id}
+            accessibilityRole="button"
+            onPress={() => setCategory(id)}
+            style={({ pressed }) => [styles.categoryRow, pressed && styles.rowPressed]}
+          >
+            <View style={styles.categoryIcon}>
+              <Icon color={theme.colors.text} size={20} />
+            </View>
+            <Text style={styles.rowLabel}>{label}</Text>
+            <ChevronRight color={theme.colors.mutedText} size={18} />
+          </Pressable>
+        ))}
+      </ScrollView>
+      <MiraSheet
+        visible={category !== null}
+        title={categories.find(({ id }) => id === category)?.label ?? t("settings.title")}
+        onClose={() => setCategory(null)}
+      >
+        {category === "editor" ? (
+          <Section styles={styles} theme={theme}>
+            <SettingRow
+              icon={null}
               label={t("settings.fontSize")}
-              maximum={24}
-              minimum={12}
-              onChange={(fontSize) => onEditorChange({ fontSize })}
               styles={styles}
               theme={theme}
-              value={settings?.editor.fontSize ?? 16}
+              trailing={
+                <Stepper
+                  label={t("settings.fontSize")}
+                  maximum={24}
+                  minimum={12}
+                  onChange={(fontSize) => onEditorChange({ fontSize })}
+                  styles={styles}
+                  theme={theme}
+                  value={settings?.editor.fontSize ?? 16}
+                />
+              }
             />
-          }
-        />
-        <SettingRow
-          icon={null}
-          label={t("settings.lineHeight")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Stepper
+            <SettingRow
+              icon={null}
               label={t("settings.lineHeight")}
-              maximum={2.2}
-              minimum={1.2}
-              onChange={(lineHeight) => onEditorChange({ lineHeight })}
-              precision={1}
-              step={0.1}
               styles={styles}
               theme={theme}
-              value={settings?.editor.lineHeight ?? 1.65}
+              trailing={
+                <Stepper
+                  label={t("settings.lineHeight")}
+                  maximum={2.2}
+                  minimum={1.2}
+                  onChange={(lineHeight) => onEditorChange({ lineHeight })}
+                  precision={1}
+                  step={0.1}
+                  styles={styles}
+                  theme={theme}
+                  value={settings?.editor.lineHeight ?? 1.65}
+                />
+              }
             />
-          }
-        />
-        <SettingRow
-          icon={null}
-          label={t("settings.autosave")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Stepper
+            <SettingRow
+              icon={null}
               label={t("settings.autosave")}
-              maximum={10}
-              minimum={1}
-              onChange={(seconds) => onEditorChange({ autoSaveDelayMs: seconds * 1_000 })}
               styles={styles}
-              suffix="s"
               theme={theme}
-              value={(settings?.editor.autoSaveDelayMs ?? 2000) / 1000}
+              trailing={
+                <Stepper
+                  label={t("settings.autosave")}
+                  maximum={10}
+                  minimum={1}
+                  onChange={(seconds) => onEditorChange({ autoSaveDelayMs: seconds * 1_000 })}
+                  styles={styles}
+                  suffix="s"
+                  theme={theme}
+                  value={(settings?.editor.autoSaveDelayMs ?? 2000) / 1000}
+                />
+              }
             />
-          }
-        />
-        <SettingRow
-          icon={null}
-          label={t("settings.lineNumbers")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Switch
-              accessibilityLabel={t("settings.showLineNumbers")}
-              onValueChange={(lineNumbers) => onEditorChange({ lineNumbers })}
-              value={settings?.editor.lineNumbers ?? true}
+            <SettingRow
+              icon={null}
+              label={t("settings.lineNumbers")}
+              styles={styles}
+              theme={theme}
+              trailing={
+                <Switch
+                  accessibilityLabel={t("settings.showLineNumbers")}
+                  onValueChange={(lineNumbers) => onEditorChange({ lineNumbers })}
+                  value={settings?.editor.lineNumbers ?? true}
+                />
+              }
             />
-          }
-        />
-        <SettingRow
-          icon={null}
-          label={t("settings.wordWrap")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Switch
-              accessibilityLabel={t("settings.wrapLongLines")}
-              onValueChange={(wordWrap) => onEditorChange({ wordWrap })}
-              value={settings?.editor.wordWrap ?? true}
+            <SettingRow
+              icon={null}
+              label={t("settings.wordWrap")}
+              styles={styles}
+              theme={theme}
+              trailing={
+                <Switch
+                  accessibilityLabel={t("settings.wrapLongLines")}
+                  onValueChange={(wordWrap) => onEditorChange({ wordWrap })}
+                  value={settings?.editor.wordWrap ?? true}
+                />
+              }
             />
-          }
-        />
-      </Section>
+          </Section>
+        ) : null}
 
-      <Section title={t("settings.interaction")} styles={styles} theme={theme}>
-        <SettingRow
-          icon={null}
-          label={t("settings.clickVibration")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <View style={styles.hapticControls}>
-              <Pressable
-                accessibilityLabel="测试点击震动"
-                onPress={() => triggerClickFeedback(settings?.interaction.clickVibration ?? true)}
-                style={styles.testHaptic}
-              >
-                <Text style={styles.testHapticText}>试一下</Text>
-              </Pressable>
-              <Switch
-                accessibilityLabel={t("settings.clickVibration")}
-                onValueChange={(clickVibration) => onInteractionChange({ clickVibration })}
-                value={settings?.interaction.clickVibration ?? true}
-              />
-            </View>
-          }
-        />
-        <SettingRow
-          icon={Volume2}
-          label={t("settings.interfaceSounds")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <View style={styles.hapticControls}>
-              <Pressable
-                accessibilityLabel={t("settings.testSound")}
-                accessibilityRole="button"
-                disabled={!settings?.interaction.soundEnabled}
-                onPress={() => uiSound.play("success")}
-                style={[
-                  styles.testHaptic,
-                  !settings?.interaction.soundEnabled && styles.testControlDisabled,
-                ]}
-              >
-                <Text style={styles.testHapticText}>{t("settings.trySound")}</Text>
-              </Pressable>
-              <Switch
-                accessibilityLabel={t("settings.interfaceSounds")}
-                onValueChange={(soundEnabled) => onInteractionChange({ soundEnabled })}
-                value={settings?.interaction.soundEnabled ?? false}
-              />
-            </View>
-          }
-        />
-        <SettingRow
-          icon={null}
-          label={t("settings.soundVolume")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Stepper
+        {category === "interaction" ? (
+          <Section styles={styles} theme={theme}>
+            <SettingRow
+              icon={null}
+              label={t("settings.clickVibration")}
+              styles={styles}
+              theme={theme}
+              trailing={
+                <View style={styles.hapticControls}>
+                  <Pressable
+                    accessibilityLabel="测试点击震动"
+                    onPress={() =>
+                      triggerClickFeedback(settings?.interaction.clickVibration ?? true)
+                    }
+                    style={styles.testHaptic}
+                  >
+                    <Text style={styles.testHapticText}>试一下</Text>
+                  </Pressable>
+                  <Switch
+                    accessibilityLabel={t("settings.clickVibration")}
+                    onValueChange={(clickVibration) => onInteractionChange({ clickVibration })}
+                    value={settings?.interaction.clickVibration ?? true}
+                  />
+                </View>
+              }
+            />
+            <SettingRow
+              icon={Volume2}
+              label={t("settings.interfaceSounds")}
+              styles={styles}
+              theme={theme}
+              trailing={
+                <View style={styles.hapticControls}>
+                  <Pressable
+                    accessibilityLabel={t("settings.testSound")}
+                    accessibilityRole="button"
+                    disabled={!settings?.interaction.soundEnabled}
+                    onPress={() => uiSound.play("success")}
+                    style={[
+                      styles.testHaptic,
+                      !settings?.interaction.soundEnabled && styles.testControlDisabled,
+                    ]}
+                  >
+                    <Text style={styles.testHapticText}>{t("settings.trySound")}</Text>
+                  </Pressable>
+                  <Switch
+                    accessibilityLabel={t("settings.interfaceSounds")}
+                    onValueChange={(soundEnabled) => onInteractionChange({ soundEnabled })}
+                    value={settings?.interaction.soundEnabled ?? false}
+                  />
+                </View>
+              }
+            />
+            <SettingRow
+              icon={null}
               label={t("settings.soundVolume")}
-              maximum={100}
-              minimum={10}
-              onChange={(soundVolume) => onInteractionChange({ soundVolume: soundVolume / 100 })}
-              step={10}
               styles={styles}
-              suffix="%"
               theme={theme}
-              value={Math.round((settings?.interaction.soundVolume ?? 0.35) * 100)}
+              trailing={
+                <Stepper
+                  label={t("settings.soundVolume")}
+                  maximum={100}
+                  minimum={10}
+                  onChange={(soundVolume) =>
+                    onInteractionChange({ soundVolume: soundVolume / 100 })
+                  }
+                  step={10}
+                  styles={styles}
+                  suffix="%"
+                  theme={theme}
+                  value={Math.round((settings?.interaction.soundVolume ?? 0.35) * 100)}
+                />
+              }
             />
-          }
-        />
-      </Section>
+          </Section>
+        ) : null}
 
-      <Section title={t("settings.security")} styles={styles} theme={theme}>
-        <SettingRow
-          icon={Check}
-          label={t("settings.searchHistory")}
-          onPress={confirmClearSearchHistory}
-          styles={styles}
-          theme={theme}
-          value={t("settings.clearLocal")}
-        />
-        <SettingRow
-          icon={Shield}
-          label={t("settings.clipboard")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Switch
-              accessibilityLabel={t("settings.allowClipboard")}
-              onValueChange={onClipboardReadChange}
-              value={settings?.security.allowClipboardRead ?? true}
+        {category === "security" ? (
+          <Section styles={styles} theme={theme}>
+            <SettingRow
+              icon={Check}
+              label={t("settings.searchHistory")}
+              onPress={confirmClearSearchHistory}
+              styles={styles}
+              theme={theme}
+              value={t("settings.clearLocal")}
             />
-          }
-        />
-      </Section>
-      <Section title={t("settings.ai")} styles={styles} theme={theme}>
-        <SettingRow
-          icon={Bot}
-          label={t("settings.aiWholeWorkspace")}
-          styles={styles}
-          theme={theme}
-          trailing={
-            <Switch
-              accessibilityLabel={t("settings.aiWholeWorkspace")}
-              onValueChange={onWholeWorkspaceAiSearchChange}
-              value={settings?.ai.allowWholeWorkspaceSearch ?? false}
+            <SettingRow
+              icon={Shield}
+              label={t("settings.clipboard")}
+              styles={styles}
+              theme={theme}
+              trailing={
+                <Switch
+                  accessibilityLabel={t("settings.allowClipboard")}
+                  onValueChange={onClipboardReadChange}
+                  value={settings?.security.allowClipboardRead ?? true}
+                />
+              }
             />
-          }
-        />
-        <SettingRow
-          icon={Check}
-          label={t("settings.clearAiConversations")}
-          onPress={() => void onClearAiConversations?.()}
-          styles={styles}
-          theme={theme}
-          value={t("settings.localOnly")}
-        />
-        <SettingRow
-          icon={Shield}
-          label={t("settings.clearAiAudit")}
-          onPress={() => void onClearAiAudit?.()}
-          styles={styles}
-          theme={theme}
-          value={t("settings.metadataOnly")}
-        />
-        <SettingRow
-          icon={ScrollText}
-          label={t("settings.licenses")}
-          onPress={() =>
-            Alert.alert(
-              "VMark AI Genie prompts · ISC",
-              "Copyright (c) 2026 Xiaolai Li\n\nPermission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the copyright and permission notice appear in all copies.\n\nSource: xiaolai/vmark @ 7e248a557fed26830e6496ced266ee4e967d549d",
-            )
-          }
-          styles={styles}
-          theme={theme}
-          value={t("settings.thirdParty")}
-        />
-      </Section>
-    </ScrollView>
+          </Section>
+        ) : null}
+        {category === "ai" ? (
+          <Section styles={styles} theme={theme}>
+            <SettingRow
+              icon={Bot}
+              label={t("settings.aiWholeWorkspace")}
+              styles={styles}
+              theme={theme}
+              trailing={
+                <Switch
+                  accessibilityLabel={t("settings.aiWholeWorkspace")}
+                  onValueChange={onWholeWorkspaceAiSearchChange}
+                  value={settings?.ai.allowWholeWorkspaceSearch ?? false}
+                />
+              }
+            />
+            <SettingRow
+              icon={Check}
+              label={t("settings.clearAiConversations")}
+              onPress={() => void onClearAiConversations?.()}
+              styles={styles}
+              theme={theme}
+              value={t("settings.localOnly")}
+            />
+            <SettingRow
+              icon={Shield}
+              label={t("settings.clearAiAudit")}
+              onPress={() => void onClearAiAudit?.()}
+              styles={styles}
+              theme={theme}
+              value={t("settings.metadataOnly")}
+            />
+            <SettingRow
+              icon={ScrollText}
+              label={t("settings.licenses")}
+              onPress={() =>
+                Alert.alert(
+                  "VMark AI Genie prompts · ISC",
+                  "Copyright (c) 2026 Xiaolai Li\n\nPermission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the copyright and permission notice appear in all copies.\n\nSource: xiaolai/vmark @ 7e248a557fed26830e6496ced266ee4e967d549d",
+                )
+              }
+              styles={styles}
+              theme={theme}
+              value={t("settings.thirdParty")}
+            />
+          </Section>
+        ) : null}
+      </MiraSheet>
+    </View>
   );
 }
 
 function Section({
   children,
   styles,
-  theme,
-  title,
 }: Readonly<{
   children: ReactNode;
   styles: ReturnType<typeof useMemoStyles>;
   theme: ReturnType<typeof useTheme>;
-  title: string;
 }>) {
-  return (
-    <View style={styles.section}>
-      <Text accessibilityRole="header" style={styles.sectionTitle}>
-        {title}
-      </Text>
-      <View style={styles.card}>{children}</View>
-    </View>
-  );
+  return <View style={styles.card}>{children}</View>;
 }
 
 function SettingRow({
@@ -540,29 +545,55 @@ function Stepper({
 function useMemoStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     scroll: { flex: 1, backgroundColor: theme.colors.background },
-    content: { paddingHorizontal: 24, paddingBottom: 48, paddingTop: 24, gap: 32 },
-    pageHeader: { flexDirection: "row", alignItems: "center", gap: 7, paddingBottom: 2 },
+    content: { paddingHorizontal: 16, paddingBottom: 32 },
+    pageHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 16,
+      minHeight: 60,
+    },
+    identity: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.large,
+      padding: 16,
+      marginVertical: 16,
+    },
+    identityCopy: { flex: 1, gap: 2 },
+    identityTitle: { color: theme.colors.text, fontSize: 24, fontWeight: "600" },
+    identityMeta: { color: theme.colors.mutedText, fontSize: 13 },
+    categoryRow: {
+      minHeight: 66,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.divider,
+      paddingHorizontal: 4,
+    },
+    categoryIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+    },
     menuButton: {
       width: 44,
       height: 44,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.canvas,
     },
-    pageTitle: { color: theme.colors.text, fontSize: 28, fontWeight: "700", letterSpacing: -0.8 },
-    section: { gap: 9 },
-    sectionTitle: {
-      color: theme.colors.mutedText,
-      fontSize: 11,
-      fontWeight: "700",
-      letterSpacing: 1,
-      paddingBottom: 2,
-    },
+    pageTitle: { color: theme.colors.text, fontSize: 24, fontWeight: "600", letterSpacing: -0.5 },
     card: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
-      backgroundColor: theme.colors.background,
+      borderRadius: theme.radius.large,
+      backgroundColor: theme.colors.canvas,
       overflow: "hidden",
     },
     row: {
@@ -570,7 +601,7 @@ function useMemoStyles(theme: ReturnType<typeof useTheme>) {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 0,
+      paddingHorizontal: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.divider,
     },
@@ -581,8 +612,8 @@ function useMemoStyles(theme: ReturnType<typeof useTheme>) {
     testHaptic: {
       paddingHorizontal: 9,
       paddingVertical: 6,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
     },
     testControlDisabled: { opacity: 0.4 },
     testHapticText: { color: theme.colors.text, fontSize: 11, fontWeight: "700" },
@@ -604,10 +635,10 @@ function useMemoStyles(theme: ReturnType<typeof useTheme>) {
     stepper: {
       flexDirection: "row",
       alignItems: "center",
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
     },
-    stepButton: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+    stepButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     stepValue: { minWidth: 48, color: theme.colors.text, fontSize: 13, textAlign: "center" },
   });
 }

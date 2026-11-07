@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { LIGHT_THEME } from "./theme";
+import { theme } from "./theme";
 
 type AppStartupBoundaryProps = Readonly<{
   children: ReactNode;
@@ -63,24 +63,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 16,
     padding: 32,
-    backgroundColor: LIGHT_THEME.colors.background,
+    backgroundColor: theme.colors.background,
   },
   title: {
-    color: LIGHT_THEME.colors.text,
+    color: theme.colors.text,
     fontSize: 22,
     fontWeight: "700",
     textAlign: "center",
   },
   message: {
     maxWidth: 480,
-    color: LIGHT_THEME.colors.mutedText,
+    color: theme.colors.mutedText,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
   },
   diagnostic: {
     maxWidth: 520,
-    color: LIGHT_THEME.colors.warningText,
+    color: theme.colors.warningText,
     fontSize: 12,
     lineHeight: 18,
     textAlign: "center",
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 10,
     paddingHorizontal: 20,
-    backgroundColor: LIGHT_THEME.colors.accent,
+    backgroundColor: theme.colors.accent,
   },
   buttonPressed: {
     opacity: 0.8,

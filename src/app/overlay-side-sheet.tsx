@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Animated,
+  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -34,12 +35,14 @@ export function OverlaySideSheet({
   visible,
   widthFraction = 0.6,
   maxWidth = 320,
+  sidebar = false,
 }: Readonly<{
   children: ReactNode;
   onClose: () => void;
   visible: boolean;
   widthFraction?: number;
   maxWidth?: number;
+  sidebar?: boolean;
 }>) {
   const theme = useTheme();
   const t = useTranslate();
@@ -55,20 +58,25 @@ export function OverlaySideSheet({
       translateX.setValue(visible ? 0 : -width);
       return;
     }
-    // Keep the sheet and the menu-to-close glyph on the same physical rhythm.
-    // A lightly damped spring gives the large surface a soft settle without
-    // inserting a fixed delay or blocking an immediate reversal.
-    const animation = Animated.spring(translateX, {
-      toValue: visible ? 0 : -width,
-      damping: 20,
-      stiffness: 190,
-      mass: 0.86,
-      useNativeDriver: true,
-    });
+    const toValue = visible ? 0 : -width;
+    const animation = sidebar
+      ? Animated.timing(translateX, {
+          toValue,
+          duration: visible ? 460 : 280,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        })
+      : Animated.spring(translateX, {
+          toValue,
+          damping: 20,
+          stiffness: 190,
+          mass: 0.86,
+          useNativeDriver: true,
+        });
     animation.start();
     return () => animation.stop();
     // `width` is a dependency so rotation re-runs the resting/open position.
-  }, [dragX, reduceMotion, translateX, visible, width]);
+  }, [dragX, reduceMotion, sidebar, translateX, visible, width]);
 
   const panResponder = useMemo(
     () =>
@@ -126,6 +134,7 @@ export function OverlaySideSheet({
         {...panResponder.panHandlers}
         style={[
           styles.sheet,
+          !sidebar && styles.roundedSheet,
           sheetStyleShadow,
           {
             backgroundColor: theme.colors.canvas,
@@ -151,10 +160,9 @@ const sheetStyleShadow: ViewStyle = {
 const styles = StyleSheet.create({
   scrim: { backgroundColor: "rgba(10, 14, 20, 0.34)" },
   overlayLayer: { zIndex: 30, elevation: 30 },
-  sheet: {
-    height: "100%",
+  sheet: { height: "100%", overflow: "hidden" },
+  roundedSheet: {
     borderTopRightRadius: 26,
     borderBottomRightRadius: 26,
-    overflow: "hidden",
   },
 });

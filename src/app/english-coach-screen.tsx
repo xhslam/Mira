@@ -10,7 +10,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Check, ChevronRight, CircleAlert, Pause, Play, Sparkles, X } from "lucide-react-native";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Pause,
+  Play,
+  Sparkles,
+} from "lucide-react-native";
 import type { AppServices } from "./app-services";
 import { useTheme, type Theme } from "./theme";
 import { collectLearningResponse } from "../learning/learning-ai";
@@ -54,7 +62,7 @@ type CoachProps = Readonly<{
   services: AppServices;
   snapshot: LearningSnapshot;
   onSnapshotChange: (next: LearningSnapshot) => Promise<void>;
-  onSelectMarkdown: () => void;
+  onClose: () => Promise<void>;
   onOpenPractice: () => void;
   onOpenSidebar: () => void;
 }>;
@@ -90,7 +98,7 @@ export function EnglishCoachScreen({
   services,
   snapshot,
   onSnapshotChange,
-  onSelectMarkdown,
+  onClose,
   onOpenPractice,
   onOpenSidebar,
 }: CoachProps) {
@@ -177,13 +185,17 @@ export function EnglishCoachScreen({
     });
     return paused !== null;
   }
-  async function switchToMarkdown(): Promise<void> {
+  async function returnToLearning(): Promise<void> {
     const paused = await pauseCurrentLesson();
     if (!paused) {
-      setNotice("课程草稿尚未保存，请重试后再切换 Markdown。");
+      setNotice("课程草稿尚未保存，请重试后再返回学习。");
       return;
     }
-    onSelectMarkdown();
+    try {
+      await onClose();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "暂时无法返回学习，请重试。");
+    }
   }
   async function startLesson(): Promise<void> {
     const trimmed = scenario.trim();
@@ -191,18 +203,13 @@ export function EnglishCoachScreen({
       setNotice("先用一句话写下今天想练的生活场景。");
       return;
     }
-    if (!snapshot.settings.selectedProviderProfileId) {
-      setNotice("尚未配置学习 AI。请在 Learning 的个人资料中选择一个已保存的 AI 服务后再开始。");
-      return;
-    }
     setPlanning(true);
     setNotice(null);
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const raw = await collectLearningResponse({
+      const { text: raw, providerProfileId } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         signal: abort.signal,
         messages: Object.freeze([
           Object.freeze({
@@ -217,7 +224,7 @@ export function EnglishCoachScreen({
       const created = createEnglishLessonSession({
         id: nextEventId("english-lesson"),
         scenario: trimmed,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
+        providerProfileId,
         plan: injectAuthorizedReplayExpressions(parsed.plan, replayIds, replay),
         replayExpressionIds: replayIds,
         now: now(),
@@ -272,9 +279,8 @@ export function EnglishCoachScreen({
         createdAt: currentTime,
       });
       const withUserInput = appendEnglishCoachMessage(session, userMessage, currentTime);
-      const raw = await collectLearningResponse({
+      const { text: raw } = await collectLearningResponse({
         services,
-        providerProfileId: session.providerProfileId,
         signal: abort.signal,
         messages: Object.freeze([
           Object.freeze({
@@ -502,23 +508,15 @@ export function EnglishCoachScreen({
             <SidebarToggleIcon color={theme.colors.text} expanded={false} size={23} />
           </Pressable>
         </View>
-        <View accessibilityRole="tablist" style={styles.modeSwitch}>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: false }}
-            onPress={() => void switchToMarkdown()}
-            style={styles.modeOption}
-          >
-            <Text style={styles.modeText}>Markdown</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: true }}
-            style={[styles.modeOption, styles.modeOptionActive]}
-          >
-            <Text style={[styles.modeText, styles.modeTextActive]}>英语陪练</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          accessibilityLabel="返回学习"
+          accessibilityRole="button"
+          onPress={() => void returnToLearning()}
+          style={styles.modeOption}
+        >
+          <ChevronLeft color={theme.colors.text} size={22} />
+          <Text style={styles.modeText}>英语陪练</Text>
+        </Pressable>
         <View style={styles.headerSlot} />
       </View>
 
@@ -526,7 +524,7 @@ export function EnglishCoachScreen({
         <Pressable accessibilityRole="button" onPress={() => setNotice(null)} style={styles.notice}>
           <CircleAlert color={theme.colors.warning} size={18} />
           <Text style={styles.noticeText}>{notice}</Text>
-          <X color={theme.colors.mutedText} size={16} />
+          <Check color={theme.colors.mutedText} size={16} />
         </Pressable>
       ) : null}
 
@@ -555,9 +553,9 @@ export function EnglishCoachScreen({
             style={[styles.primaryButton, planning && styles.buttonDisabled]}
           >
             {planning ? (
-              <ActivityIndicator color={theme.colors.text} />
+              <ActivityIndicator color={theme.colors.canvas} />
             ) : (
-              <Sparkles color={theme.colors.text} size={18} />
+              <Sparkles color={theme.colors.canvas} size={18} />
             )}
             <Text style={styles.primaryButtonText}>{planning ? "正在准备课程" : "开始课程"}</Text>
           </Pressable>
@@ -595,7 +593,7 @@ export function EnglishCoachScreen({
             {session.recoverableError ?? "未完成课程已暂存，只会恢复当前阶段和必要的临时对话。"}
           </Text>
           <Pressable accessibilityRole="button" onPress={retrySession} style={styles.primaryButton}>
-            <Play color={theme.colors.text} size={18} />
+            <Play color={theme.colors.canvas} size={18} />
             <Text style={styles.primaryButtonText}>
               {session.status === "paused" ? "继续课程" : "重新尝试"}
             </Text>
@@ -855,7 +853,7 @@ export function EnglishCoachScreen({
               style={[styles.primaryButton, working && styles.buttonDisabled, styles.bottomPrimary]}
             >
               {working ? (
-                <ActivityIndicator color={theme.colors.text} />
+                <ActivityIndicator color={theme.colors.canvas} />
               ) : (
                 <Text style={styles.primaryButtonText}>{primaryLabel(session)}</Text>
               )}
@@ -876,21 +874,22 @@ function createStyles(theme: Theme) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.divider,
     },
     headerSlot: { width: 58 },
-    headerMenu: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-    modeSwitch: {
-      flexDirection: "row",
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: 3,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.divider,
+    headerMenu: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.canvas,
     },
-    modeOption: { minHeight: 32, paddingHorizontal: 11, justifyContent: "center", borderRadius: 9 },
-    modeOptionActive: { backgroundColor: "#132B49" },
+    modeOption: {
+      minHeight: 44,
+      paddingHorizontal: 12,
+      justifyContent: "center",
+      borderRadius: theme.radius.pill,
+    },
     modeText: { fontSize: 14, color: theme.colors.mutedText, fontWeight: "600" },
     modeTextActive: { color: theme.colors.accent },
     notice: {
@@ -929,7 +928,7 @@ function createStyles(theme: Theme) {
     primaryButton: {
       marginTop: 16,
       minHeight: 48,
-      borderRadius: 11,
+      borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.accent,
       alignItems: "center",
       justifyContent: "center",
@@ -937,7 +936,7 @@ function createStyles(theme: Theme) {
       gap: 8,
       paddingHorizontal: 16,
     },
-    primaryButtonText: { color: theme.colors.text, fontSize: 15, fontWeight: "700" },
+    primaryButtonText: { color: theme.colors.canvas, fontSize: 15, fontWeight: "700" },
     buttonDisabled: { opacity: 0.6 },
     secondaryButton: {
       minHeight: 48,

@@ -134,9 +134,8 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
     setWorking("rewrite");
     setNotice(null);
     try {
-      const response = await collectLearningResponse({
+      const { text: response } = await collectLearningResponse({
         services,
-        providerProfileId: snapshot.settings.selectedProviderProfileId,
         messages: Object.freeze([
           Object.freeze({
             role: "system" as const,
@@ -152,7 +151,7 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
       setTargetText(response.trim());
     } catch (reason) {
       setNotice(
-        reason instanceof Error ? reason.message : "改写失败，请检查学习设置中的 AI 引擎后重试。",
+        reason instanceof Error ? reason.message : "改写失败，请检查 Agent 的模型设置后重试。",
       );
     } finally {
       setWorking(null);
@@ -264,7 +263,7 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
         >
           <ArrowLeft color={theme.colors.text} size={21} />
         </Pressable>
-        <Text style={styles.title}>Craft</Text>
+        <Text style={styles.title}>创建资料</Text>
         <View style={styles.headerSpacer} />
       </View>
       <View style={styles.segment}>
@@ -288,20 +287,17 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
       >
         {mode === "quick" ? (
           <>
-            <Text style={styles.kicker}>把自己的表达做成学习材料</Text>
-            <Text style={styles.intro}>
-              说出一个想法，确认原文后，生成自然的目标语言并试听保存。
-            </Text>
             <View style={styles.captureCard}>
               <Text style={styles.captureLabel}>
-                {recorderState.isRecording ? "正在录音" : "说出你的想法"}
+                {recorderState.isRecording ? "正在录音" : "录音"}
               </Text>
-              <Text style={styles.captureHint}>
-                {recorderState.isRecording
-                  ? `${Math.floor(recorderState.durationMillis / 1000)} 秒 · 点击停止并转写`
-                  : "点击录音，用你最自然的方式表达。"}
-              </Text>
+              {recorderState.isRecording ? (
+                <Text style={styles.captureHint}>
+                  {Math.floor(recorderState.durationMillis / 1000)} 秒
+                </Text>
+              ) : null}
               <Pressable
+                accessibilityLabel={recorderState.isRecording ? "停止录音" : "开始录音"}
                 accessibilityRole="button"
                 onPress={() => void toggleRecording()}
                 style={[styles.micButton, recorderState.isRecording && styles.micButtonActive]}
@@ -312,15 +308,11 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
                   <Mic color="#FFFFFF" size={28} />
                 )}
               </Pressable>
-              {recordingUri ? (
-                <Text style={styles.recordingHint}>已保留本次录音；可继续修改转写原文。</Text>
-              ) : null}
+              {recordingUri ? <Text style={styles.recordingHint}>录音已保留</Text> : null}
             </View>
           </>
         ) : (
           <>
-            <Text style={styles.kicker}>高级创作</Text>
-            <Text style={styles.intro}>先翻译或改写，再合成可反复跟读的音频材料。</Text>
             <View style={styles.languageRow}>
               <LanguageChip
                 label={sourceLanguage}
@@ -495,15 +487,15 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 20,
       paddingTop: 14,
     },
-    headerSpacer: { height: 42, width: 42 },
+    headerSpacer: { height: 48, width: 48 },
     title: { color: theme.colors.text, fontSize: 19, fontWeight: "600" },
     roundIcon: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 999,
-      height: 42,
+      height: 48,
       justifyContent: "center",
-      width: 42,
+      width: 48,
     },
     segment: {
       alignSelf: "center",
@@ -519,20 +511,12 @@ function createStyles(theme: Theme) {
       borderRadius: 999,
       flex: 1,
       justifyContent: "center",
-      minHeight: 34,
+      minHeight: 44,
     },
     segmentItemActive: { backgroundColor: theme.colors.canvas },
     segmentLabel: { color: theme.colors.mutedText, fontSize: 13, fontWeight: "600" },
     segmentLabelActive: { color: theme.colors.text },
     content: { gap: 14, padding: 20, paddingBottom: 56 },
-    kicker: {
-      color: theme.colors.accent,
-      fontSize: 12,
-      fontWeight: "600",
-      letterSpacing: 0.8,
-      marginTop: 10,
-    },
-    intro: { color: theme.colors.mutedText, fontSize: 15, lineHeight: 22 },
     captureCard: {
       alignItems: "center",
       backgroundColor: theme.colors.surfaceMuted,

@@ -95,6 +95,7 @@ const conversationRowSchema = z
     id: z.string().uuid(),
     workspace_id: z.string().uuid(),
     title: z.string(),
+    preview: z.string().nullable().optional(),
     provider_profile_id: z.string().uuid().nullable(),
     created_at: z.number(),
     updated_at: z.number(),
@@ -227,6 +228,7 @@ function fromConversationRow(input: unknown): AiConversation {
     id: row.id as AiConversationId,
     workspaceId: workspaceId.value,
     title: row.title,
+    ...(row.preview ? { preview: row.preview } : {}),
     providerProfileId: row.provider_profile_id as AiProviderProfileId | null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -395,8 +397,11 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
     async listConversations(workspaceId) {
       await initialize();
       const rows = await database.getAllAsync<unknown>(
-        `SELECT id, workspace_id, title, provider_profile_id, created_at, updated_at
-         FROM ai_conversations WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT 100`,
+        `SELECT c.id, c.workspace_id, c.title, c.provider_profile_id, c.created_at, c.updated_at,
+           (SELECT substr(m.content, 1, 240) FROM ai_messages AS m
+            WHERE m.conversation_id = c.id AND length(trim(m.content)) > 0
+            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS preview
+         FROM ai_conversations AS c WHERE c.workspace_id = ? ORDER BY c.updated_at DESC, c.id LIMIT 100`,
         workspaceId,
       );
       return Object.freeze(rows.map(fromConversationRow));

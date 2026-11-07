@@ -1,6 +1,13 @@
 import type { AppServices } from "../app/app-services";
 import type { AiProviderMessage } from "../ai/provider";
 import type { AiProviderProfile } from "../ai/provider-profile";
+import { pickDefaultAiProviderProfile } from "../ai/provider-profile-manager";
+
+type LearningProviderServices = Readonly<{
+  aiProviderProfiles: Pick<AppServices["aiProviderProfiles"], "list">;
+  settingsStore: Pick<AppServices["settingsStore"], "load">;
+  aiSecretStore: Pick<AppServices["aiSecretStore"], "get">;
+}>;
 
 export type ResolvedLearningProvider = Readonly<{
   profile: AiProviderProfile;
@@ -8,34 +15,31 @@ export type ResolvedLearningProvider = Readonly<{
 }>;
 
 export async function resolveLearningProvider(
-  services: AppServices,
-  providerProfileId: string | null,
+  services: LearningProviderServices,
 ): Promise<ResolvedLearningProvider> {
-  if (!providerProfileId) {
-    throw new Error("Choose an AI engine in Learning Settings before starting this action.");
-  }
-  const profile = await services.aiStore.getProviderProfile(
-    providerProfileId as AiProviderProfile["id"],
+  const [summaries, settings] = await Promise.all([
+    services.aiProviderProfiles.list(),
+    services.settingsStore.load(),
+  ]);
+  const profile = pickDefaultAiProviderProfile(
+    summaries,
+    settings.ok ? settings.value.ai.activeProviderProfileId : null,
   );
-  if (!profile)
-    throw new Error(
-      "The selected AI engine no longer exists. Choose another engine in Learning Settings.",
-    );
+  if (!profile) throw new Error("请先在 Agent 的「模型设置」中添加模型和 API 密钥。");
   const apiKey = await services.aiSecretStore.get(profile.id);
-  if (!apiKey) throw new Error("The selected AI engine does not have a saved API key.");
+  if (!apiKey) throw new Error("模型密钥已变更，请重试或前往 Agent 检查模型设置。");
   return Object.freeze({ profile, apiKey });
 }
 
 export async function collectLearningResponse(
   options: Readonly<{
-    services: AppServices;
-    providerProfileId: string | null;
+    services: LearningProviderServices & Pick<AppServices, "aiProviders">;
     messages: readonly AiProviderMessage[];
     signal?: AbortSignal;
     onDelta?: (text: string) => void;
   }>,
-): Promise<string> {
-  const selected = await resolveLearningProvider(options.services, options.providerProfileId);
+): Promise<Readonly<{ text: string; providerProfileId: AiProviderProfile["id"] }>> {
+  const selected = await resolveLearningProvider(options.services);
   let response = "";
   for await (const event of options.services.aiProviders.get(selected.profile.adapter).stream({
     profile: selected.profile,
@@ -49,7 +53,7 @@ export async function collectLearningResponse(
     }
   }
   if (!response.trim()) throw new Error("The AI engine returned an empty response.");
-  return response;
+  return Object.freeze({ text: response, providerProfileId: selected.profile.id });
 }
 
 export function parseGeneratedResource(raw: string): Readonly<{

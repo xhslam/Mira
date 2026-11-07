@@ -3,20 +3,17 @@ appId: ${APP_ID}
 - launchApp:
     clearState: false
 - tapOn:
-    text: "学习"
+    text: "打开应用导航"
     optional: true
-- assertVisible: "首页"
+- tapOn: "学习"
+- assertVisible: "创建资料"
 - tapOn: "资料库"
-- assertVisible:
-    text: "资料库"
-    optional: true
-- tapOn:
-    text: "个人资料"
-    optional: true
-- assertVisible:
-    text: "媒体转写与语音"
-    optional: true
-- tapOn: "首页"
-- assertVisible:
-    text: "Craft"
-    optional: true
+- assertVisible: "搜索资料"
+- tapOn: "返回学习"
+- tapOn: "创建资料"
+- assertVisible: "创建学习材料"
+- tapOn: "关闭导入资料"
+- tapOn: "学习设置"
+- assertVisible: "学习设置"
+- tapOn: "返回学习"
+- assertVisible: "英语陪练"

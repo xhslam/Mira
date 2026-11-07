@@ -220,9 +220,7 @@ function createStyles(theme: Theme) {
     description: { color: theme.colors.mutedText, fontSize: 14, lineHeight: 21 },
     form: {
       backgroundColor: theme.colors.surface,
-      borderColor: "rgba(115, 139, 181, 0.2)",
-      borderRadius: 16,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: theme.radius.large,
       gap: 12,
       padding: 16,
     },
@@ -241,7 +239,7 @@ function createStyles(theme: Theme) {
     primary: {
       alignItems: "center",
       backgroundColor: theme.colors.accent,
-      borderRadius: 12,
+      borderRadius: theme.radius.pill,
       justifyContent: "center",
       minHeight: 48,
     },

@@ -1,0 +1,12 @@
+appId: app.inkstone.markdown
+name: Agent list search stays actionable with the keyboard open
+---
+- launchApp
+- tapOn:
+    text: 应用管理工作区
+    optional: true
+- tapOn: 搜索历史会话
+- inputText: mira-keyboard-test
+- assertVisible: 没有匹配的会话。
+- tapOn: 关闭会话搜索
+- assertVisible: 会话列表

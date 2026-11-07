@@ -24,6 +24,7 @@ import {
   resolveWorkspaceConflictAsCopy,
   selectWorkspaceDocumentByPath,
   pathAfterBrowserMutation,
+  reconcileWorkspaceAfterPathMutation,
   restoreWorkspaceHistorySnapshot,
   setWorkspaceMode,
 } from "../../../src/app/workspace-state";
@@ -748,5 +749,72 @@ describe("workspace state protocol consumers", () => {
     ]);
 
     expect(next.diagnostics).toEqual([]);
+  });
+});
+
+describe("workspace tabs after note file operations", () => {
+  const outside = {
+    ...document,
+    documentId: SECOND_DOCUMENT_ID,
+    path: "Other.md" as typeof document.path,
+  };
+
+  test("keeps the open tabs and editor mode when a note moves or is renamed", () => {
+    const original = createWorkspaceState({
+      documents: [document, outside],
+      recoveryDrafts: [],
+      sessionId: SESSION_ID,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+    const selected = setWorkspaceMode(focusWorkspaceDocument(original, DOCUMENT_ID), "source");
+    const previous = selectWorkspaceDocumentByPath(
+      addBlankWorkspaceDocument(selected, THIRD_DOCUMENT_ID, ["Untitled.md"]),
+      document.path,
+    );
+    const moved = { ...document, path: "folder/Renamed.md" as typeof document.path };
+    const reloaded = createWorkspaceState({
+      documents: [outside, moved],
+      recoveryDrafts: [],
+      sessionId: "new-session" as SessionId,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+
+    const result = reconcileWorkspaceAfterPathMutation(previous, reloaded, {
+      from: document.path,
+      to: moved.path,
+    });
+
+    expect(result.documents.map((tab) => tab.path)).toEqual([moved.path, "Untitled 2.md"]);
+    expect(result.activeDocument).toMatchObject({
+      path: moved.path,
+      mode: "source",
+      markdown: "saved",
+    });
+    expect(result.sessionId).toBe(reloaded.sessionId);
+  });
+
+  test("removes the deleted tab and keeps the remaining draft active", () => {
+    const original = createWorkspaceState({
+      documents: [document],
+      recoveryDrafts: [],
+      sessionId: SESSION_ID,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+    const previous = selectWorkspaceDocumentByPath(
+      addBlankWorkspaceDocument(original, THIRD_DOCUMENT_ID),
+      document.path,
+    );
+    const reloaded = createWorkspaceState({
+      documents: [outside],
+      recoveryDrafts: [],
+      sessionId: SESSION_ID,
+      blankDocumentId: THIRD_DOCUMENT_ID,
+    });
+    const result = reconcileWorkspaceAfterPathMutation(previous, reloaded, {
+      from: document.path,
+      to: null,
+    });
+    expect(result.documents.map((tab) => tab.path)).toEqual(["Untitled.md"]);
+    expect(result.activeDocument.documentId).toBe(THIRD_DOCUMENT_ID);
   });
 });

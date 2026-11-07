@@ -1,7 +1,5 @@
 "use dom";
 
-import "../formats/excalidraw/excalidraw-asset-path";
-
 import { Editor } from "@tiptap/core";
 import { Highlight } from "@tiptap/extension-highlight";
 import { Image as TiptapImage } from "@tiptap/extension-image";
@@ -47,7 +45,6 @@ import { formatCjkSpacing } from "../markdown/cjk-format";
 import { renderedBlockMarkdownOffset } from "./editor-kernel-state";
 import { createExtendedMarkdownExtensions } from "./extended-markdown";
 import { HighlightedCodeBlock } from "./highlighted-code-block";
-import ExcalidrawEditor from "../formats/excalidraw/excalidraw-editor";
 
 export type EditorCommandName =
   | "undo"
@@ -124,7 +121,6 @@ export type EditorKernelProps = Readonly<{
   onOpenExternal: (url: string) => Promise<void>;
   onOpenWiki: (target: string) => Promise<void>;
   onPickAttachment: () => Promise<string | null>;
-  onShareExport: (name: string, format: "png" | "svg", contents: string) => Promise<boolean>;
   onRendererError: (message: string) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }>;
@@ -282,32 +278,13 @@ export default function EditorKernel(props: EditorKernelProps) {
     };
   }, []);
 
-  if (props.formatId === "excalidraw") {
-    return (
-      <ExcalidrawEditor
-        documentId={props.documentId}
-        flushRequest={props.flushRequest}
-        locale={props.locale}
-        onOpenLink={async (link) => {
-          const wiki = link.match(/^\[\[([\s\S]+?)\]\]$/);
-          if (wiki?.[1]) {
-            await props.onOpenWiki(wiki[1].split("|", 1)[0] ?? wiki[1]);
-            return;
-          }
-          await props.onOpenExternal(link);
-        }}
-        onProtocolMessage={props.onProtocolMessage}
-        onShareExport={props.onShareExport}
-        onSnapshot={props.onSnapshot}
-        path={props.path}
-        revision={props.revision}
-        sessionId={props.sessionId}
-        source={props.markdown}
-        themeMode={props.themeMode}
-      />
-    );
-  }
-  return <TextEditorKernel {...props} />;
+  return (
+    <TextEditorKernel
+      {...props}
+      mode={props.formatId === "legacy-drawing" ? "source" : props.mode}
+      readOnly={props.readOnly || props.formatId === "legacy-drawing"}
+    />
+  );
 }
 
 function TextEditorKernel({
@@ -1069,7 +1046,16 @@ function TextEditorKernel({
             type="button"
             onClick={() => setFindVisible(false)}
           >
-            ×
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+              <path
+                d="m6 15 6-6 6 6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </div>
       ) : null}
@@ -1108,10 +1094,10 @@ function kernelStyles(
           muted: "#68707C",
           divider: "#D9DDE3",
           surface: "#F0F2F4",
-          readingCanvas: "#F1EEE7",
-          readingPaper: "#FFFDF8",
-          readingInset: "#F4F0E7",
-          readingAccent: "#2765A7",
+          readingCanvas: "#FAFAF9",
+          readingPaper: "#FFFFFF",
+          readingInset: "#F0F0EF",
+          readingAccent: "#2B54A3",
         };
   return `
   :root { color-scheme: ${mode}; --canvas: ${palette.canvas}; --text: ${palette.text}; --muted: ${palette.muted}; --divider: ${palette.divider}; --surface: ${palette.surface}; --reading-canvas: ${palette.readingCanvas}; --reading-paper: ${palette.readingPaper}; --reading-inset: ${palette.readingInset}; --reading-accent: ${palette.readingAccent}; font-family: Inter, system-ui, -apple-system, sans-serif; }
@@ -1264,6 +1250,7 @@ function kernelStyles(
   .remote-media { display: block; border: 1px solid #d9dde3; border-radius: 6px; background: #f7f8fa; color: #68707c; padding: 12px; }
   .find-panel { position: absolute; top: 8px; right: 8px; left: 8px; z-index: 3; display: flex; gap: 5px; padding: 7px; border: 1px solid var(--divider); border-radius: 8px; background: var(--canvas); box-shadow: 0 2px 12px rgba(0,0,0,.14); }
   .find-panel input { min-width: 0; min-height: 42px; flex: 1; border: 1px solid var(--divider); border-radius: 6px; padding: 0 9px; color: var(--text); background: var(--canvas); }
+  .find-panel button svg { display: block; margin: auto; }
   .find-panel button { min-width: 44px; min-height: 42px; border: 0; border-radius: 6px; padding: 0 9px; color: var(--text); background: var(--surface); font-weight: 600; }
   .bridge-error { position: absolute; left: 12px; right: 12px; bottom: 68px; border-radius: 6px; background: #b42318; color: #fff; padding: 10px 12px; font-size: 13px; }
 `;

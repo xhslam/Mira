@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 
 import { acknowledgeEditorFlush, type EditorFlushRequest } from "../editor-bridge/editor-flush";
 import { parseEditorMessage } from "../editor-bridge/editor-message";
+import { resolveFormatForPath } from "../formats/format-path";
 import { validateFormatEditorDiagnostics } from "../formats/validators";
 import type { SearchResult } from "../search/search-index";
 import { selectionForSearchLine } from "../search/search-navigation";
@@ -44,6 +45,8 @@ import {
   setWorkspaceSelection,
   restoreWorkspaceHistorySnapshot,
   resolveWorkspaceConflictAsCopy,
+  reconcileWorkspaceAfterPathMutation,
+  type WorkspacePathMutation,
   selectWorkspaceDocumentByPath,
   type OpenWorkspaceDocument,
   type WorkspaceState,
@@ -246,6 +249,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
   const writeRecovery = useCallback(
     async (document: OpenWorkspaceDocument) => {
       if (
+        resolveFormatForPath(document.path).editable === false ||
         !document.dirty ||
         (document.baseHash === null && document.markdown.trim().length === 0)
       ) {
@@ -266,6 +270,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
   const performSave = useCallback(
     async (document: OpenWorkspaceDocument, source: HistorySnapshot["source"]) => {
       if (
+        resolveFormatForPath(document.path).editable === false ||
         !document.dirty ||
         (document.baseHash === null && document.markdown.trim().length === 0)
       ) {
@@ -410,6 +415,11 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
   const requestEditorFlush = useCallback((): Promise<void> => {
     const current = stateRef.current;
     if (!current) return Promise.resolve();
+    // Immutable legacy source has no unsent DOM edits. A detached or failed
+    // renderer must not lock workspace switching or closing a preserved draft.
+    if (resolveFormatForPath(current.activeDocument.path).editable === false) {
+      return Promise.resolve();
+    }
     if (pendingFlushRef.current) return pendingFlushRef.current.promise;
 
     flushRequestIdRef.current =
@@ -651,7 +661,11 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
   }, [loadBrowserEntries]);
 
   const reloadWorkspace = useCallback(
-    async (preferredPath?: string, preferredMode?: EditorMode): Promise<BrowserCommandResult> => {
+    async (
+      preferredPath?: string,
+      preferredMode?: EditorMode,
+      mutation?: WorkspacePathMutation,
+    ): Promise<BrowserCommandResult> => {
       const [documents, recoveryDrafts, browserResult] = await Promise.all([
         services.repository.list(),
         services.recoveryStore.list(),
@@ -671,10 +685,13 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
         sessionId: services.createSessionId(),
         blankDocumentId: services.createDocumentId(),
       });
+      const previous = stateRef.current;
       const selected =
-        preferredPath === undefined
-          ? reloaded
-          : selectWorkspaceDocumentByPath(reloaded, preferredPath);
+        mutation && previous
+          ? reconcileWorkspaceAfterPathMutation(previous, reloaded, mutation)
+          : preferredPath === undefined
+            ? reloaded
+            : selectWorkspaceDocumentByPath(reloaded, preferredPath);
       replaceState(
         preferredMode === undefined ? selected : setWorkspaceMode(selected, preferredMode),
       );
@@ -719,11 +736,14 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
   } = useWorkspaceBrowserCommands(browserCommandOptions);
   const renameActiveDocument = useCallback(
     async (
+      documentId: OpenWorkspaceDocument["documentId"],
       to: string,
       conflict: WorkspaceConflictPolicy = "fail",
     ): Promise<BrowserCommandResult> => {
-      const activePath = stateRef.current?.activeDocument.path;
-      if (!activePath) return browserCommandFailure("Choose a note to rename.");
+      const active = stateRef.current?.activeDocument;
+      if (active?.documentId !== documentId)
+        return browserCommandFailure("Choose a note to rename.");
+      const activePath = active.path;
       const parsed = parseWorkspacePath(activePath);
       if (!parsed.ok)
         return browserCommandFailure("The current note path is invalid.", "INVALID_PATH");
@@ -735,7 +755,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
         modifiedAt: null,
         contentType: null,
       });
-      return renameBrowserEntry(entry, to, conflict);
+      return renameBrowserEntry(entry, to, conflict, documentId);
     },
     [renameBrowserEntry],
   );
@@ -793,16 +813,27 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
   const addDocument = useCallback(async () => {
     await saveWithSource("auto");
     const current = stateRef.current;
-    if (current) replaceState(addBlankWorkspaceDocument(current, services.createDocumentId()));
-  }, [replaceState, saveWithSource, services]);
+    if (current)
+      replaceState(
+        addBlankWorkspaceDocument(
+          current,
+          services.createDocumentId(),
+          browserEntries.map((entry) => entry.path),
+        ),
+      );
+  }, [browserEntries, replaceState, saveWithSource, services]);
   const addDocumentFromOverview = useCallback(async (): Promise<boolean> => {
     await saveWithSource("auto");
     const current = stateRef.current;
     if (!current || current.activeDocument.dirty) return false;
-    const added = addBlankWorkspaceDocument(current, services.createDocumentId());
+    const added = addBlankWorkspaceDocument(
+      current,
+      services.createDocumentId(),
+      browserEntries.map((entry) => entry.path),
+    );
     replaceState(focusWorkspaceDocument(added, added.activeDocument.documentId));
     return true;
-  }, [replaceState, saveWithSource, services]);
+  }, [browserEntries, replaceState, saveWithSource, services]);
   const selectSearchResult = useCallback(
     async (result: SearchResult) => {
       await selectDocument(result.documentId);
@@ -827,6 +858,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
       const snapshot = history.find((item) => item.snapshotId === snapshotId);
       const current = stateRef.current;
       if (!snapshot || snapshot.metadataOnly || !current) return;
+      if (current.activeDocument.formatId === "legacy-drawing") return;
 
       if (current.activeDocument.dirty) {
         await saveDocument(current.activeDocument, "manual");
@@ -899,6 +931,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
     const current = stateRef.current;
     const external = current?.conflictSnapshot;
     if (!current || !external) return;
+    if (current.activeDocument.formatId === "legacy-drawing") return;
     await services.recoveryStore.remove(current.activeDocument.documentId);
     replaceState(loadWorkspaceConflictSnapshot(current, external));
   }, [replaceState, services]);
@@ -907,6 +940,7 @@ export function useEditorWorkspace(providedServices?: AppServices): EditorWorksp
     const current = stateRef.current;
     const external = current?.conflictSnapshot;
     if (!current || !external || current.saveState !== "conflict") return;
+    if (current.activeDocument.formatId === "legacy-drawing") return;
     const copyPath = createConflictCopyPath(
       current.activeDocument.path,
       current.documents.map((document) => document.path),

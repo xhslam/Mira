@@ -1,8 +1,8 @@
 # Architecture Decision Index
 
-**Last updated:** 2026-08-15
+**Last updated:** 2026-11-05
 
-This index tracks decisions against the approved VMark Mobile implementation document. A proposal is not implementation evidence; each decision becomes accepted only after its phase gate and required device checks pass.
+Earlier phase wording below is historical; current runtime details are in [Architecture](../architecture.md) and ADR-007. This index tracks decisions against the approved VMark Mobile implementation document. A proposal is not implementation evidence; each decision becomes accepted only after its phase gate and required device checks pass.
 
 | ID      | Decision                                                  | Status                           | Current evidence / next gate                                                                                                                                                                                     |
 | ------- | --------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -12,5 +12,7 @@ This index tracks decisions against the approved VMark Mobile implementation doc
 | ADR-004 | Code and diagrams are never executed                      | Accepted as a security invariant | Current Markdown WebView blocks arbitrary navigation and sanitizes rendered HTML. Mermaid and binary/code adapters remain unimplemented.                                                                         |
 | ADR-005 | AI produces revision-checked proposals only               | Implemented in code              | Chat, Genies, and automations can create proposals but cannot write directly; apply rechecks note identity, source content, and editor revision. Installed-device/provider verification remains.                 |
 | ADR-006 | Lossless bounded math rendering pipeline                  | Accepted                         | Exact-pair tokenization, render-only normalization, restricted KaTeX, offline fonts, 28 focused tests and 26/26 physical-device formulas pass. See [`ADR-006`](ADR-006-lossless-math-rendering.md).              |
+
+| ADR-007 | Personal Agent authority and drawing retirement | Accepted for implementation; device gates open | Separate verified authority, explicit fenced recovery, read-only candidate extraction, scope-bound worker sync/delivery and lossless legacy drawing retirement. See [ADR-007](ADR-007-personal-agent-and-drawing-retirement.md). |
 
 Authoritative descriptions are in `docs/VMark-Mobile-实现文档.md`, sections 14.1-14.5. Phase sequencing and gates are in `docs/VMark-Mobile-升级对比报告.md`, section 8.

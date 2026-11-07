@@ -1,8 +1,11 @@
-import { ChevronRight, X } from "lucide-react-native";
+import { CircleAction } from "./mira-controls";
+import { ChevronRight, ChevronLeft } from "lucide-react-native";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import type { AiProposal, AiProposalState } from "../ai/proposal";
+import { AppSafeArea } from "./app-safe-area";
 import { useTheme, type Theme } from "./theme";
+import { useReducedMotion } from "./use-reduced-motion";
 
 const GROUPS: readonly Readonly<{ state: AiProposalState; label: string }>[] = Object.freeze([
   Object.freeze({ state: "pending", label: "Pending" }),
@@ -22,56 +25,61 @@ export function AiProposalInbox(
 ) {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const reduceMotion = useReducedMotion();
   return (
-    <Modal animationType="slide" onRequestClose={props.onClose} visible={props.visible}>
-      <View style={styles.screen}>
-        <View style={styles.header}>
-          <View>
-            <Text accessibilityRole="header" style={styles.title}>
-              Proposal inbox
-            </Text>
-            <Text style={styles.subtitle}>AI changes never apply themselves</Text>
+    <Modal
+      animationType={reduceMotion ? "none" : "slide"}
+      onRequestClose={props.onClose}
+      visible={props.visible}
+    >
+      <AppSafeArea style={{ backgroundColor: theme.colors.background }}>
+        <View style={styles.screen}>
+          <View style={styles.header}>
+            <View>
+              <Text accessibilityRole="header" style={styles.title}>
+                Proposal inbox
+              </Text>
+              <Text style={styles.subtitle}>AI changes never apply themselves</Text>
+            </View>
+            <CircleAction label="Close proposal inbox" onPress={props.onClose} muted>
+              <ChevronLeft color={theme.colors.text} size={22} />
+            </CircleAction>
           </View>
-          <Pressable
-            accessibilityLabel="Close proposal inbox"
-            onPress={props.onClose}
-            style={styles.icon}
-          >
-            <X color={theme.colors.text} size={22} />
-          </Pressable>
+          <ScrollView contentContainerStyle={styles.content}>
+            {GROUPS.map((group) => {
+              const proposals = props.proposals.filter((item) => item.state === group.state);
+              if (proposals.length === 0) return null;
+              return (
+                <View key={group.state} style={styles.group}>
+                  <Text style={styles.groupLabel}>
+                    {group.label.toLocaleUpperCase()} · {proposals.length}
+                  </Text>
+                  {proposals.map((proposal) => (
+                    <Pressable
+                      key={proposal.id}
+                      onPress={() => props.onSelect(proposal)}
+                      style={styles.row}
+                    >
+                      <View style={styles.rowCopy}>
+                        <Text numberOfLines={1} style={styles.path}>
+                          {proposal.targetPath}
+                        </Text>
+                        <Text numberOfLines={1} style={styles.meta}>
+                          {proposal.explanation || "AI note update"}
+                        </Text>
+                      </View>
+                      <ChevronRight color={theme.colors.mutedText} size={18} />
+                    </Pressable>
+                  ))}
+                </View>
+              );
+            })}
+            {props.proposals.length === 0 ? (
+              <Text style={styles.empty}>No proposals yet</Text>
+            ) : null}
+          </ScrollView>
         </View>
-        <ScrollView contentContainerStyle={styles.content}>
-          {GROUPS.map((group) => {
-            const proposals = props.proposals.filter((item) => item.state === group.state);
-            if (proposals.length === 0) return null;
-            return (
-              <View key={group.state} style={styles.group}>
-                <Text style={styles.groupLabel}>
-                  {group.label.toLocaleUpperCase()} · {proposals.length}
-                </Text>
-                {proposals.map((proposal) => (
-                  <Pressable
-                    key={proposal.id}
-                    onPress={() => props.onSelect(proposal)}
-                    style={styles.row}
-                  >
-                    <View style={styles.rowCopy}>
-                      <Text numberOfLines={1} style={styles.path}>
-                        {proposal.targetPath}
-                      </Text>
-                      <Text numberOfLines={1} style={styles.meta}>
-                        {proposal.explanation || "AI note update"}
-                      </Text>
-                    </View>
-                    <ChevronRight color={theme.colors.mutedText} size={18} />
-                  </Pressable>
-                ))}
-              </View>
-            );
-          })}
-          {props.proposals.length === 0 ? <Text style={styles.empty}>No proposals yet</Text> : null}
-        </ScrollView>
-      </View>
+      </AppSafeArea>
     </Modal>
   );
 }
@@ -87,7 +95,6 @@ function createStyles(theme: Theme) {
     },
     title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
     subtitle: { marginTop: 3, color: theme.colors.mutedText, fontSize: 11 },
-    icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     content: { gap: 18, paddingBottom: 32 },
     group: { gap: 5 },
     groupLabel: {
@@ -103,7 +110,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       gap: 10,
       paddingHorizontal: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surface,
     },
     rowCopy: { minWidth: 0, flex: 1 },

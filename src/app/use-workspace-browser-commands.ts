@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { isEditableTextFormat } from "../formats/format-path";
 import { decideFileOpen } from "./file-open-policy";
 import type { FileEntry } from "../workspace/workspace-adapter";
+import type { DocumentId } from "../domain/identifiers";
 import type { EditorMode } from "../session/document-session";
 import type { WorkspaceConflictPolicy } from "../workspace/workspace-browser";
 import type { AppServices } from "./app-services";
@@ -12,16 +13,17 @@ import {
   browserErrorMessage,
   type BrowserCommandResult,
 } from "./browser-command";
-import { pathAfterBrowserMutation, type WorkspaceState } from "./workspace-state";
+import type { WorkspacePathMutation, WorkspaceState } from "./workspace-state";
 
 type WorkspaceBrowserCommandOptions = Readonly<{
-  services: AppServices;
+  services: Pick<AppServices, "browser">;
   getState: () => WorkspaceState | null;
   prepareWorkspaceSwitch: () => Promise<boolean>;
   saveWithSource: (source: "auto") => Promise<void>;
   reloadWorkspace: (
     preferredPath?: string,
     preferredMode?: EditorMode,
+    mutation?: WorkspacePathMutation,
   ) => Promise<BrowserCommandResult>;
   refreshBrowser: () => Promise<void>;
   onPathMoved: (from: string, to: string) => Promise<void>;
@@ -98,19 +100,28 @@ export function useWorkspaceBrowserCommands(options: WorkspaceBrowserCommandOpti
       entry: FileEntry,
       to: string,
       conflict: WorkspaceConflictPolicy = "fail",
+      documentId?: DocumentId,
     ): Promise<BrowserCommandResult> => {
       const prepared = await prepareMutation();
       if (!prepared.ok) return prepared;
-      const result = await options.services.browser.rename(entry.path, to, conflict);
+      const active = options.getState()?.activeDocument;
+      if (
+        documentId !== undefined &&
+        (active?.documentId !== documentId || active.path !== entry.path)
+      ) {
+        return browserCommandFailure("The note changed before it could be renamed.");
+      }
+      const isDraft = documentId !== undefined && active?.baseHash === null;
+      const result = isDraft
+        ? await options.services.browser.createFile(to, active.markdown, conflict)
+        : await options.services.browser.rename(entry.path, to, conflict);
       if (!result.ok)
         return browserCommandFailure(browserErrorMessage(result.error), result.error.code);
-      const activePath = options.getState()?.activeDocument.path;
-      const preferredPath =
-        activePath === undefined
-          ? undefined
-          : (pathAfterBrowserMutation(activePath, entry.path, result.value.path) ?? undefined);
-      void options.onPathMoved(entry.path, result.value.path);
-      return options.reloadWorkspace(preferredPath);
+      if (!isDraft) await options.onPathMoved(entry.path, result.value.path);
+      return options.reloadWorkspace(undefined, undefined, {
+        from: entry.path,
+        to: result.value.path,
+      });
     },
     [options, prepareMutation],
   );
@@ -126,13 +137,11 @@ export function useWorkspaceBrowserCommands(options: WorkspaceBrowserCommandOpti
       const result = await options.services.browser.move(entry.path, to, conflict);
       if (!result.ok)
         return browserCommandFailure(browserErrorMessage(result.error), result.error.code);
-      const activePath = options.getState()?.activeDocument.path;
-      const preferredPath =
-        activePath === undefined
-          ? undefined
-          : (pathAfterBrowserMutation(activePath, entry.path, result.value.path) ?? undefined);
-      void options.onPathMoved(entry.path, result.value.path);
-      return options.reloadWorkspace(preferredPath);
+      await options.onPathMoved(entry.path, result.value.path);
+      return options.reloadWorkspace(undefined, undefined, {
+        from: entry.path,
+        to: result.value.path,
+      });
     },
     [options, prepareMutation],
   );
@@ -161,13 +170,8 @@ export function useWorkspaceBrowserCommands(options: WorkspaceBrowserCommandOpti
       const result = await options.services.browser.remove(entry.path, mode);
       if (!result.ok)
         return browserCommandFailure(browserErrorMessage(result.error), result.error.code);
-      const activePath = options.getState()?.activeDocument.path;
-      const preferredPath =
-        activePath === undefined
-          ? undefined
-          : (pathAfterBrowserMutation(activePath, entry.path, null) ?? undefined);
-      void options.onPathRemoved(entry.path);
-      return options.reloadWorkspace(preferredPath);
+      await options.onPathRemoved(entry.path);
+      return options.reloadWorkspace(undefined, undefined, { from: entry.path, to: null });
     },
     [options, prepareMutation],
   );

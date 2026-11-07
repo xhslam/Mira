@@ -1,4 +1,4 @@
-export const PRIMARY_TABS = ["learn", "files", "ai", "drawings", "settings"] as const;
+export const PRIMARY_TABS = ["agent", "learn", "files", "settings"] as const;
 
 export type PrimaryTab = (typeof PRIMARY_TABS)[number];
 export type AppStartupState =
@@ -13,7 +13,7 @@ export type AppShellState = Readonly<{
 export function createAppShellState(): AppShellState {
   return Object.freeze({
     startup: "checking-workspace",
-    activeTab: "learn",
+    activeTab: "agent",
     errorMessage: null,
   });
 }
@@ -26,7 +26,7 @@ export function completeWorkspaceCheck(
   return Object.freeze({
     ...state,
     startup: documentCount + recoveryDraftCount > 0 ? "ready" : "needs-workspace",
-    activeTab: "learn",
+    activeTab: "agent",
     errorMessage: null,
   });
 }
@@ -52,7 +52,7 @@ export function openManagedWorkspace(state: AppShellState): AppShellState {
   return Object.freeze({
     ...state,
     startup: "ready",
-    activeTab: "learn",
+    activeTab: "agent",
     errorMessage: null,
   });
 }

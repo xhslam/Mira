@@ -3,7 +3,6 @@ import path from "node:path";
 
 import {
   assertSingleDomBundle,
-  installExcalidrawReleaseFonts,
   installKatexReleaseFonts,
   readDomAssetInventory,
 } from "./android-release-assets.mjs";
@@ -25,7 +24,6 @@ if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 
 const domAssetDirectory = path.join(outputDirectory, "www.bundle");
-await installExcalidrawReleaseFonts(process.cwd(), domAssetDirectory);
 await installKatexReleaseFonts(process.cwd(), domAssetDirectory, { cssDirectory: "" });
 assertSingleDomBundle(await readDomAssetInventory(domAssetDirectory), domAssetDirectory, {
   requireSourceMap: false,
