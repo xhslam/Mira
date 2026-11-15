@@ -9,7 +9,7 @@
 - [ ] Release APK contains the native and verified DOM bundles and requires no Metro server.
 - [ ] Final manifest has the expected permissions for AI and worker networking, user-initiated speech recording and media playback, and the Android installer. It has no overlay, camera, or broad-storage permission.
 - [ ] APK package/version, signer class, timestamp, size, and SHA-256 are recorded.
-- [ ] GitHub Release exposes a matching build number and APK SHA-256 digest. A previously installed distribution build can download and install it without losing data.
+- [ ] GitHub Release exposes a `Mira-Update.json` asset with the matching build number and APK SHA-256 digest. A previously installed distribution build can download and install it without losing data.
 - [ ] Exact APK installs on the named emulator/device and cold-starts with Metro stopped.
 - [ ] Create/edit/all modes/save/force-stop/reopen/search/drawer/history/conflict and AI proposal smoke journeys pass.
 - [ ] DeepSeek/OpenAI-compatible streaming, secure-key restart, native web citations, whole-workspace permission denial, cancellation, and latest-only automation catch-up pass with test credentials.

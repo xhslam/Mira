@@ -1,45 +1,33 @@
 const REPOSITORY = "https://github.com/xhslam/Mira";
-export const LATEST_ANDROID_RELEASE = "https://api.github.com/repos/xhslam/Mira/releases/latest";
+export const LATEST_ANDROID_RELEASE = `${REPOSITORY}/releases/latest/download/Mira-Update.json`;
 export const UPDATE_APK = "Mira-Android.apk";
 
 export type AndroidRelease = Readonly<{ build: number; url: string; sha256: string }>;
-
-function record(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-}
 
 export function resolveAndroidRelease(
   payload: unknown,
   installedBuild: number,
 ): AndroidRelease | null {
-  const release = record(payload);
-  if (!release || release.draft !== false || release.prerelease !== false) return null;
-  const tag = typeof release.tag_name === "string" ? release.tag_name : "";
-  const match = /^android-([1-9]\d{0,8})$/u.exec(tag);
-  if (!match || !Array.isArray(release.assets)) return null;
-  const build = Number(match[1]);
-  if (build <= installedBuild) return null;
-  const url = `${REPOSITORY}/releases/download/${tag}/${UPDATE_APK}`;
-  for (const item of release.assets as unknown[]) {
-    const asset = record(item);
-    if (
-      asset?.name !== UPDATE_APK ||
-      asset.browser_download_url !== url ||
-      asset.state !== "uploaded"
-    )
-      continue;
-    const digest =
-      typeof asset.digest === "string" ? /^sha256:([a-f0-9]{64})$/u.exec(asset.digest) : null;
-    if (digest?.[1]) return { build, url, sha256: digest[1] };
+  const manifest =
+    typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : null;
+  const build = manifest?.build;
+  const sha256 = manifest?.sha256;
+  if (
+    typeof build !== "number" ||
+    !Number.isInteger(build) ||
+    build < 1 ||
+    build > 999_999_999 ||
+    typeof sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(sha256)
+  ) {
+    throw new Error("新版安装包的版本信息无效，请稍后再试。");
   }
-  throw new Error("新版安装包尚未就绪，请稍后再试。");
+  if (build <= installedBuild) return null;
+  return { build, url: `${REPOSITORY}/releases/download/android-${build}/${UPDATE_APK}`, sha256 };
 }
 
 export async function checkAndroidRelease(installedBuild: number, signal?: AbortSignal) {
-  const response = await fetch(LATEST_ANDROID_RELEASE, {
-    headers: { Accept: "application/vnd.github+json" },
-    ...(signal ? { signal } : {}),
-  });
+  const response = await fetch(LATEST_ANDROID_RELEASE, signal ? { signal } : undefined);
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`GitHub 暂时无法检查更新（${response.status}）。`);
   return resolveAndroidRelease(await response.json(), installedBuild);

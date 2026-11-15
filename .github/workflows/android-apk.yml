@@ -67,6 +67,8 @@ jobs:
           (
             cd apk
             sha256sum Mira-Android.apk > SHA256SUMS.txt
+            read -r digest _ < SHA256SUMS.txt
+            printf '{"build":%s,"sha256":"%s"}\n' "$MIRA_ANDROID_BUILD" "$digest" > Mira-Update.json
             "$build_tools/apksigner" verify --print-certs Mira-Android.apk | tee apk-signature.txt
             grep -Fx 'Signer #1 certificate SHA-256 digest: 12c5dc49817d4d05766e95d69186f2ed37a463dc8650c488c308d53c5c2de28f' apk-signature.txt
             "$build_tools/aapt" dump badging Mira-Android.apk > apk-info.txt
@@ -119,5 +121,5 @@ jobs:
           else
             gh release create "$tag" --draft --target "$GITHUB_SHA" --title "mira ${tag#android-}" --generate-notes
           fi
-          gh release upload "$tag" apk/Mira-Android.apk apk/SHA256SUMS.txt --clobber
+          gh release upload "$tag" apk/Mira-Android.apk apk/SHA256SUMS.txt apk/Mira-Update.json --clobber
           gh release edit "$tag" --draft=false --latest

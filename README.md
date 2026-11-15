@@ -43,7 +43,7 @@ Android may prompt you to allow mira to install apps the first time. Builds prev
 installed with a different signer require a one-time reinstall. Export your data first.
 
 The [Android APK workflow](https://github.com/xhslam/Mira/actions/workflows/android-apk.yml)
-builds pushes to `main`, verifies the APK and publishes it as a GitHub Release. Keep
+builds pushes to `main`, verifies the APK and publishes it with `Mira-Update.json`. The app reads that public release asset without a GitHub account. Keep
 the same distribution signing key across releases. The workflow uses the
 `MIRA_ANDROID_KEYSTORE_BASE64` and `MIRA_ANDROID_KEYSTORE_PASSWORD` repository
 secrets and verifies the signing certificate before publishing.
