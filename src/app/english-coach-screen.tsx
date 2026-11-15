@@ -1,3 +1,4 @@
+import { useAndroidBack } from "./use-android-back";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -197,6 +198,8 @@ export function EnglishCoachScreen({
       setNotice(error instanceof Error ? error.message : "暂时无法返回学习，请重试。");
     }
   }
+  useAndroidBack(true, () => void returnToLearning());
+
   async function startLesson(): Promise<void> {
     const trimmed = scenario.trim();
     if (!trimmed) {

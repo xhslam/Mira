@@ -23,6 +23,7 @@ import {
   failWorkspaceCheck,
   openManagedWorkspace,
   retryWorkspaceCheck,
+  returnToPreviousTab,
   selectPrimaryTab,
   type AppShellState,
   type PrimaryTab,
@@ -41,6 +42,7 @@ import { DEFAULT_SETTINGS } from "./settings-store";
 import { UiSoundProvider } from "./ui-sound-context";
 import { GlobalSidebar } from "./global-sidebar";
 import { NotesOverviewScreen } from "./notes-overview-screen";
+import { useAndroidBack } from "./use-android-back";
 import { PrimaryNavigation } from "./primary-navigation";
 
 export function AppShellScreen() {
@@ -283,6 +285,16 @@ function NativeAppShellScreen() {
     );
   }
 
+  // Register the shell fallback once. Mounted screens get first refusal.
+  useAndroidBack(true, () => {
+    if (state.startup !== "ready") return;
+    if (state.activeTab === "files" && notesFolder !== null) {
+      setNotesFolder(null);
+      return;
+    }
+    setState(returnToPreviousTab);
+  });
+
   function navigatePrimary(tab: PrimaryTab): void {
     Keyboard.dismiss();
     if (tab === "files") {
@@ -390,6 +402,7 @@ function NativeAppShellScreen() {
                   )
                 }
                 controller={editorController}
+                backEnabled={editorVisible}
                 key={catalog.activeWorkspaceId ?? "managed"}
                 onExitToNotes={() => setNotesSurface("overview")}
                 onOpenSidebar={() => setSidebarVisible(true)}

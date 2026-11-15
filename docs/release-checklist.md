@@ -7,8 +7,9 @@
 - [ ] `expo prebuild --clean` reproduces native identity, icons, orientation, backup and permission policy.
 - [ ] `npm run android:release` completes and verifies one DOM JavaScript bundle, one matching source map, and one HTML entry in every release asset stage.
 - [ ] Release APK contains the native and verified DOM bundles and requires no Metro server.
-- [ ] Final manifest contains only the expected Internet permission for user-configured AI-provider and optional paired-worker HTTPS access, with no overlay, camera, microphone, or broad-storage permission.
+- [ ] Final manifest has the expected permissions for AI and worker networking, user-initiated speech recording and media playback, and the Android installer. It has no overlay, camera, or broad-storage permission.
 - [ ] APK package/version, signer class, timestamp, size, and SHA-256 are recorded.
+- [ ] GitHub Release exposes a matching build number and APK SHA-256 digest. A previously installed distribution build can download and install it without losing data.
 - [ ] Exact APK installs on the named emulator/device and cold-starts with Metro stopped.
 - [ ] Create/edit/all modes/save/force-stop/reopen/search/drawer/history/conflict and AI proposal smoke journeys pass.
 - [ ] DeepSeek/OpenAI-compatible streaming, secure-key restart, native web citations, whole-workspace permission denial, cancellation, and latest-only automation catch-up pass with test credentials.

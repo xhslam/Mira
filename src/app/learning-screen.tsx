@@ -46,6 +46,7 @@ import { LearningResourceSearchSheet } from "../learning/learning-resource-searc
 import { UrlImportScreen } from "../learning/url-import-screen";
 import type { LearningResource, LearningSnapshot } from "../learning/learning-types";
 
+import { useAndroidBack } from "./use-android-back";
 import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export function LearningScreen({
@@ -110,6 +111,17 @@ export function LearningScreen({
     );
   }
 
+  const section = resolveLearningSurface(snapshot?.ui.section ?? "home");
+  const canReturnFromHeader =
+    section === "library" ||
+    section === "practice" ||
+    section === "settings" ||
+    section === "url-import";
+  function returnFromHeader() {
+    if (snapshot) navigate(section === "library" ? "home" : lastMainSection);
+  }
+  useAndroidBack(canReturnFromHeader, returnFromHeader);
+
   if (!snapshot) {
     return withBottomNavigation(
       <View style={styles.loading}>
@@ -132,14 +144,14 @@ export function LearningScreen({
   }
 
   const activeSnapshot = snapshot;
-  const section = resolveLearningSurface(activeSnapshot.ui.section);
 
   function navigate(next: LearningMainSection | "settings") {
+    if (!snapshot) return;
     if (isLearningMainSection(next)) setLastMainSection(next);
     void update(
       Object.freeze({
-        ...activeSnapshot,
-        ui: Object.freeze({ ...activeSnapshot.ui, section: next }),
+        ...snapshot,
+        ui: Object.freeze({ ...snapshot.ui, section: next }),
       }),
     );
   }
@@ -294,7 +306,7 @@ export function LearningScreen({
                     : "返回学习"
               }
               accessibilityRole="button"
-              onPress={() => navigate(section === "library" ? "home" : lastMainSection)}
+              onPress={returnFromHeader}
               style={({ pressed }) => [
                 styles.iconButton,
                 styles.plainIconButton,

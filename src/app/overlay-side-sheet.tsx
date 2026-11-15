@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
+import { useAndroidBack } from "./use-android-back";
 import { useReducedMotion } from "./use-reduced-motion";
 import { useTranslate } from "./locale";
 import { useTheme } from "./theme";
@@ -44,6 +45,7 @@ export function OverlaySideSheet({
   maxWidth?: number;
   sidebar?: boolean;
 }>) {
+  useAndroidBack(visible, onClose);
   const theme = useTheme();
   const t = useTranslate();
   const reduceMotion = useReducedMotion();

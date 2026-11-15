@@ -18,6 +18,7 @@ export type AiConversationMessage = Readonly<{
   id: AiMessageId;
   conversationId: AiConversationId;
   role: "user" | "assistant";
+  references?: readonly Readonly<{ id: string; title: string }>[];
   content: string;
   status: "completed" | "incomplete";
   createdAt: string;

@@ -10,6 +10,9 @@ type WorkspaceAccessNativeModule = Readonly<{
   createBookmark(uri: string): string;
   resolveBookmark(serializedBookmark: string): ResolvedWorkspaceBookmark;
   stopAccessing(uri: string): void;
+  androidBuildNumber?(): number;
+  installAndroidUpdate?(sha256: string, build: number): Promise<boolean>;
+  openAndroidInstallPermission?(): void;
   performClickHaptic?(): boolean;
   setEditorInputEnabled?(viewId: number, enabled: boolean): Promise<void>;
 }>;
@@ -41,4 +44,17 @@ export function performClickHaptic(): boolean {
 
 export function setEditorInputEnabled(viewId: number, enabled: boolean): Promise<void> {
   return nativeModule?.setEditorInputEnabled?.(viewId, enabled) ?? Promise.resolve();
+}
+
+export function androidBuildNumber(): number | undefined {
+  return nativeModule?.androidBuildNumber?.();
+}
+
+export async function installAndroidUpdate(sha256: string, build: number): Promise<boolean> {
+  if (!nativeModule?.installAndroidUpdate) throw new Error("Android installer is unavailable");
+  return nativeModule.installAndroidUpdate(sha256, build);
+}
+
+export function openAndroidInstallPermission(): void {
+  nativeModule?.openAndroidInstallPermission?.();
 }

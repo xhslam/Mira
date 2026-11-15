@@ -1,3 +1,6 @@
+import { AiRichMessage } from "./ai-rich-message";
+import { AiMemoryContextSheet } from "./ai-memory-context-sheet";
+import type { MemoryEntry } from "../ai/memory-store";
 import * as Crypto from "expo-crypto";
 import {
   ArrowUp,
@@ -5,13 +8,14 @@ import {
   ChevronLeft,
   ChevronDown,
   FileText,
+  Brain,
   Globe2,
   Inbox,
   MoreHorizontal,
   Plus,
   Square,
 } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -69,87 +73,6 @@ function summarizeToolResult(name: string, content: string): string {
   return "Completed";
 }
 
-function inlineMarkdown(source: string, styles: ReturnType<typeof createStyles>): ReactNode[] {
-  return source.split(/(`[^`]+`|\*\*[^*]+\*\*)/gu).map((part, index) => {
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return (
-        <Text key={index} style={styles.inlineCode}>
-          {part.slice(1, -1)}
-        </Text>
-      );
-    }
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <Text key={index} style={styles.strong}>
-          {part.slice(2, -2)}
-        </Text>
-      );
-    }
-    return part;
-  });
-}
-
-function AiMessageContent({
-  content,
-  styles,
-}: Readonly<{ content: string; styles: ReturnType<typeof createStyles> }>) {
-  const blocks: ReactNode[] = [];
-  const lines = content.split("\n");
-  let code: string[] | null = null;
-  for (const [index, lineValue] of lines.entries()) {
-    const line = lineValue ?? "";
-    if (line.trimStart().startsWith("```")) {
-      if (code === null) code = [];
-      else {
-        blocks.push(
-          <Text key={`code-${index}`} selectable style={styles.codeBlock}>
-            {code.join("\n")}
-          </Text>,
-        );
-        code = null;
-      }
-      continue;
-    }
-    if (code !== null) {
-      code.push(line);
-      continue;
-    }
-    const heading = /^(#{1,3})\s+(.+)$/u.exec(line);
-    const bullet = /^\s*[-*]\s+(.+)$/u.exec(line);
-    if (!line.trim()) {
-      blocks.push(<View key={`space-${index}`} style={styles.messageSpace} />);
-    } else if (heading) {
-      blocks.push(
-        <Text key={index} style={styles.messageHeading}>
-          {inlineMarkdown(heading[2] ?? "", styles)}
-        </Text>,
-      );
-    } else if (bullet) {
-      blocks.push(
-        <View key={index} style={styles.bulletRow}>
-          <Text style={styles.bulletMark}>•</Text>
-          <Text selectable style={styles.messageText}>
-            {inlineMarkdown(bullet[1] ?? "", styles)}
-          </Text>
-        </View>,
-      );
-    } else {
-      blocks.push(
-        <Text key={index} selectable style={styles.messageText}>
-          {inlineMarkdown(line, styles)}
-        </Text>,
-      );
-    }
-  }
-  if (code !== null)
-    blocks.push(
-      <Text key="code-tail" selectable style={styles.codeBlock}>
-        {code.join("\n")}
-      </Text>,
-    );
-  return <View style={styles.messageContent}>{blocks}</View>;
-}
-
 export function AgentConversationScreen({
   services,
   controller,
@@ -198,6 +121,10 @@ export function AgentConversationScreen({
   );
   const [sending, setSending] = useState(false);
   const [providerSheetVisible, setProviderSheetVisible] = useState(false);
+  const [memoryContextVisible, setMemoryContextVisible] = useState(false);
+  const [memorySeed, setMemorySeed] = useState<MemoryEntry | null>(null);
+  const [referenceIds, setReferenceIds] = useState<readonly AiConversationId[]>([]);
+  const [useMemory, setUseMemory] = useState(true);
   const [contextSheetVisible, setContextSheetVisible] = useState(false);
   const [automationSheetVisible, setAutomationSheetVisible] = useState(false);
   const [providerRevision, setProviderRevision] = useState(0);
@@ -234,6 +161,9 @@ export function AgentConversationScreen({
       .then((messages) => {
         if (!active) return;
         setMessages(messages);
+        const latestReferences =
+          [...messages].reverse().find((message) => message.role === "user")?.references ?? [];
+        setReferenceIds(latestReferences.map((reference) => reference.id as AiConversationId));
         setThreadState("ready");
       })
       .catch(() => {
@@ -459,6 +389,8 @@ export function AgentConversationScreen({
         providerProfileId: activeProfile.id,
         ...(conversationId ? { conversationId } : {}),
         prompt: text,
+        referenceIds,
+        useMemory,
         context: Object.freeze([
           ...(document
             ? [
@@ -645,16 +577,50 @@ export function AgentConversationScreen({
             ]}
           >
             {item.role === "user" ? (
-              <Text selectable style={styles.userMessageText}>
-                {item.content}
-              </Text>
+              <View>
+                <Text selectable style={styles.userMessageText}>
+                  {item.content}
+                </Text>
+                {item.references?.map((reference) => (
+                  <Text key={reference.id} style={styles.userMessageText}>
+                    ↗ {reference.title}
+                  </Text>
+                ))}
+                {item.status === "completed" ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="保存这条消息为记忆"
+                    disabled={sending}
+                    onPress={() => {
+                      setMemorySeed({
+                        id: Crypto.randomUUID(),
+                        workspaceId: services.activeWorkspace.grant.workspaceId,
+                        title: item.content.slice(0, 40),
+                        content: item.content.slice(0, 8000),
+                        category: "topic",
+                        enabled: true,
+                        source: {
+                          conversationId: item.conversationId,
+                          messageId: item.id,
+                          quote: item.content.slice(0, 8000),
+                        },
+                        updatedAt: new Date().toISOString(),
+                      });
+                      setMemoryContextVisible(true);
+                    }}
+                  >
+                    <Text style={[styles.userMessageText, { fontSize: 11, marginTop: 8 }]}>
+                      保存为记忆
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : (
-              <AiMessageContent
+              <AiRichMessage
                 content={
                   item.content ||
                   (item.status === "incomplete" ? "上次请求未完成，请检查 API 配置后重试。" : "")
                 }
-                styles={styles}
               />
             )}
           </View>
@@ -700,45 +666,57 @@ export function AgentConversationScreen({
         </View>
       ) : null}
 
-      {activeDocument || selectedPaths.length > 0 || allowWholeWorkspace || canSearch ? (
-        <View style={styles.contextRow}>
-          {activeDocument || selectedPaths.length > 0 || allowWholeWorkspace ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="查看笔记上下文"
-              onPress={() => setContextSheetVisible(true)}
-              style={styles.contextChip}
-            >
-              <FileText color={theme.colors.mutedText} size={15} />
-              <Text numberOfLines={1} style={styles.contextChipText}>
-                {activeDocument?.path ?? "笔记上下文"}
-                {activeDocument?.dirty ? " · 未保存" : ""}
-                {selectedPaths.length > 0 ? ` +${selectedPaths.length}` : ""}
-                {allowWholeWorkspace ? " · 可搜索工作区" : ""}
-              </Text>
-            </Pressable>
-          ) : null}
-          {canSearch ? (
-            <Pressable
-              accessibilityLabel="联网搜索"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: webSearchEnabled }}
-              onPress={() => setWebSearch((current) => !current)}
-              style={[styles.contextChip, webSearchEnabled && styles.webToggleActive]}
-            >
-              <Globe2
-                color={webSearchEnabled ? theme.colors.canvas : theme.colors.mutedText}
-                size={15}
-              />
-              <Text
-                style={[styles.contextChipText, webSearchEnabled && styles.webToggleTextActive]}
-              >
-                联网
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
+      <View style={styles.contextRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="记忆与引用对话"
+          disabled={sending}
+          onPress={() => {
+            setMemorySeed(null);
+            setMemoryContextVisible(true);
+          }}
+          style={styles.contextChip}
+        >
+          <Brain color={theme.colors.mutedText} size={15} />
+          <Text numberOfLines={1} style={styles.contextChipText}>
+            记忆{useMemory ? "" : "已停用"} · 引用
+            {referenceIds.length ? ` ${referenceIds.length}` : ""}
+          </Text>
+        </Pressable>
+        {activeDocument || selectedPaths.length > 0 || allowWholeWorkspace ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="查看笔记上下文"
+            onPress={() => setContextSheetVisible(true)}
+            style={styles.contextChip}
+          >
+            <FileText color={theme.colors.mutedText} size={15} />
+            <Text numberOfLines={1} style={styles.contextChipText}>
+              {activeDocument?.path ?? "笔记上下文"}
+              {activeDocument?.dirty ? " · 未保存" : ""}
+              {selectedPaths.length > 0 ? ` +${selectedPaths.length}` : ""}
+              {allowWholeWorkspace ? " · 可搜索工作区" : ""}
+            </Text>
+          </Pressable>
+        ) : null}
+        {canSearch ? (
+          <Pressable
+            accessibilityLabel="联网搜索"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: webSearchEnabled }}
+            onPress={() => setWebSearch((current) => !current)}
+            style={[styles.contextChip, webSearchEnabled && styles.webToggleActive]}
+          >
+            <Globe2
+              color={webSearchEnabled ? theme.colors.canvas : theme.colors.mutedText}
+              size={15}
+            />
+            <Text style={[styles.contextChipText, webSearchEnabled && styles.webToggleTextActive]}>
+              联网
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       {sending ? (
         <View style={styles.activity} accessibilityLiveRegion="polite">
           <ActivityIndicator color={theme.colors.accent} size="small" />
@@ -749,8 +727,12 @@ export function AgentConversationScreen({
         <View style={styles.inputPill}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="添加笔记上下文"
-            onPress={() => setContextSheetVisible(true)}
+            accessibilityLabel="添加对话上下文"
+            disabled={sending}
+            onPress={() => {
+              setMemorySeed(null);
+              setMemoryContextVisible(true);
+            }}
             style={({ pressed }) => [styles.attachButton, pressed && styles.pressed]}
           >
             <Plus color={theme.colors.mutedText} size={23} />
@@ -839,6 +821,23 @@ export function AgentConversationScreen({
         settingsStore={services.settingsStore}
         visible={providerSheetVisible}
       />
+      {memoryContextVisible ? (
+        <AiMemoryContextSheet
+          services={services}
+          visible={memoryContextVisible}
+          currentId={conversationId}
+          selected={referenceIds}
+          onSelect={setReferenceIds}
+          useMemory={useMemory}
+          onUseMemory={setUseMemory}
+          seed={memorySeed}
+          onClose={() => setMemoryContextVisible(false)}
+          onNotes={() => {
+            setMemoryContextVisible(false);
+            setContextSheetVisible(true);
+          }}
+        />
+      ) : null}
       <AiContextSheet
         allowWholeWorkspaceSearch={allowWholeWorkspace}
         currentPath={activeDocument?.path ?? null}
@@ -946,8 +945,16 @@ function createStyles(theme: Theme) {
       borderRadius: 4,
       backgroundColor: theme.colors.error,
     },
-    contextRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+    contextRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "flex-start",
+      gap: 8,
+      marginBottom: 4,
+    },
     contextChip: {
+      alignSelf: "flex-start",
+      maxWidth: "100%",
       minWidth: 0,
       flexShrink: 1,
       flexDirection: "row",
@@ -964,13 +971,14 @@ function createStyles(theme: Theme) {
     timelineList: { flex: 1 },
     timeline: { flexGrow: 1, gap: 8, paddingVertical: 16 },
     timelineEmpty: { justifyContent: "center" },
-    message: { maxWidth: "86%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 22 },
+    message: { maxWidth: "100%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 22 },
     userMessage: {
       alignSelf: "flex-end",
+      maxWidth: "86%",
       backgroundColor: "#BB460A",
     },
     assistantMessage: {
-      alignSelf: "flex-start",
+      alignSelf: "stretch",
       backgroundColor: theme.colors.surface,
     },
     errorMessage: { backgroundColor: theme.colors.warningSurface },

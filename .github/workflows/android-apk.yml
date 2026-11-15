@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mira-android-main
+  cancel-in-progress: true
+
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
@@ -34,25 +38,40 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Set Android build number
+        run: echo "MIRA_ANDROID_BUILD=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+
       - name: Generate Android project
         run: npx expo prebuild --clean --platform android --no-install
 
       - name: Build standalone APK
         run: npm run android:release
 
-      - name: Verify and stage APK
+      - name: Sign, verify, and stage APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MIRA_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.MIRA_ANDROID_KEYSTORE_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           mkdir -p apk
-          cp android/app/build/outputs/apk/release/app-release.apk apk/Mira-Android.apk
+          umask 077
+          keystore="$(mktemp)"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          "$build_tools/apksigner" sign --ks "$keystore" --ks-type PKCS12 \
+            --ks-key-alias mira --ks-pass env:KEYSTORE_PASSWORD \
+            --out apk/Mira-Android.apk android/app/build/outputs/apk/release/app-release.apk
+          chmod 644 apk/Mira-Android.apk
           (
             cd apk
             sha256sum Mira-Android.apk > SHA256SUMS.txt
-            "$build_tools/apksigner" verify --print-certs Mira-Android.apk
+            "$build_tools/apksigner" verify --print-certs Mira-Android.apk | tee apk-signature.txt
+            grep -Fx 'Signer #1 certificate SHA-256 digest: 12c5dc49817d4d05766e95d69186f2ed37a463dc8650c488c308d53c5c2de28f' apk-signature.txt
             "$build_tools/aapt" dump badging Mira-Android.apk > apk-info.txt
             grep -F "package: name='app.inkstone.markdown'" apk-info.txt
+            grep -F "versionCode='$MIRA_ANDROID_BUILD'" apk-info.txt
             grep -F "native-code:" apk-info.txt
             unzip -Z1 Mira-Android.apk > apk-files.txt
             grep -Fx 'assets/index.android.bundle' apk-files.txt
@@ -67,3 +86,38 @@ jobs:
           path: apk/
           if-no-files-found: error
           retention-days: 90
+
+  publish:
+    if: github.repository == 'xhslam/Mira'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Mira-Android-${{ github.sha }}
+          path: apk
+
+      - name: Publish installable APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          build=$((100000 + GITHUB_RUN_NUMBER))
+          tag="android-$build"
+          latest="$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // ""')"
+          if [[ "$latest" =~ ^android-([1-9][0-9]{0,8})$ && ${BASH_REMATCH[1]} -gt $build ]]; then
+            echo "A newer build is already published."
+            exit 0
+          fi
+          if gh release view "$tag" --json isDraft --jq '.isDraft' > release-state; then
+            if [[ "$(cat release-state)" == false ]]; then
+              exit 0
+            fi
+          else
+            gh release create "$tag" --draft --target "$GITHUB_SHA" --title "mira ${tag#android-}" --generate-notes
+          fi
+          gh release upload "$tag" apk/Mira-Android.apk apk/SHA256SUMS.txt --clobber
+          gh release edit "$tag" --draft=false --latest

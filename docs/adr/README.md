@@ -1,6 +1,6 @@
 # Architecture Decision Index
 
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-07
 
 Earlier phase wording below is historical; current runtime details are in [Architecture](../architecture.md) and ADR-007. This index tracks decisions against the approved VMark Mobile implementation document. A proposal is not implementation evidence; each decision becomes accepted only after its phase gate and required device checks pass.
 
@@ -16,3 +16,5 @@ Earlier phase wording below is historical; current runtime details are in [Archi
 | ADR-007 | Personal Agent authority and drawing retirement | Accepted for implementation; device gates open | Separate verified authority, explicit fenced recovery, read-only candidate extraction, scope-bound worker sync/delivery and lossless legacy drawing retirement. See [ADR-007](ADR-007-personal-agent-and-drawing-retirement.md). |
 
 Authoritative descriptions are in `docs/VMark-Mobile-实现文档.md`, sections 14.1-14.5. Phase sequencing and gates are in `docs/VMark-Mobile-升级对比报告.md`, section 8.
+
+[ADR-008: Workspace memory, conversation references and native rich text](ADR-008-agent-memory-and-conversation-context.md) records the current three Agent priorities, additive SQLite migrations, explicit evidence-backed memory writes, reference limits and native rendering boundaries.

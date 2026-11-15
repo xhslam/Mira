@@ -64,11 +64,13 @@ import { MiraSheet, SheetAction } from "./mira-controls";
 import { triggerClickFeedback } from "./press-feedback";
 import { editableNoteName, noteRenameTargetPath } from "./note-rename";
 import { useEditorWorkspace, type EditorWorkspaceController } from "./use-editor-workspace";
+import { useAndroidBack } from "./use-android-back";
 import { WorkspaceHeader, WorkspaceModePicker } from "./workspace-header";
 
 type EditorWorkspaceScreenProps = Readonly<{
   services?: AppServices;
   clickVibration?: boolean;
+  backEnabled?: boolean;
   /**
    * The app shell can place the editor toolbar beside its navigation control
    * while keeping the editor WebView mounted across surface changes.
@@ -91,6 +93,7 @@ export function EditorWorkspaceView({
   renderBottomNavigation,
   onOpenSidebar,
   onExitToNotes,
+  backEnabled = false,
   initialPath,
   initialSearchResult,
 }: EditorWorkspaceScreenProps & Readonly<{ controller: EditorWorkspaceController }>) {
@@ -107,6 +110,7 @@ export function EditorWorkspaceView({
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renameBusy, setRenameBusy] = useState(false);
   const renameInFlight = useRef(false);
+  const returningToNotes = useRef(false);
   const [quickAssistantVisible, setQuickAssistantVisible] = useState(false);
   const [command, setCommand] = useState<EditorCommand | null>(null);
   const [editableCodeDocuments, setEditableCodeDocuments] = useState<ReadonlySet<string>>(
@@ -211,6 +215,31 @@ export function EditorWorkspaceView({
       Object.freeze({ id: (current?.id ?? 0) + 1, name, ...(content ? { content } : {}) }),
     );
   }
+
+  useAndroidBack(backEnabled, () => {
+    if (renameDocumentId !== null) {
+      if (!renameInFlight.current) cancelRename();
+      return;
+    }
+    if (!onExitToNotes || returningToNotes.current) return;
+    if (!activeDocument) {
+      onExitToNotes();
+      return;
+    }
+    returningToNotes.current = true;
+    void (async () => {
+      try {
+        if (!usesEditorKernel || (await controller.prepareWorkspaceSwitch())) {
+          Keyboard.dismiss();
+          onExitToNotes();
+          return;
+        }
+        Alert.alert("暂时无法返回笔记", "请确认当前修改已保存，再重试。");
+      } finally {
+        returningToNotes.current = false;
+      }
+    })();
+  });
 
   function closeMenu(): void {
     setMenuVisible(false);

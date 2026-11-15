@@ -10,7 +10,7 @@ import type { AiConversation, AiConversationId, AiConversationMessage } from "./
 import type { AiProposal, AiProposalId, AiProposalState } from "./proposal";
 import type { AiAutomation, AiAutomationId, AiExecution } from "./automation";
 
-function adaptDatabase(database: SQLiteDatabase): SearchDatabase {
+export function adaptDatabase(database: SQLiteDatabase): SearchDatabase {
   return Object.freeze({
     execAsync: (source) => database.execAsync(source),
     runAsync: (source, ...params) => database.runAsync(source, ...params),

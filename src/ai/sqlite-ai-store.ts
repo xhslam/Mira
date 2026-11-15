@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
 );
 CREATE TABLE IF NOT EXISTS ai_messages (
   id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL,
-  content TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL
+  content TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, references_json TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS ai_messages_conversation
   ON ai_messages(conversation_id, created_at);
@@ -106,6 +106,7 @@ const messageRowSchema = z
   .object({
     id: z.string().uuid(),
     conversation_id: z.string().uuid(),
+    references_json: z.string().optional(),
     role: z.enum(["user", "assistant"]),
     content: z.string(),
     status: z.enum(["completed", "incomplete"]),
@@ -241,6 +242,12 @@ function fromMessageRow(input: unknown): AiConversationMessage {
     id: row.id as AiMessageId,
     conversationId: row.conversation_id as AiConversationId,
     role: row.role,
+    references: Object.freeze(
+      z
+        .array(z.object({ id: z.string().uuid(), title: z.string() }).strict())
+        .parse(JSON.parse(row.references_json ?? "[]"))
+        .map((item) => Object.freeze(item)),
+    ),
     content: row.content,
     status: row.status,
     createdAt: new Date(row.created_at).toISOString(),
@@ -337,6 +344,14 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
         "ALTER TABLE ai_proposals ADD COLUMN base_content TEXT NOT NULL DEFAULT ''",
       );
     }
+    const messageColumns = await database.getAllAsync<{ name: string }>(
+      "PRAGMA table_info(ai_messages)",
+    );
+    if (!messageColumns.some((column) => column.name === "references_json")) {
+      await database.execAsync(
+        "ALTER TABLE ai_messages ADD COLUMN references_json TEXT NOT NULL DEFAULT '[]'",
+      );
+    }
     initialized = true;
   }
 
@@ -425,7 +440,7 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
     async listMessages(conversationId) {
       await initialize();
       const rows = await database.getAllAsync<unknown>(
-        `SELECT id, conversation_id, role, content, status, created_at
+        `SELECT id, conversation_id, role, content, status, created_at, references_json
          FROM ai_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 1000`,
         conversationId,
       );
@@ -434,15 +449,16 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
     async upsertMessage(message) {
       await initialize();
       await database.runAsync(
-        `INSERT INTO ai_messages (id, conversation_id, role, content, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET content=excluded.content, status=excluded.status`,
+        `INSERT INTO ai_messages (id, conversation_id, role, content, status, created_at, references_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET content=excluded.content, status=excluded.status, references_json=excluded.references_json`,
         message.id,
         message.conversationId,
         message.role,
         message.content,
         message.status,
         Date.parse(message.createdAt),
+        JSON.stringify(message.references ?? []),
       );
     },
     async removeConversation(id) {

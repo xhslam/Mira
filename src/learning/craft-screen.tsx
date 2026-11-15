@@ -1,3 +1,4 @@
+import { useAndroidBack } from "../app/use-android-back";
 import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -94,6 +95,8 @@ export function CraftScreen({ services, snapshot, theme, onChange, onClose }: Pr
     }
     onClose();
   }
+  useAndroidBack(true, confirmClose);
+
   async function toggleRecording() {
     setNotice(null);
     try {

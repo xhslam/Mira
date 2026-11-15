@@ -1,3 +1,5 @@
+import { createExpoMemoryStore } from "../ai/expo-memory-store";
+import type { MemoryStore } from "../ai/memory-store";
 import * as Crypto from "expo-crypto";
 import * as DocumentPicker from "expo-document-picker";
 import { Directory, File, Paths } from "expo-file-system";
@@ -121,6 +123,7 @@ export type AppServices = Readonly<{
   workspaceSearch: WorkspaceSearch;
   phase6Store: Phase6Store;
   aiStore: AiStore;
+  aiMemory: MemoryStore;
   aiSecretStore: AiSecretStore;
   aiProviderProfiles: AiProviderProfileManager;
   aiModelDiscovery: AiModelDiscovery;
@@ -177,6 +180,7 @@ export function createAppServices(): AppServices {
   const searchIndex = createExpoSearchIndex();
   const phase6Store = createExpoPhase6Store();
   const aiStore = createExpoAiStore();
+  const aiMemory = createExpoMemoryStore();
   const aiSecretStore = createExpoAiSecretStore();
   const aiProviderProfiles = createAiProviderProfileManager({
     store: aiStore,
@@ -193,6 +197,7 @@ export function createAppServices(): AppServices {
     providers: aiProviders,
   });
   const aiConversations = createAiConversationService({
+    memory: aiMemory,
     store: aiStore,
     secrets: aiSecretStore,
     providers: aiProviders,
@@ -573,6 +578,7 @@ export function createAppServices(): AppServices {
       workspaceSearch,
       phase6Store,
       aiStore,
+      aiMemory,
       aiSecretStore,
       aiProviderProfiles,
       aiModelDiscovery,

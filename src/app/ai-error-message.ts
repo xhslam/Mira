@@ -15,7 +15,7 @@ export function describeAiSendFailure(error: unknown): string {
     return "This AI provider is no longer configured. Choose or re-add a provider.";
   }
   if (message === "AI context exceeds the local request limit") {
-    return "The selected notes are too large to send. Remove some context and try again.";
+    return "所选上下文（笔记、引用对话或记忆）过大，请移除部分内容后重试。";
   }
   if (message === "The AI tool-round limit was reached") {
     return "The model kept calling tools without answering. Try a narrower question.";

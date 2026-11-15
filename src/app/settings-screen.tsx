@@ -1,6 +1,7 @@
 import {
   Bot,
   Check,
+  Download,
   ChevronRight,
   Minus,
   Plus,
@@ -9,7 +10,16 @@ import {
   Volume2,
 } from "lucide-react-native";
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 
 import { type AppSettings, type SettingsStore } from "./settings-store";
 import { translate } from "./i18n";
@@ -18,6 +28,7 @@ import { useTheme } from "./theme";
 import { triggerClickFeedback } from "./press-feedback";
 import { useUiSound } from "./ui-sound-context";
 import { MiraAvatar, MiraSheet } from "./mira-controls";
+import { AndroidUpdateSettings } from "./android-update-settings";
 import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export type SettingsScreenProps = Readonly<{
@@ -153,14 +164,17 @@ function SettingsContent({
   const t = useTranslate();
   const uiSound = useUiSound();
 
-  const [category, setCategory] = useState<"editor" | "interaction" | "security" | "ai" | null>(
-    null,
-  );
+  const [category, setCategory] = useState<
+    "editor" | "interaction" | "security" | "ai" | "updates" | null
+  >(null);
   const categories = [
     { id: "editor", icon: ScrollText, label: t("settings.editor") },
     { id: "interaction", icon: Volume2, label: t("settings.interaction") },
     { id: "security", icon: Shield, label: t("settings.security") },
     { id: "ai", icon: Bot, label: t("settings.ai") },
+    ...(Platform.OS === "android"
+      ? [{ id: "updates", icon: Download, label: "应用更新" } as const]
+      : []),
   ] as const;
 
   return (
@@ -206,6 +220,7 @@ function SettingsContent({
         title={categories.find(({ id }) => id === category)?.label ?? t("settings.title")}
         onClose={() => setCategory(null)}
       >
+        {category === "updates" ? <AndroidUpdateSettings /> : null}
         {category === "editor" ? (
           <Section styles={styles} theme={theme}>
             <SettingRow

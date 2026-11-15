@@ -19,6 +19,19 @@ describe("Personal Agent UI integration contract", () => {
     expect(services).not.toMatch(/createAgentService|createExpoAgentStore|createExpoWorkerClient/u);
     expect(chat).not.toMatch(/services\.agent\b|Agent 事项与委托/u);
   });
+  it("groups memory, note and web controls in one wrapping context row", () => {
+    const chat = read("src/app/ai-workspace-screen.tsx");
+    const start = chat.indexOf("<View style={styles.contextRow}>");
+    const end = chat.indexOf("{sending ? (", start);
+    const context = chat.slice(start, end);
+    expect(start).toBeGreaterThan(-1);
+    expect(context).toContain('accessibilityLabel="记忆与引用对话"');
+    expect(context).toContain('accessibilityLabel="查看笔记上下文"');
+    expect(context).toContain('accessibilityLabel="联网搜索"');
+    expect(chat.slice(0, start)).not.toContain('accessibilityLabel="记忆与引用对话"');
+    expect(chat).toContain('flexWrap: "wrap"');
+    expect(context.split("style={styles.contextChip}")).toHaveLength(3);
+  });
   it("moves English coach to Learning while preserving successful-pause-before-return", () => {
     expect(resolveLearningSurface("english-coach")).toBe("english-coach");
     const snapshot = createInitialLearningSnapshot();

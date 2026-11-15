@@ -33,3 +33,5 @@ Delegation edits, completion and pauses reach a remote worker only after success
 ## Device and linked workspaces
 
 Files may live in app-private storage or an explicitly authorized linked directory. Clearing App data or uninstalling removes private data and secure configuration; files in an external workspace remain controlled by its storage provider. A self-hosted worker’s data remains on that host. Android automatic backup stays disabled. Export/backup user data before uninstalling; do not clear storage as a repair procedure.
+
+The Android App Update screen checks the public Mira release on GitHub when opened. It sends no workspace data. Download starts when you tap the install button. Android asks for approval before installing the verified update.

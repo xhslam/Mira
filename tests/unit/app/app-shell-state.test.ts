@@ -5,6 +5,7 @@ import {
   createAppShellState,
   failWorkspaceCheck,
   openManagedWorkspace,
+  returnToPreviousTab,
   selectPrimaryTab,
 } from "../../../src/app/app-shell-state";
 
@@ -13,6 +14,7 @@ describe("app shell state", () => {
     expect(createAppShellState()).toEqual({
       startup: "checking-workspace",
       activeTab: "agent",
+      backTabs: [],
       errorMessage: null,
     });
   });
@@ -32,6 +34,7 @@ describe("app shell state", () => {
     expect(next).toEqual({
       startup: "ready",
       activeTab: "agent",
+      backTabs: [],
       errorMessage: null,
     });
   });
@@ -62,6 +65,16 @@ describe("app shell state", () => {
     expect(files.activeTab).toBe("files");
     expect(ready.activeTab).toBe("agent");
     expect(selectPrimaryTab(createAppShellState(), "settings").activeTab).toBe("agent");
+  });
+
+  test("returns through the visited tabs without adding new history", () => {
+    const home = openManagedWorkspace(createAppShellState());
+    const learning = selectPrimaryTab(home, "learn");
+    const settings = selectPrimaryTab(learning, "settings");
+    expect(returnToPreviousTab(selectPrimaryTab(settings, "settings"))).toEqual(learning);
+    expect(returnToPreviousTab(learning)).toEqual(home);
+    expect(returnToPreviousTab(home)).toBe(home);
+    expect(returnToPreviousTab(openManagedWorkspace(settings)).activeTab).toBe("agent");
   });
 
   test("exposes a recoverable workspace error without claiming readiness", () => {

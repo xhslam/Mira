@@ -1,7 +1,9 @@
 import type { ExpoConfig } from "expo/config";
 
+const androidBuild = Number(process.env.MIRA_ANDROID_BUILD ?? "1");
+
 const config: ExpoConfig = {
-  name: "Mira",
+  name: "mira",
   slug: "inkstone-markdown",
   scheme: "inkstone",
   version: "1.0.0",
@@ -39,10 +41,10 @@ const config: ExpoConfig = {
   },
   android: {
     package: "app.inkstone.markdown",
-    versionCode: 1,
+    versionCode: androidBuild,
     allowBackup: false,
     adaptiveIcon: {
-      backgroundColor: "#F7F5F0",
+      backgroundColor: "#F2EDE1",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
@@ -55,8 +57,12 @@ const config: ExpoConfig = {
       "android.permission.VIBRATE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
     ],
-    permissions: ["android.permission.INTERNET", "android.permission.RECORD_AUDIO"],
-    predictiveBackGestureEnabled: true,
+    permissions: [
+      "android.permission.INTERNET",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.REQUEST_INSTALL_PACKAGES",
+    ],
+    predictiveBackGestureEnabled: false,
     softwareKeyboardLayoutMode: "resize",
   },
   web: {

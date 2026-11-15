@@ -1,0 +1,19 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- tapOn: "打开应用导航"
+- tapOn: "学习"
+- assertVisible: "资料库"
+- tapOn: "资料库"
+- assertVisible: "搜索资料"
+- pressKey: Back
+- assertVisible: "创建资料"
+- tapOn: "学习设置"
+- assertVisible: "返回学习"
+- pressKey: Back
+- assertVisible: "创建资料"
+- pressKey: Back
+- assertVisible: "Agent"
+- pressKey: Back
+- assertVisible: "Agent"

@@ -8,12 +8,14 @@ export type AppShellState = Readonly<{
   startup: AppStartupState;
   activeTab: PrimaryTab;
   errorMessage: string | null;
+  backTabs: readonly PrimaryTab[];
 }>;
 
 export function createAppShellState(): AppShellState {
   return Object.freeze({
     startup: "checking-workspace",
     activeTab: "agent",
+    backTabs: Object.freeze([]),
     errorMessage: null,
   });
 }
@@ -27,6 +29,7 @@ export function completeWorkspaceCheck(
     ...state,
     startup: documentCount + recoveryDraftCount > 0 ? "ready" : "needs-workspace",
     activeTab: "agent",
+    backTabs: Object.freeze([]),
     errorMessage: null,
   });
 }
@@ -53,6 +56,7 @@ export function openManagedWorkspace(state: AppShellState): AppShellState {
     ...state,
     startup: "ready",
     activeTab: "agent",
+    backTabs: Object.freeze([]),
     errorMessage: null,
   });
 }
@@ -62,5 +66,20 @@ export function selectPrimaryTab(state: AppShellState, activeTab: PrimaryTab): A
     return state;
   }
 
-  return Object.freeze({ ...state, activeTab });
+  if (state.activeTab === activeTab) return state;
+  return Object.freeze({
+    ...state,
+    activeTab,
+    backTabs: Object.freeze([...state.backTabs, state.activeTab]),
+  });
+}
+
+export function returnToPreviousTab(state: AppShellState): AppShellState {
+  const activeTab = state.backTabs.at(-1);
+  if (state.startup !== "ready" || activeTab === undefined) return state;
+  return Object.freeze({
+    ...state,
+    activeTab,
+    backTabs: Object.freeze(state.backTabs.slice(0, -1)),
+  });
 }

@@ -96,8 +96,14 @@ export function NotesOverviewScreen({
   }, [controller.services.repository]);
 
   useEffect(() => {
-    if (!actionDocument) return undefined;
+    if (!actionDocument && !searchVisible) return undefined;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!actionDocument) {
+        Keyboard.dismiss();
+        setSearchVisible(false);
+        setQuery("");
+        return true;
+      }
       if (actionBusy) return true;
       if (actionPage !== "menu") setActionPage("menu");
       else {
@@ -108,7 +114,7 @@ export function NotesOverviewScreen({
       return true;
     });
     return () => subscription.remove();
-  }, [actionBusy, actionDocument, actionPage]);
+  }, [actionBusy, actionDocument, actionPage, searchVisible]);
 
   const visibleDocuments = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();

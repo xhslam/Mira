@@ -36,7 +36,17 @@ The App uses user-configured HTTPS AI providers and, only after explicit pairing
 
 ## Android Package
 
-Download the development-signed Android APK and its SHA-256 checksum from the **Artifacts** section of a successful [Android APK run](https://github.com/xhslam/Mira/actions/workflows/android-apk.yml) on `main`.
+Download `Mira-Android.apk` from the [latest GitHub Release](https://github.com/xhslam/Mira/releases/latest).
+After the first installation, open **设置 → 应用更新** to check GitHub automatically.
+When a newer build is available, download it there and confirm the update in Android.
+Android may prompt you to allow mira to install apps the first time. Builds previously
+installed with a different signer require a one-time reinstall. Export your data first.
+
+The [Android APK workflow](https://github.com/xhslam/Mira/actions/workflows/android-apk.yml)
+builds pushes to `main`, verifies the APK and publishes it as a GitHub Release. Keep
+the same distribution signing key across releases. The workflow uses the
+`MIRA_ANDROID_KEYSTORE_BASE64` and `MIRA_ANDROID_KEYSTORE_PASSWORD` repository
+secrets and verifies the signing certificate before publishing.
 
 Generated `android/` output is intentionally ignored. Regenerate it from `app.config.ts` before a native build so identity, icons, orientation, backup policy, keyboard behavior, and blocked permissions are reproducible:
 
