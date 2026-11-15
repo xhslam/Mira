@@ -28,6 +28,24 @@ describe("notes navigation regression", () => {
     expect(editor).toContain('result === "last"');
   });
 
+  test("mounts the sidebar only in notes and keeps both notes entry points", () => {
+    const shell = readSource("src/app/app-shell-screen.tsx");
+
+    expect(shell).toMatch(/state\.activeTab === "files" \? \(\s*<GlobalSidebar/u);
+    expect(shell.match(/onOpenSidebar=\{/gu)).toHaveLength(2);
+    expect(readSource("src/app/notes-overview-screen.tsx")).toContain("onPress={onOpenSidebar}");
+    expect(readSource("src/app/editor-workspace-screen.tsx")).toContain("onOpenSidebar?.()");
+  });
+
+  test.each(["learning", "english-coach", "agent-home", "settings"])(
+    "omits the notes sidebar action from %s",
+    (screen) => {
+      const source = readSource(`src/app/${screen}-screen.tsx`);
+
+      expect(source).not.toMatch(/onOpenSidebar|SidebarToggleIcon|打开全局侧边栏/u);
+    },
+  );
+
   test("keeps open notes reachable when the editor strip overflows", () => {
     const tabs = readSource("src/app/document-tabs.tsx");
 
@@ -40,15 +58,23 @@ describe("notes navigation regression", () => {
 
   test("switches between panel direction icons with a reduced-motion-aware spring", () => {
     const icon = readSource("src/app/sidebar-toggle-icon.tsx");
-    const sidebar = readSource("src/app/global-sidebar.tsx");
 
     expect(icon).toContain("Animated.spring(progress");
     expect(icon).toContain("useReducedMotion()");
     expect(icon).toContain("<PanelLeftOpen");
     expect(icon).toContain("<PanelLeftClose");
     expect(icon).toContain("opacity: progress");
-    expect(sidebar).toContain("<SidebarToggleIcon");
-    expect(sidebar).toContain("expanded={visible}");
+  });
+
+  test("uses the same plain title control for opening and closing the notes sidebar", () => {
+    const overview = readSource("src/app/notes-overview-screen.tsx");
+    const sidebar = readSource("src/app/global-sidebar.tsx");
+    const control = readSource("src/app/sidebar-toggle-icon.tsx");
+
+    expect(overview).toContain("<SidebarTitleButton expanded={false} onPress={onOpenSidebar}");
+    expect(sidebar).toContain("<SidebarTitleButton expanded={visible} onPress={onClose}");
+    expect(control).toContain("accessibilityState={{ expanded }}");
+    expect(control).toContain("minHeight: 48");
   });
 
   test("keeps note rename inline and progressively discloses backup settings", () => {

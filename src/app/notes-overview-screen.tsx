@@ -4,6 +4,7 @@ import {
   FileText,
   FolderInput,
   MoreHorizontal,
+  NotebookPen,
   Pencil,
   Plus,
   Search,
@@ -37,9 +38,9 @@ import type { BrowserCommandResult } from "./browser-command";
 import type { EditorWorkspaceController } from "./editor-workspace-controller";
 import { noteFolderSummaries, noteMoveTargetPath, noteParentFolder } from "./note-file-management";
 import { editableNoteName, noteRenameTargetPath } from "./note-rename";
-import { SidebarToggleIcon } from "./sidebar-toggle-icon";
+import { SidebarTitleButton } from "./sidebar-toggle-icon";
 import { CircleAction } from "./mira-controls";
-import { identityColors, useTheme, type Theme } from "./theme";
+import { useTheme, type Theme } from "./theme";
 
 type NoteActionPage = "menu" | "rename" | "move" | "delete";
 
@@ -246,10 +247,9 @@ export function NotesOverviewScreen({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <CircleAction label="打开全局侧边栏" onPress={onOpenSidebar}>
-          <SidebarToggleIcon color={theme.colors.text} expanded={false} />
-        </CircleAction>
-        <Text style={styles.headerCopy}>Mira</Text>
+        <View style={styles.headerIdentity}>
+          <SidebarTitleButton expanded={false} onPress={onOpenSidebar} />
+        </View>
         <CircleAction
           label={searchVisible ? "关闭搜索" : "搜索笔记"}
           onPress={() => {
@@ -587,8 +587,15 @@ function NoteRow({
         onPress={onPress}
         style={({ pressed }) => [styles.noteMain, pressed && styles.pressed]}
       >
-        <View style={styles.noteIcon}>
-          <FileText color={theme.colors.canvas} size={22} />
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.noteIcon}
+        >
+          <View style={styles.noteIconBacking} />
+          <View style={styles.noteIconPaper}>
+            <NotebookPen color={theme.colors.fileTypes.markdown} size={22} strokeWidth={1.6} />
+          </View>
         </View>
         <View style={styles.noteCopy}>
           <Text numberOfLines={1} style={styles.noteTitle}>
@@ -685,7 +692,7 @@ function createStyles(theme: Theme) {
       gap: 8,
       paddingHorizontal: 16,
     },
-    headerCopy: { minWidth: 0, flex: 1, color: theme.colors.text, fontSize: 21, fontWeight: "600" },
+    headerIdentity: { minWidth: 0, flex: 1, alignItems: "flex-start" },
     listHeading: { paddingBottom: 16, gap: 4 },
     emptyGlyph: {
       alignItems: "center",
@@ -748,10 +755,29 @@ function createStyles(theme: Theme) {
     noteIcon: {
       width: 44,
       height: 44,
-      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: identityColors.notes,
+    },
+    noteIconBacking: {
+      position: "absolute",
+      top: 6,
+      left: 5,
+      width: 30,
+      height: 34,
+      borderRadius: theme.radius.small,
+      backgroundColor: theme.colors.surfaceMuted,
+      transform: [{ rotate: "-14deg" }],
+    },
+    noteIconPaper: {
+      width: 32,
+      height: 36,
+      marginLeft: 6,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.small,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.canvas,
     },
     noteCopy: { flex: 1, minWidth: 0, gap: 4 },
     noteTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },

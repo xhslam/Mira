@@ -17,8 +17,8 @@ describe("four-page primary navigation", () => {
     expect(PRIMARY_TABS).toEqual(["agent", "learn", "files", "settings"]);
     const shell = source("src/app/app-shell-screen.tsx");
     const navigation = source("src/app/primary-navigation.tsx");
-    const definitions = [...navigation.matchAll(/id: "(agent|learn|files|settings)", labelKey:/g)];
-    expect(definitions.map((match) => match[1])).toEqual(PRIMARY_TABS);
+    expect(navigation).toMatch(/open\s*\? PRIMARY_TABS\.map/u);
+    expect(navigation).toContain("selected={id === activeTab}");
     expect(shell).not.toContain("DrawingsScreen");
     expect(shell).not.toContain('activeTab === "ai"');
   });
@@ -44,9 +44,10 @@ describe("four-page primary navigation", () => {
       /<LearningScreen[\s\S]*?renderBottomNavigation=\{\(actions\) => \(\s*<PrimaryNavigation\s+activeTab="learn"[\s\S]*?\{actions\}\s*<\/PrimaryNavigation>/u,
     );
     expect(shell).not.toContain('accessibilityRole="tablist"');
-    expect(navigation).toContain(".filter(({ id }) => id !== activeTab)");
-    expect(navigation).toContain("selected={open}");
-    expect(navigation).toMatch(/setOpen\(false\);[\s\S]*?onSelect\(id\);/u);
+    expect(navigation).toContain("expanded={open}");
+    expect(navigation).toMatch(
+      /setOpen\(false\);\s*if \(id === activeTab\) return;[\s\S]*?onSelect\(id\);/u,
+    );
   });
 
   it("places the editor toolbar inside the navigation footer as independent scroll content", () => {

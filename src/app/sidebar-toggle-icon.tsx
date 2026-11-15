@@ -1,8 +1,33 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { useTheme } from "./theme";
 import { useReducedMotion } from "./use-reduced-motion";
+
+export function SidebarTitleButton({
+  expanded,
+  onPress,
+}: Readonly<{
+  expanded: boolean;
+  onPress: () => void;
+}>) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityLabel={expanded ? "关闭笔记侧边栏" : "打开笔记侧边栏"}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}
+    >
+      <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>
+        Mira
+      </Text>
+      <SidebarToggleIcon color={colors.mutedText} expanded={expanded} size={18} />
+    </Pressable>
+  );
+}
 
 export function SidebarToggleIcon({
   color,
@@ -52,3 +77,17 @@ export function SidebarToggleIcon({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  titleButton: {
+    minHeight: 48,
+    minWidth: 48,
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingRight: 8,
+  },
+  title: { flexShrink: 1, fontSize: 21, fontWeight: "600" },
+  pressed: { opacity: 0.6 },
+});

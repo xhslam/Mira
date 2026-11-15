@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactElement } from "react";
 import {
   FlatList,
   Platform,
@@ -8,7 +8,7 @@ import {
   View,
   type ViewToken,
 } from "react-native";
-import { LocateFixed, Volume2 } from "lucide-react-native";
+import { Volume2 } from "lucide-react-native";
 import type { Theme } from "../../../app/theme";
 import { studyAccent, studyHighlight } from "../../study-appearance";
 
@@ -49,7 +49,6 @@ export function TranscriptPanel({
   const listRef = useRef<FlatList<TranscriptPanelCue>>(null);
   const visibleCueIdsRef = useRef(new Set<string>());
   const userScrollRef = useRef(false);
-  const [isUserBrowsing, setIsUserBrowsing] = useState(false);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       visibleCueIdsRef.current = new Set(
@@ -61,24 +60,21 @@ export function TranscriptPanel({
     [],
   );
 
-  const returnToActiveCue = useCallback(() => {
-    if (!activeCueId) return;
+  const scrollToActiveCue = useCallback(() => {
+    if (!activeCueId || userScrollRef.current) return;
     const index = cues.findIndex((cue) => cue.id === activeCueId);
     if (index < 0) return;
-    userScrollRef.current = false;
-    setIsUserBrowsing(false);
-    onFollowChange(true);
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.45 });
-  }, [activeCueId, cues, onFollowChange]);
+  }, [activeCueId, cues]);
 
   useEffect(() => {
     const changed = activeCueId !== lastActiveCueId.current;
     lastActiveCueId.current = activeCueId;
     if (!changed || !followTranscript || !activeCueId || userScrollRef.current) return;
     if (visibleCueIdsRef.current.has(activeCueId)) return;
-    const scrollTimer = setTimeout(returnToActiveCue, 0);
+    const scrollTimer = setTimeout(scrollToActiveCue, 0);
     return () => clearTimeout(scrollTimer);
-  }, [activeCueId, followTranscript, returnToActiveCue]);
+  }, [activeCueId, followTranscript, scrollToActiveCue]);
 
   return (
     <FlatList
@@ -92,16 +88,6 @@ export function TranscriptPanel({
           }}
         >
           {header}
-          {!followTranscript || isUserBrowsing ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={returnToActiveCue}
-              style={styles.returnPill}
-            >
-              <LocateFixed color={theme.colors.canvas} size={15} />
-              <Text style={styles.returnText}>回到当前句</Text>
-            </Pressable>
-          ) : null}
         </View>
       }
       renderItem={({ item }) => {
@@ -110,7 +96,11 @@ export function TranscriptPanel({
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            onPress={() => onCuePress(item)}
+            onPress={() => {
+              userScrollRef.current = false;
+              onFollowChange(true);
+              onCuePress(item);
+            }}
             style={({ pressed }) => [
               styles.row,
               active && styles.rowActive,
@@ -131,7 +121,6 @@ export function TranscriptPanel({
       }}
       onScrollBeginDrag={() => {
         userScrollRef.current = true;
-        setIsUserBrowsing(true);
         onFollowChange(false);
       }}
       onScrollToIndexFailed={({ index, averageItemLength }) =>
@@ -155,18 +144,6 @@ function useStyles(theme: Theme) {
     () =>
       StyleSheet.create({
         scroll: { flex: 1, minHeight: 0 },
-        returnPill: {
-          alignItems: "center",
-          backgroundColor: theme.colors.accent,
-          borderRadius: 999,
-          flexDirection: "row",
-          gap: 6,
-          minHeight: 48,
-          alignSelf: "flex-end",
-          margin: 12,
-          paddingHorizontal: 12,
-        },
-        returnText: { color: theme.colors.canvas, fontSize: 12, fontWeight: "700" },
         list: { paddingBottom: 76 },
         row: {
           alignItems: "center",

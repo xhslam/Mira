@@ -25,7 +25,6 @@ import {
 
 import type { FileEntry } from "../workspace/workspace-adapter";
 import type { BrowserCommandResult } from "./browser-command";
-import type { PrimaryTab } from "./app-shell-state";
 import {
   isNoteFileEntry,
   noteFilesInFolder,
@@ -34,11 +33,10 @@ import {
   noteParentFolder,
 } from "./note-file-management";
 import { OverlaySideSheet } from "./overlay-side-sheet";
-import { SidebarToggleIcon } from "./sidebar-toggle-icon";
+import { SidebarTitleButton } from "./sidebar-toggle-icon";
 import { useTheme, type Theme } from "./theme";
 
 type GlobalSidebarProps = Readonly<{
-  activeTab: PrimaryTab;
   activeFolder: string | null;
   canCreateFolder: boolean;
   canMoveFiles: boolean;
@@ -54,7 +52,6 @@ type GlobalSidebarProps = Readonly<{
 }>;
 
 export function GlobalSidebar({
-  activeTab,
   activeFolder,
   canCreateFolder,
   canMoveFiles,
@@ -180,23 +177,10 @@ export function GlobalSidebar({
     >
       <View style={styles.sheet}>
         <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="关闭全局侧边栏"
-            accessibilityRole="button"
-            accessibilityState={{ expanded: visible }}
-            onPress={onClose}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <SidebarToggleIcon color={theme.colors.text} expanded={visible} size={24} />
-          </Pressable>
-          <View style={styles.identity}>
-            <Text numberOfLines={1} style={styles.appName}>
-              MIRA
-            </Text>
-            <Text numberOfLines={1} style={styles.workspaceName}>
-              {workspaceName}
-            </Text>
-          </View>
+          <SidebarTitleButton expanded={visible} onPress={onClose} />
+          <Text numberOfLines={1} style={styles.workspaceName}>
+            {workspaceName}
+          </Text>
         </View>
 
         <ScrollView
@@ -207,7 +191,7 @@ export function GlobalSidebar({
           <View style={styles.primaryGroup}>
             <View ref={rootDropRef} style={dragTarget === "" ? styles.dropTargetActive : undefined}>
               <SidebarRow
-                active={activeTab === "files" && activeFolder === null}
+                active={activeFolder === null}
                 count={noteEntries.length}
                 icon={FileText}
                 label={draggingPath ? "移动到根目录" : "全部笔记"}
@@ -323,9 +307,7 @@ export function GlobalSidebar({
                       onPress={() => onOpenNotes(folder.path)}
                       style={({ pressed }) => [
                         styles.folderRow,
-                        activeTab === "files" &&
-                          activeFolder === folder.path &&
-                          styles.folderRowActive,
+                        activeFolder === folder.path && styles.folderRowActive,
                         pressed && styles.pressed,
                       ]}
                     >
@@ -500,22 +482,13 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.canvas,
     },
     header: {
-      minHeight: 72,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 10,
+      gap: 8,
+      paddingHorizontal: 16,
     },
-    identity: { minWidth: 0, flex: 1 },
-    appName: { color: theme.colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.4 },
-    workspaceName: { color: theme.colors.mutedText, fontSize: 11, marginTop: 2 },
-    iconButton: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: theme.radius.pill,
-    },
+    workspaceName: { flexShrink: 1, color: theme.colors.mutedText, fontSize: 12 },
     content: { flexGrow: 1, padding: 12, paddingBottom: 24 },
     primaryGroup: { gap: 4 },
     primaryRow: {

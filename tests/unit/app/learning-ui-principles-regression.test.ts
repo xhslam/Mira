@@ -39,6 +39,8 @@ function style(path: string, name: string): Record<string, string> {
 const home = "src/learning/learning-home-screen.tsx";
 const library = "src/learning/library-screen.tsx";
 const shell = "src/app/learning-screen.tsx";
+const practice = "src/learning/practice-screen.tsx";
+const transcript = "src/learning/presentation/transcript/transcript-panel.tsx";
 
 describe("learning UI principles", () => {
   it("uses flat surfaces for ordinary lists, daily progress and settings", () => {
@@ -99,6 +101,17 @@ describe("learning UI principles", () => {
   it("leaves the local back control unobstructed on dedicated learning pages", () => {
     expect(source(shell)).not.toContain("FloatingSidebarButton");
     expect(source("src/learning/craft-screen.tsx")).toContain('accessibilityLabel="返回学习首页"');
+  });
+
+  it("keeps the current sentence at reading size with a clear hierarchy above transcript rows", () => {
+    const current = style(practice, "wordTokenText");
+    const row = style(transcript, "original");
+    const size = Number(current.fontSize);
+
+    expect(size).toBeLessThanOrEqual(30);
+    expect(size - Number(row.fontSize)).toBeGreaterThanOrEqual(8);
+    expect(Number(current.lineHeight)).toBeGreaterThanOrEqual(size * 1.25);
+    expect(current.fontWeight).toBe('"700"');
   });
 
   it("keeps touch targets generous and typography restrained", () => {

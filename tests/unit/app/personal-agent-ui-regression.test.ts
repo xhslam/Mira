@@ -32,6 +32,18 @@ describe("Personal Agent UI integration contract", () => {
     expect(chat).toContain('flexWrap: "wrap"');
     expect(context.split("style={styles.contextChip}")).toHaveLength(3);
   });
+  it("uses the same hedgehog for a conversation row and its header, with a passive workspace identity", () => {
+    const home = read("src/app/agent-home-screen.tsx");
+    const chat = read("src/app/ai-workspace-screen.tsx");
+
+    expect(home).toContain("source={agentAvatarSource(item.id)}");
+    expect(home).toContain("avatarSource={agentAvatarSource(selectedId)}");
+    expect(chat).toContain("<AgentAvatar source={avatarSource}");
+    expect(home).toContain("useState(pickAgentAvatar)");
+    expect(home).toMatch(
+      /<View style=\{styles.workspaceIdentity\}>\s*<AgentAvatar source=\{workspaceAvatar\}/u,
+    );
+  });
   it("moves English coach to Learning while preserving successful-pause-before-return", () => {
     expect(resolveLearningSurface("english-coach")).toBe("english-coach");
     const snapshot = createInitialLearningSnapshot();

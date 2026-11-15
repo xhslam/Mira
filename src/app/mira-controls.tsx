@@ -16,42 +16,14 @@ import Svg, { Ellipse, Path } from "react-native-svg";
 import { useTheme } from "./theme";
 import { useReducedMotion } from "./use-reduced-motion";
 
-const agentAvatarColors = [
-  "#F56B13",
-  "#11A89D",
-  "#2183E6",
-  "#10AB68",
-  "#171717",
-  "#D85416",
-] as const;
-const avatarShapes = [
-  "M23 2.5C32 1.7 40 7 43.4 14.6c3.1 7.1 1.6 16.8-3.8 22.2C34.1 42.5 25 46.8 17.4 44 9.3 41.1 3 33.3 3 24.3 3 13 11.6 3.5 23 2.5Z",
-  "M11 7C18 3 29 0 35 4c6 4 10 14 10 21 1 10-8 15-18 18-9 3-15 2-19-6C3 29 0 15 11 7Z",
-  "M9 13C12 3 21 0 29 6c7 5 18 12 17 21-1 7-16 13-24 16-8 3-17 2-18-7-1-8 2-18 5-23Z",
-  "M6 13C10 6 19 1 26 4c6 2 11 9 15 16 3 5 6 13 1 17-5 5-13 5-22 7-8 1-10-2-13-10-3-8-5-14-1-21Z",
-] as const;
-
-export function agentAvatarLook(id: string | null) {
-  const hash = id
-    ? [...id].reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0)
-    : 0;
-  return {
-    color: agentAvatarColors[hash % agentAvatarColors.length] ?? agentAvatarColors[0],
-    shape:
-      avatarShapes[Math.floor(hash / agentAvatarColors.length) % avatarShapes.length] ??
-      avatarShapes[0],
-  };
-}
-
-export function MiraAvatar({
-  size = 48,
-  color,
-  shape = avatarShapes[0],
-}: Readonly<{ size?: number; color?: string; shape?: string }>) {
+export function MiraAvatar({ size = 48 }: Readonly<{ size?: number }>) {
   const { colors } = useTheme();
   return (
     <Svg accessible={false} width={size} height={size} viewBox="0 0 48 48">
-      <Path fill={color ?? colors.text} d={shape} />
+      <Path
+        fill={colors.text}
+        d="M23 2.5C32 1.7 40 7 43.4 14.6c3.1 7.1 1.6 16.8-3.8 22.2C34.1 42.5 25 46.8 17.4 44 9.3 41.1 3 33.3 3 24.3 3 13 11.6 3.5 23 2.5Z"
+      />
       <Ellipse
         cx="20"
         cy="20"
@@ -79,12 +51,14 @@ export function CircleAction({
   label,
   onPress,
   selected,
+  expanded,
   muted = false,
 }: Readonly<{
   children: ReactNode;
   label: string;
   onPress: () => void;
   selected?: boolean;
+  expanded?: boolean;
   muted?: boolean;
 }>) {
   const { colors } = useTheme();
@@ -92,14 +66,15 @@ export function CircleAction({
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
-      accessibilityState={{ expanded: selected }}
+      accessibilityState={{ selected, expanded }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.circle,
         {
           backgroundColor:
-            selected || pressed ? colors.surfaceMuted : muted ? colors.surface : colors.canvas,
+            expanded || pressed ? colors.surfaceMuted : muted ? colors.surface : colors.canvas,
         },
+        selected && { backgroundColor: colors.text },
       ]}
     >
       {children}

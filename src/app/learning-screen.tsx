@@ -47,15 +47,12 @@ import { UrlImportScreen } from "../learning/url-import-screen";
 import type { LearningResource, LearningSnapshot } from "../learning/learning-types";
 
 import { useAndroidBack } from "./use-android-back";
-import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export function LearningScreen({
   services,
-  onOpenSidebar,
   renderBottomNavigation,
 }: Readonly<{
   services: AppServices;
-  onOpenSidebar: () => void;
   renderBottomNavigation: (actions?: ReactNode) => ReactNode;
 }>) {
   const theme = useTheme();
@@ -227,7 +224,6 @@ export function LearningScreen({
           setSnapshot(next);
         }}
         onOpenPractice={() => setLastMainSection("home")}
-        onOpenSidebar={onOpenSidebar}
       />,
     );
   }
@@ -342,20 +338,6 @@ export function LearningScreen({
           </View>
         </View>
         <View style={styles.headerActions}>
-          {section === "home" ? (
-            <Pressable
-              accessibilityLabel="打开全局侧边栏"
-              accessibilityRole="button"
-              onPress={onOpenSidebar}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.plainIconButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <SidebarToggleIcon color={theme.colors.mutedText} expanded={false} size={20} />
-            </Pressable>
-          ) : null}
           {section === "library" ? (
             <Pressable
               accessibilityLabel="搜索资料"

@@ -57,6 +57,8 @@ Search/session SQLite is derived/application state, never document truth. Learni
 
 ## State Rules
 
+- The workspace sidebar is scoped to the Notes destination. The overview and editor share one in-window sheet, and leaving Notes closes it.
+- The expanded navigation shows every destination in `PRIMARY_TABS` order. Selecting the current destination closes the menu and preserves the screen state.
 - Values crossing module boundaries are parsed and frozen.
 - A save advances the base hash only after repository verification.
 - One workspace write runs at a time; edits during a write schedule a newest-revision follow-up.

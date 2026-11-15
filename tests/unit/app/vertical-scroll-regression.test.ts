@@ -34,6 +34,17 @@ describe("vertical page scrolling", () => {
     expect(importSheet).toContain('keyboardShouldPersistTaps="handled"');
     expect(importSheet).toContain("nestedScrollEnabled");
   });
+
+  it("resumes transcript following when a row is selected without adding a jump button", () => {
+    const transcript = readSource("src/learning/presentation/transcript/transcript-panel.tsx");
+
+    expect(transcript).not.toContain("回到当前句");
+    expect(transcript).toMatch(
+      /onPress=\{\(\) => \{\s*userScrollRef\.current = false;\s*onFollowChange\(true\);\s*onCuePress\(item\);/u,
+    );
+    expect(transcript).toContain("onFollowChange(false)");
+    expect(transcript).toContain("scrollToIndex");
+  });
 });
 
 describe("nested vertical scrolling", () => {

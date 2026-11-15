@@ -13,25 +13,24 @@ import {
 import { Plus, Search, Settings2, SquarePen, ChevronUp } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiConversation, AiConversationId } from "../ai/conversation";
+import { AgentAvatar, agentAvatarSource, pickAgentAvatar } from "./agent-avatar";
 import { AgentConversationScreen } from "./ai-workspace-screen";
 import { AiProviderSheet } from "./ai-provider-sheet";
 import type { PrimaryTab } from "./app-shell-state";
 import type { AppServices } from "./app-services";
 import type { EditorWorkspaceController } from "./editor-workspace-controller";
-import { CircleAction, MiraAvatar, MiraSheet, SheetAction, agentAvatarLook } from "./mira-controls";
+import { CircleAction, MiraSheet, SheetAction } from "./mira-controls";
 import { useTheme, type Theme } from "./theme";
 import { PrimaryNavigation } from "./primary-navigation";
 
 export function AgentHomeScreen({
   services,
   controller,
-  onOpenSidebar,
   clickVibration,
   onNavigate,
 }: Readonly<{
   services: AppServices;
   controller: EditorWorkspaceController;
-  onOpenSidebar: () => void;
   clickVibration: boolean;
   onNavigate: (tab: PrimaryTab) => void;
 }>) {
@@ -52,6 +51,7 @@ export function AgentHomeScreen({
   const [menu, setMenu] = useState(false);
   const [models, setModels] = useState(false);
   const [profileRevision, setProfileRevision] = useState(0);
+  const [workspaceAvatar] = useState(pickAgentAvatar);
   const revision = useRef(0);
   const nextKey = useRef(0);
   const [drafts] = useState(() => new Map<AiConversationId | null, string>());
@@ -191,7 +191,7 @@ export function AgentHomeScreen({
                   }}
                   style={({ pressed }) => [styles.row, (active || pressed) && styles.rowActive]}
                 >
-                  <MiraAvatar size={48} {...agentAvatarLook(item.id)} />
+                  <AgentAvatar source={agentAvatarSource(item.id)} size={48} />
                   <View style={styles.rowCopy}>
                     <Text numberOfLines={1} style={styles.rowTitle}>
                       {item.title}
@@ -236,17 +236,12 @@ export function AgentHomeScreen({
             clickVibration={clickVibration}
             onSelect={onNavigate}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="打开全局侧边栏"
-              onPress={onOpenSidebar}
-              style={styles.workspace}
-            >
-              <MiraAvatar color={theme.colors.text} size={44} />
+            <View style={styles.workspaceIdentity}>
+              <AgentAvatar source={workspaceAvatar} size={44} />
               <Text numberOfLines={1} style={styles.workspaceName}>
                 {services.activeWorkspace.grant.displayName}
               </Text>
-            </Pressable>
+            </View>
           </PrimaryNavigation>
         </View>
       ) : null}
@@ -259,7 +254,7 @@ export function AgentHomeScreen({
             onBack={close}
             initialConversation={selection.conversation}
             threadTitle={selectedTitle ?? "Mira"}
-            avatarLook={agentAvatarLook(selectedId)}
+            avatarSource={agentAvatarSource(selectedId)}
             splitPane={split}
             sharedDrafts={drafts}
             providerRefresh={profileRevision}
@@ -365,13 +360,7 @@ function createStyles(theme: Theme) {
       backgroundColor: colors.canvas,
     },
     emptyActionText: { color: colors.text, fontSize: 15, fontWeight: "600" },
-    workspace: {
-      minHeight: 48,
-      minWidth: 0,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    workspaceName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500" },
+    workspaceIdentity: { alignItems: "center", flexDirection: "row", gap: 8 },
+    workspaceName: { color: colors.text, flexShrink: 1, fontSize: 15 },
   });
 }

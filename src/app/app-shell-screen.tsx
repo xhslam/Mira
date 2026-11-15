@@ -292,11 +292,13 @@ function NativeAppShellScreen() {
       setNotesFolder(null);
       return;
     }
+    setSidebarVisible(false);
     setState(returnToPreviousTab);
   });
 
   function navigatePrimary(tab: PrimaryTab): void {
     Keyboard.dismiss();
+    setSidebarVisible(false);
     if (tab === "files") {
       setNotesFolder(null);
       setNotesSurface("overview");
@@ -433,7 +435,6 @@ function NativeAppShellScreen() {
                   key={services.activeWorkspace.grant.workspaceId}
                   controller={editorController}
                   services={services}
-                  onOpenSidebar={() => setSidebarVisible(true)}
                   clickVibration={clickVibration}
                   onNavigate={navigatePrimary}
                 />
@@ -441,7 +442,6 @@ function NativeAppShellScreen() {
             ) : state.activeTab === "learn" ? (
               <View style={styles.destination}>
                 <LearningScreen
-                  onOpenSidebar={() => setSidebarVisible(true)}
                   renderBottomNavigation={(actions) => (
                     <PrimaryNavigation
                       activeTab="learn"
@@ -457,7 +457,6 @@ function NativeAppShellScreen() {
             ) : state.activeTab === "settings" ? (
               <View style={styles.destination}>
                 <SettingsScreen
-                  onOpenSidebar={() => setSidebarVisible(true)}
                   onClearAiAudit={() =>
                     services.aiStore.clearToolAudit(services.activeWorkspace.grant.workspaceId)
                   }
@@ -485,29 +484,30 @@ function NativeAppShellScreen() {
                 onSelect={navigatePrimary}
               />
             ) : null}
-            <GlobalSidebar
-              activeFolder={notesFolder}
-              activeTab={state.activeTab}
-              canCreateFolder={editorController.services.browser.capabilities.createDirectory}
-              canMoveFiles={editorController.services.browser.capabilities.move}
-              entries={editorController.browserEntries}
-              onChooseWorkspace={chooseWorkspaceFromSidebar}
-              onClose={() => setSidebarVisible(false)}
-              onCreateFolder={editorController.createBrowserDirectory}
-              onMoveFile={editorController.moveBrowserEntry}
-              onOpenNote={async (path) => {
-                const opened = await editorController.openDocumentFromOverview(path);
-                if (opened) {
-                  setSidebarVisible(false);
-                  setNotesSurface("editor");
-                  setState((current) => selectPrimaryTab(current, "files"));
-                }
-                return opened;
-              }}
-              onOpenNotes={openNotes}
-              visible={sidebarVisible}
-              workspaceName={services.activeWorkspace.grant.displayName}
-            />
+            {state.activeTab === "files" ? (
+              <GlobalSidebar
+                activeFolder={notesFolder}
+                canCreateFolder={editorController.services.browser.capabilities.createDirectory}
+                canMoveFiles={editorController.services.browser.capabilities.move}
+                entries={editorController.browserEntries}
+                onChooseWorkspace={chooseWorkspaceFromSidebar}
+                onClose={() => setSidebarVisible(false)}
+                onCreateFolder={editorController.createBrowserDirectory}
+                onMoveFile={editorController.moveBrowserEntry}
+                onOpenNote={async (path) => {
+                  const opened = await editorController.openDocumentFromOverview(path);
+                  if (opened) {
+                    setSidebarVisible(false);
+                    setNotesSurface("editor");
+                    setState((current) => selectPrimaryTab(current, "files"));
+                  }
+                  return opened;
+                }}
+                onOpenNotes={openNotes}
+                visible={sidebarVisible}
+                workspaceName={services.activeWorkspace.grant.displayName}
+              />
+            ) : null}
             <WorkspacePicker
               activeWorkspaceId={catalog.activeWorkspaceId}
               busy={workspaceBusy}

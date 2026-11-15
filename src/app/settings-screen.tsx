@@ -29,14 +29,12 @@ import { triggerClickFeedback } from "./press-feedback";
 import { useUiSound } from "./ui-sound-context";
 import { MiraAvatar, MiraSheet } from "./mira-controls";
 import { AndroidUpdateSettings } from "./android-update-settings";
-import { SidebarToggleIcon } from "./sidebar-toggle-icon";
 
 export type SettingsScreenProps = Readonly<{
   onClearSearchHistory?: () => Promise<void>;
   onClearAiConversations?: () => Promise<void>;
   onClearAiAudit?: () => Promise<void>;
   onSettingsChanged?: () => void;
-  onOpenSidebar: () => void;
   store: SettingsStore;
 }>;
 
@@ -45,7 +43,6 @@ export function SettingsScreen({
   onClearAiConversations,
   onClearAiAudit,
   onSettingsChanged,
-  onOpenSidebar,
   store,
 }: SettingsScreenProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -128,7 +125,6 @@ export function SettingsScreen({
         onEditorChange={(patch) => void updateEditor(patch)}
         onClipboardReadChange={(value) => void updateClipboardRead(value)}
         onInteractionChange={(patch) => void updateInteraction(patch)}
-        onOpenSidebar={onOpenSidebar}
         onWholeWorkspaceAiSearchChange={(value) => void updateWholeWorkspaceAiSearch(value)}
         {...(onClearAiConversations ? { onClearAiConversations } : {})}
         {...(onClearAiAudit ? { onClearAiAudit } : {})}
@@ -144,7 +140,6 @@ function SettingsContent({
   onClipboardReadChange,
   onInteractionChange,
   onWholeWorkspaceAiSearchChange,
-  onOpenSidebar,
   onClearAiConversations,
   onClearAiAudit,
   settings,
@@ -154,7 +149,6 @@ function SettingsContent({
   onClipboardReadChange: (value: boolean) => void;
   onInteractionChange: (patch: Partial<AppSettings["interaction"]>) => void;
   onWholeWorkspaceAiSearchChange: (value: boolean) => void;
-  onOpenSidebar: () => void;
   onClearAiConversations?: () => Promise<void>;
   onClearAiAudit?: () => Promise<void>;
   settings: AppSettings | null;
@@ -180,14 +174,6 @@ function SettingsContent({
   return (
     <View style={styles.scroll}>
       <View style={styles.pageHeader}>
-        <Pressable
-          accessibilityLabel="打开全局侧边栏"
-          accessibilityRole="button"
-          onPress={onOpenSidebar}
-          style={({ pressed }) => [styles.menuButton, pressed && styles.rowPressed]}
-        >
-          <SidebarToggleIcon color={theme.colors.text} expanded={false} />
-        </Pressable>
         <Text accessibilityRole="header" style={styles.pageTitle}>
           {t("settings.title")}
         </Text>
@@ -562,9 +548,7 @@ function useMemoStyles(theme: ReturnType<typeof useTheme>) {
     scroll: { flex: 1, backgroundColor: theme.colors.background },
     content: { paddingHorizontal: 16, paddingBottom: 32 },
     pageHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
+      justifyContent: "center",
       paddingHorizontal: 16,
       minHeight: 60,
     },
@@ -596,14 +580,6 @@ function useMemoStyles(theme: ReturnType<typeof useTheme>) {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.surface,
-    },
-    menuButton: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: theme.radius.pill,
-      backgroundColor: theme.colors.canvas,
     },
     pageTitle: { color: theme.colors.text, fontSize: 24, fontWeight: "600", letterSpacing: -0.5 },
     card: {

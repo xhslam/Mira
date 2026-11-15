@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { PRIMARY_TABS } from "../../../src/app/app-shell-state";
 
 const repositoryRoot = resolve(__dirname, "../../..");
 
@@ -74,15 +75,9 @@ describe("learning design implementation", () => {
 
   it("orders the primary navigation by the requested task priority", () => {
     const navigation = readSource("src/app/primary-navigation.tsx");
-    const learn = navigation.indexOf('id: "learn", labelKey: "nav.learn"');
-    const files = navigation.indexOf('id: "files", labelKey: "nav.files"');
-    const agent = navigation.indexOf('id: "agent", labelKey: "nav.agent"');
-    const settings = navigation.indexOf('id: "settings", labelKey: "nav.settings"');
 
-    expect(agent).toBeGreaterThan(-1);
-    expect(agent).toBeLessThan(learn);
-    expect(learn).toBeLessThan(files);
-    expect(files).toBeLessThan(settings);
-    expect(navigation).not.toContain('id: "drawings"');
+    expect(PRIMARY_TABS).toEqual(["agent", "learn", "files", "settings"]);
+    expect(navigation).toContain("PRIMARY_TABS.map");
+    expect(navigation).toContain("label={t(`nav.${id}`)}");
   });
 });

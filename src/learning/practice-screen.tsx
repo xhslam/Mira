@@ -1715,10 +1715,10 @@ function createStyles(theme: Theme) {
     wordTokenText: {
       color: theme.colors.text,
       fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-      fontSize: 54,
-      lineHeight: 58,
+      fontSize: 28,
+      lineHeight: 36,
       fontWeight: "700",
-      letterSpacing: -0.8,
+      letterSpacing: -0.2,
     },
     translation: { color: theme.colors.mutedText, fontSize: 17, lineHeight: 25 },
     transport: {

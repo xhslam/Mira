@@ -42,7 +42,8 @@ import { AiModelPicker } from "./ai-model-picker";
 import { AiProviderSheet } from "./ai-provider-sheet";
 import { AiProposalSheet } from "./ai-proposal-sheet";
 import { AiProposalInbox } from "./ai-proposal-inbox";
-import { CircleAction, MiraAvatar, MiraSheet, SheetAction } from "./mira-controls";
+import { AgentAvatar } from "./agent-avatar";
+import { CircleAction, MiraSheet, SheetAction } from "./mira-controls";
 import { useTheme, type Theme } from "./theme";
 import { useUiSound } from "./ui-sound-context";
 
@@ -79,7 +80,7 @@ export function AgentConversationScreen({
   onBack,
   initialConversation,
   threadTitle,
-  avatarLook,
+  avatarSource,
   splitPane = false,
   sharedDrafts,
   providerRefresh = 0,
@@ -90,7 +91,7 @@ export function AgentConversationScreen({
   onBack: () => void;
   initialConversation: AiConversation | null;
   threadTitle?: string;
-  avatarLook?: Readonly<{ color: string; shape: string }>;
+  avatarSource: number;
   splitPane?: boolean;
   sharedDrafts?: Map<AiConversationId | null, string>;
   providerRefresh?: number;
@@ -491,7 +492,7 @@ export function AgentConversationScreen({
           onPress={() => setModelPickerVisible(true)}
           style={({ pressed }) => [styles.identity, pressed && styles.pressed]}
         >
-          <MiraAvatar size={33} {...avatarLook} />
+          <AgentAvatar source={avatarSource} size={33} />
           <View style={styles.identityCopy}>
             <Text numberOfLines={1} style={styles.title}>
               {threadTitle ?? "Mira"}
@@ -547,7 +548,7 @@ export function AgentConversationScreen({
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <MiraAvatar size={66} />
+              <AgentAvatar source={avatarSource} size={66} />
               <Text accessibilityRole="header" style={styles.emptyTitle}>
                 {activeProfile ? "给 Mira 发条消息" : "连接一个模型"}
               </Text>

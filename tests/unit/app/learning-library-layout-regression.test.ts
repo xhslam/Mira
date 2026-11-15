@@ -54,7 +54,7 @@ describe("learning library visual hierarchy", () => {
     expect(learningScreen).not.toContain("LEARNING_MAIN_TABS.map");
     expect(learningScreen).not.toContain("<DiscoverScreen");
     expect(learningScreen).toContain("key={section}");
-    expect(navigation).toContain("selected={open}");
+    expect(navigation).toContain("expanded={open}");
     expect(navigation).toContain("<CircleAction");
   });
 });

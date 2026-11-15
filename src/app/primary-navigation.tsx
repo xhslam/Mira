@@ -1,8 +1,15 @@
-import { BookOpen, Bot, FileText, Grid2X2Plus, Settings } from "lucide-react-native";
+import { BookOpen, Bot, Grid2X2Plus, NotebookPen, Settings } from "lucide-react-native";
 import { useEffect, useState, type ReactNode } from "react";
-import { BackHandler, Keyboard, Pressable, StyleSheet, View } from "react-native";
+import {
+  BackHandler,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
-import type { PrimaryTab } from "./app-shell-state";
+import { PRIMARY_TABS, type PrimaryTab } from "./app-shell-state";
 import { useTranslate } from "./locale";
 import { CircleAction } from "./mira-controls";
 import { triggerClickFeedback } from "./press-feedback";
@@ -11,12 +18,12 @@ import { useUiSound } from "./ui-sound-context";
 
 const FOOTER_HEIGHT = 66;
 
-const destinations = [
-  { id: "agent", labelKey: "nav.agent", icon: Bot },
-  { id: "learn", labelKey: "nav.learn", icon: BookOpen },
-  { id: "files", labelKey: "nav.files", icon: FileText },
-  { id: "settings", labelKey: "nav.settings", icon: Settings },
-] as const;
+const destinationIcons = {
+  agent: Bot,
+  learn: BookOpen,
+  files: NotebookPen,
+  settings: Settings,
+} as const;
 
 export function PrimaryNavigation({
   activeTab,
@@ -32,6 +39,7 @@ export function PrimaryNavigation({
   const { colors } = useTheme();
   const t = useTranslate();
   const uiSound = useUiSound();
+  const { height } = useWindowDimensions();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -54,30 +62,33 @@ export function PrimaryNavigation({
           onPress={() => setOpen(false)}
         />
       ) : null}
-      <View pointerEvents="box-none" style={styles.stack}>
+      <View pointerEvents="box-none" style={[styles.stack, height < 320 && styles.horizontalStack]}>
         {open
-          ? destinations
-              .filter(({ id }) => id !== activeTab)
-              .map(({ id, labelKey, icon: Icon }) => (
+          ? PRIMARY_TABS.map((id) => {
+              const Icon = destinationIcons[id];
+              return (
                 <CircleAction
                   key={id}
-                  label={t(labelKey)}
+                  label={t(`nav.${id}`)}
                   muted={activeTab === "learn"}
+                  selected={id === activeTab}
                   onPress={() => {
                     setOpen(false);
+                    if (id === activeTab) return;
                     uiSound.play("select");
                     triggerClickFeedback(clickVibration);
                     onSelect(id);
                   }}
                 >
-                  <Icon color={colors.text} size={21} />
+                  <Icon color={id === activeTab ? colors.canvas : colors.text} size={21} />
                 </CircleAction>
-              ))
+              );
+            })
           : null}
         <CircleAction
           label={open ? "收起应用导航" : "打开应用导航"}
           muted={activeTab === "learn"}
-          selected={open}
+          expanded={open}
           onPress={() => {
             Keyboard.dismiss();
             setOpen((current) => !current);
@@ -105,4 +116,5 @@ const styles = StyleSheet.create({
     gap: 8,
     zIndex: 4,
   },
+  horizontalStack: { flexDirection: "row" },
 });
