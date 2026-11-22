@@ -1,3 +1,4 @@
+import type { SentenceComponent } from "./domain/analysis/sentence-components";
 import type {
   LocalLearningGoal,
   PracticePoster,
@@ -226,6 +227,7 @@ export type LearningSentenceAnalysis = Readonly<{
   sourceHash: string;
   version: string;
   state: AsyncState;
+  sentenceComponents?: readonly SentenceComponent[];
   sentencePatterns: readonly string[];
   keyPhrases: readonly Readonly<{
     phrase: string;

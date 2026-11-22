@@ -23,9 +23,9 @@ export type EchoSession = Readonly<{
 export type EchoEvent =
   | Readonly<{ type: "begin"; cueId: string }>
   | Readonly<{ type: "originalFinished" }>
-  | Readonly<{ type: "recordStart" }>
+  | Readonly<{ type: "recordStart"; cueId?: string }>
   | Readonly<{ type: "recordSaved"; recordingId: string }>
-  | Readonly<{ type: "replayStart" }>
+  | Readonly<{ type: "replayStart"; cueId?: string; recordingId?: string }>
   | Readonly<{ type: "replayFinished" }>
   | Readonly<{ type: "assessmentStart" }>
   | Readonly<{ type: "assessmentFinished" }>
@@ -55,18 +55,29 @@ export function reduceEchoSession(session: EchoSession, event: EchoEvent): EchoS
         ? Object.freeze({ ...session, state: "readyToRecord" })
         : session;
     case "recordStart":
-      return session.state === "readyToRecord" ||
-        session.state === "recorded" ||
-        session.state === "completed"
-        ? Object.freeze({ ...session, state: "recording", error: null })
+      return session.state !== "recording" && session.state !== "assessing"
+        ? Object.freeze({
+            ...session,
+            state: "recording",
+            cueId: event.cueId ?? session.cueId,
+            recordingId: null,
+            error: null,
+          })
         : session;
     case "recordSaved":
       return session.state === "recording"
         ? Object.freeze({ ...session, state: "recorded", recordingId: event.recordingId })
         : session;
     case "replayStart":
-      return session.state === "recorded" || session.state === "completed"
-        ? Object.freeze({ ...session, state: "replaying" })
+      return session.state === "recorded" ||
+        session.state === "completed" ||
+        (event.cueId !== undefined && event.recordingId !== undefined)
+        ? Object.freeze({
+            ...session,
+            state: "replaying",
+            cueId: event.cueId ?? session.cueId,
+            recordingId: event.recordingId ?? session.recordingId,
+          })
         : session;
     case "replayFinished":
       return session.state === "replaying"
@@ -97,7 +108,7 @@ export function reduceEchoSession(session: EchoSession, event: EchoEvent): EchoS
 export function echoStatusCopy(session: EchoSession): string {
   switch (session.state) {
     case "idle":
-      return "先播放原句，再开始跟读。";
+      return "点击跟读即可录音，原音和回放需单独播放。";
     case "listeningOriginal":
       return "正在播放原音，结束后会停在句首。";
     case "readyToRecord":

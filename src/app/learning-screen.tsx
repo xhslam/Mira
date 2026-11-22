@@ -103,7 +103,7 @@ export function LearningScreen({
     return (
       <View style={styles.root}>
         {content}
-        {renderBottomNavigation(actions)}
+        {snapshot?.ui.section !== "practice" ? renderBottomNavigation(actions) : null}
       </View>
     );
   }
@@ -313,23 +313,23 @@ export function LearningScreen({
             </Pressable>
           ) : null}
           <View style={styles.headerCopy}>
-            <Text
-              accessibilityRole="header"
-              numberOfLines={2}
-              style={
-                section === "home" || section === "library" ? styles.brand : styles.headerTitle
-              }
-            >
-              {section === "practice"
-                ? (practiceResource?.title ?? "逐句学习")
-                : section === "settings"
+            {section !== "practice" ? (
+              <Text
+                accessibilityRole="header"
+                numberOfLines={2}
+                style={
+                  section === "home" || section === "library" ? styles.brand : styles.headerTitle
+                }
+              >
+                {section === "settings"
                   ? "学习设置"
                   : section === "url-import"
                     ? "通过 URL 导入"
                     : section === "library"
                       ? "资料库"
                       : "学习"}
-            </Text>
+              </Text>
+            ) : null}
             {section === "practice" && practiceSentences.length > 0 ? (
               <Text style={styles.practiceCounter}>
                 第 {practiceIndex + 1} 句 / 共 {practiceSentences.length} 句

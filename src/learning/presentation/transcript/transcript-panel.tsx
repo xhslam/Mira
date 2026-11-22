@@ -22,6 +22,8 @@ export type TranscriptPanelCue = Readonly<{
 
 type Props = Readonly<{
   header: ReactElement;
+  focusOnCuePress?: boolean;
+  revealHeaderOffset?: number;
   cues: readonly TranscriptPanelCue[];
   activeCueId: string | null;
   followTranscript: boolean;
@@ -34,6 +36,8 @@ type Props = Readonly<{
 
 export function TranscriptPanel({
   header,
+  focusOnCuePress = false,
+  revealHeaderOffset,
   cues,
   activeCueId,
   followTranscript,
@@ -59,6 +63,11 @@ export function TranscriptPanel({
     },
     [],
   );
+
+  useEffect(() => {
+    if (revealHeaderOffset === undefined) return;
+    listRef.current?.scrollToOffset({ offset: revealHeaderOffset, animated: true });
+  }, [revealHeaderOffset]);
 
   const scrollToActiveCue = useCallback(() => {
     if (!activeCueId || userScrollRef.current) return;
@@ -100,6 +109,7 @@ export function TranscriptPanel({
               userScrollRef.current = false;
               onFollowChange(true);
               onCuePress(item);
+              if (focusOnCuePress) listRef.current?.scrollToOffset({ offset: 0, animated: true });
             }}
             style={({ pressed }) => [
               styles.row,

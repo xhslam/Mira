@@ -4,6 +4,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView as SentenceScrollView,
   StyleSheet,
   Text,
   View,
@@ -72,6 +73,13 @@ import {
 import { persistLearningMedia } from "./learning-media-files";
 import { echoStatusCopy, initialEchoSession, reduceEchoSession } from "./domain/echo/echo-machine";
 import { AssessmentCard } from "./assessment-card";
+import { pauseAudioSafely } from "./safe-audio-player";
+import {
+  parseSentenceComponents,
+  SENTENCE_ROLE_COLORS,
+  SENTENCE_ROLE_LABELS,
+  type SentenceComponent,
+} from "./domain/analysis/sentence-components";
 import { collectLearningResponse } from "./learning-ai";
 
 type Props = Readonly<{
@@ -137,6 +145,15 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     snapshot.settings.showTranslationsByDefault,
   );
   const [translationBusy, setTranslationBusy] = useState(false);
+  const [focusHeight, setFocusHeight] = useState(520);
+  const [recordingExpanded, setRecordingExpanded] = useState(false);
+  const echoBusyRef = useRef(false);
+  const [echoBusy, setEchoBusy] = useState(false);
+  const echoRecordingRef = useRef(false);
+  const activeCueRef = useRef(sentence?.id);
+  useEffect(() => {
+    activeCueRef.current = sentence?.id;
+  }, [sentence?.id]);
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -205,8 +222,20 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         echoTimerRef.current = null;
       }
       Speech.stop();
+      pauseAudioSafely(() => echoReplayPlayer.pause());
+      if (echoRecordingRef.current) {
+        void echoRecorder
+          .stop()
+          .catch(() => {})
+          .finally(() => setAudioModeAsync({ allowsRecording: false }).catch(() => {}));
+      }
     };
-  }, []);
+  }, [echoRecorder, echoReplayPlayer]);
+
+  useEffect(() => {
+    if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
+    pauseAudioSafely(() => echoReplayPlayer.pause());
+  }, [sentence?.id, echoReplayPlayer]);
 
   useEffect(() => {
     repeatRef.current = repeat;
@@ -232,9 +261,12 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   }
 
   function selectSentence(sentenceId: string, userInitiated = true) {
-    if (!resource) return;
+    if (!resource || echoBusyRef.current || echoRecordingRef.current) return;
     const target = activeSentences.find((item) => item.id === sentenceId);
     if (!target) return;
+    setEchoSession(initialEchoSession);
+    setAnalysisVisible(false);
+    setNotice(null);
     if (userInitiated) {
       if (hasPlayableVideoResource(resource)) {
         setVideoPositionMs(target.startMs ?? 0);
@@ -275,7 +307,15 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   }
 
   async function playSentence() {
-    if (!resource || !sentence || !isMountedRef.current) return;
+    if (
+      !resource ||
+      !sentence ||
+      !isMountedRef.current ||
+      echoBusyRef.current ||
+      echoRecordingRef.current
+    )
+      return;
+    stopEchoReplay();
     const playbackId = playbackIdRef.current + 1;
     playbackIdRef.current = playbackId;
     setNotice(null);
@@ -373,71 +413,55 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     setEchoSession((current) => reduceEchoSession(current, event));
   }
 
-  function echoDurationMs() {
-    if (!sentence) return 1_500;
-    if (sentence.startMs !== null && sentence.endMs !== null) {
-      return Math.max(500, sentence.endMs - sentence.startMs);
-    }
-    return 2_000;
-  }
-
-  async function playOriginalForEcho() {
-    if (!resource || !sentence) return;
-    updateEcho({ type: "begin", cueId: sentence.id });
-    stopPlayback();
-    const finish = () => {
-      if (!isMountedRef.current) return;
-      if (resource.mediaKind === "audio") {
-        void audioSession.pause();
-        void audioSession.selectCue(sentence);
-      }
-      if (hasPlayableVideoResource(resource)) {
-        setVideoPlaying(false);
-        setVideoPositionMs(sentence.startMs ?? 0);
-      }
-      updateEcho({ type: "originalFinished" });
-    };
-    if (resource.mediaKind === "audio" && resource.mediaUri) {
-      await audioSession.selectCue(sentence);
-      await audioSession.play();
-      echoTimerRef.current = setTimeout(finish, echoDurationMs());
-      return;
-    }
-    if (hasPlayableVideoResource(resource)) {
-      setVideoPositionMs(sentence.startMs ?? 0);
-      setVideoPlaying(true);
-      echoTimerRef.current = setTimeout(finish, echoDurationMs());
-      return;
-    }
-    Speech.speak(sentence.text, {
-      ...(resource.language.toLowerCase().startsWith("en") ? { language: "en-US" } : {}),
-      rate: 0.9,
-      onDone: finish,
-      onError: () => updateEcho({ type: "failed", message: "原音试听暂时不可用。" }),
-    });
+  function stopEchoReplay() {
+    if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
+    echoTimerRef.current = null;
+    pauseAudioSafely(() => echoReplayPlayer.pause());
   }
 
   async function startEchoRecording() {
-    if (!resource || !sentence) return;
+    if (!resource || !sentence || echoBusyRef.current || echoRecordingRef.current) return;
+    echoBusyRef.current = true;
+    setEchoBusy(true);
     try {
+      stopPlayback();
+      setVideoPlaying(false);
+      stopEchoReplay();
+      await Speech.stop();
+      await audioSession.pause();
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) throw new Error("未获得麦克风权限。");
+      if (!isMountedRef.current || activeCueRef.current !== sentence.id) return;
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
       await echoRecorder.prepareToRecordAsync();
+      if (!isMountedRef.current || activeCueRef.current !== sentence.id) {
+        await setAudioModeAsync({ allowsRecording: false });
+        return;
+      }
       echoRecorder.record();
-      updateEcho({ type: "recordStart" });
+      echoRecordingRef.current = true;
+      updateEcho({ type: "recordStart", cueId: sentence.id });
     } catch (reason) {
       updateEcho({
         type: "failed",
         message: reason instanceof Error ? reason.message : "跟读录音暂时不可用。",
       });
+      await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+    } finally {
+      echoBusyRef.current = false;
+      if (isMountedRef.current) setEchoBusy(false);
     }
   }
 
   async function stopEchoRecording() {
-    if (!resource || !sentence) return;
+    if (!resource || !sentence || echoBusyRef.current || !echoRecordingRef.current) return;
+    echoBusyRef.current = true;
+    setEchoBusy(true);
     try {
       await echoRecorder.stop();
+      echoRecordingRef.current = false;
+      await setAudioModeAsync({ allowsRecording: false });
+      if (!isMountedRef.current) return;
       const uri = echoRecorder.uri;
       if (!uri) throw new Error("未生成可用的跟读录音。");
       const now = new Date().toISOString();
@@ -450,7 +474,8 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         state: "ready" as const,
         createdAt: now,
       });
-      const withPosition = persistLearningPosition(snapshot, {
+      if (!isMountedRef.current) return;
+      const withPosition = persistLearningPosition(snapshotRef.current, {
         resource,
         sentence,
         positionMs: sentence.startMs ?? 0,
@@ -463,20 +488,38 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         }),
       );
       updateEcho({ type: "recordSaved", recordingId: recording.id });
-      setNotice("跟读已保存。你可以回放自己的录音，或重录一次。");
+      setNotice(null);
     } catch (reason) {
-      updateEcho({
-        type: "failed",
-        message: reason instanceof Error ? reason.message : "跟读录音暂时不可用。",
-      });
+      if (echoRecordingRef.current) {
+        setNotice("录音尚未结束，请再次点击结束录音。");
+      } else {
+        updateEcho({
+          type: "failed",
+          message: reason instanceof Error ? reason.message : "跟读录音暂时不可用。",
+        });
+      }
+    } finally {
+      if (!echoRecordingRef.current)
+        await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+      echoBusyRef.current = false;
+      if (isMountedRef.current) setEchoBusy(false);
     }
   }
 
   async function replayEchoRecording() {
     const recording = latestEchoRecording;
-    if (!recording) return;
+    if (!recording || echoBusyRef.current || echoRecordingRef.current) return;
+    echoBusyRef.current = true;
+    setEchoBusy(true);
     try {
-      updateEcho({ type: "replayStart" });
+      stopPlayback();
+      setVideoPlaying(false);
+      stopEchoReplay();
+      await Speech.stop();
+      await audioSession.pause();
+      await setAudioModeAsync({ allowsRecording: false });
+      if (!isMountedRef.current || activeCueRef.current !== sentence?.id) return;
+      updateEcho({ type: "replayStart", cueId: recording.sentenceId, recordingId: recording.id });
       echoReplayPlayer.replace(recording.uri);
       echoReplayPlayer.play();
       echoTimerRef.current = setTimeout(
@@ -493,23 +536,25 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         type: "failed",
         message: reason instanceof Error ? reason.message : "录音回放暂时不可用。",
       });
+    } finally {
+      echoBusyRef.current = false;
+      if (isMountedRef.current) setEchoBusy(false);
     }
   }
 
   async function handleEchoAction() {
-    if (echoSession.state === "recording") return stopEchoRecording();
-    if (echoSession.state === "readyToRecord") return startEchoRecording();
-    if (echoSession.state === "recorded" || echoSession.state === "completed")
-      return replayEchoRecording();
-    return playOriginalForEcho();
+    if (echoBusyRef.current) return;
+    if (echoRecordingRef.current) return stopEchoRecording();
+    return startEchoRecording();
   }
 
   function retryEcho() {
-    updateEcho({ type: "retry" });
+    void startEchoRecording();
   }
 
   function deleteLatestEchoRecording() {
-    if (!latestEchoRecording) return;
+    if (!latestEchoRecording || echoBusyRef.current || echoRecordingRef.current) return;
+    stopEchoReplay();
     persist(
       Object.freeze({
         ...snapshot,
@@ -527,7 +572,10 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     const sourceHash = fingerprintText(sentence.text);
     const cached = snapshot.analyses.find(
       (item) =>
-        item.sentenceId === sentence.id && item.sourceHash === sourceHash && item.state === "ready",
+        item.sentenceId === sentence.id &&
+        item.sourceHash === sourceHash &&
+        item.state === "ready" &&
+        (item.sentenceComponents?.length ?? 0) > 0,
     );
     if (cached) {
       setAnalysisVisible(true);
@@ -557,14 +605,20 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
           }),
         ]),
       });
-      const parsed = parseStructuredSentenceAnalysis(content);
+      const parsed = parseStructuredSentenceAnalysis(content, sentence.text);
       if (!parsed.ok) throw new Error(`分析结果校验失败：${parsed.error}`);
+      if (
+        !isMountedRef.current ||
+        !snapshotRef.current.resources.some((item) => item.id === resource.id)
+      )
+        return;
       const analysis = Object.freeze({
         id: "analysis-" + sentence.id + "-" + sourceHash,
         resourceId: resource.id,
         sentenceId: sentence.id,
         sourceHash,
-        version: "2",
+        version: "3",
+        sentenceComponents: parsed.value.sentenceComponents,
         state: "ready" as const,
         sentencePatterns: Object.freeze(
           parsed.value.sentencePatterns.map((item) => `${item.title}：${item.explanation}`),
@@ -588,9 +642,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
       });
       persist(
         Object.freeze({
-          ...snapshot,
+          ...snapshotRef.current,
           analyses: Object.freeze([
-            ...snapshot.analyses.filter((item) => item.sentenceId !== sentence.id),
+            ...snapshotRef.current.analyses.filter((item) => item.sentenceId !== sentence.id),
             analysis,
           ]),
         }),
@@ -672,8 +726,16 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   }
 
   function selectTranscriptTrack(track: LearningTranscriptTrack) {
-    if (!resource || track.sentences.length === 0) return;
+    if (
+      !resource ||
+      track.sentences.length === 0 ||
+      echoBusyRef.current ||
+      echoRecordingRef.current
+    )
+      return;
     const nextSentence = track.sentences[0]!;
+    setEchoSession(initialEchoSession);
+    setAnalysisVisible(false);
     stopPlayback();
     const withPosition = persistLearningPosition(snapshot, {
       resource,
@@ -697,7 +759,13 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
       try {
         await audioSession.pause();
         await audioSession.selectCue(sentence);
-        if (isMountedRef.current && repeatRef.current) await audioSession.play();
+        if (
+          isMountedRef.current &&
+          repeatRef.current &&
+          !echoBusyRef.current &&
+          !echoRecordingRef.current
+        )
+          await audioSession.play();
       } finally {
         audioLoopRestartingRef.current = false;
       }
@@ -713,7 +781,13 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
     setVideoCurrentPositionMs(startMs);
     clipTimer.current = setTimeout(() => {
       videoLoopRestartingRef.current = false;
-      if (isMountedRef.current && repeatRef.current) setVideoPlaying(true);
+      if (
+        isMountedRef.current &&
+        repeatRef.current &&
+        !echoBusyRef.current &&
+        !echoRecordingRef.current
+      )
+        setVideoPlaying(true);
     }, 80);
   }
 
@@ -759,7 +833,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- callback intentionally closes over the current session snapshot.
   function followPlaybackPosition(positionMs: number) {
-    if (resource === null) return;
+    if (resource === null || echoBusyRef.current || echoRecordingRef.current) return;
     if (hasPlayableVideoResource(resource)) {
       setVideoCurrentPositionMs(positionMs);
       const selectedSentence = activeSentences.find(
@@ -799,6 +873,8 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   }, [audioSession.state.positionMs, audioSession.state.status, resource]);
   useEffect(() => {
     if (
+      echoBusyRef.current ||
+      echoRecordingRef.current ||
       repeat === false ||
       resource === null ||
       resource.mediaKind !== "audio" ||
@@ -817,6 +893,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   const transcriptTracks = resourceTracks;
 
   function selectTranscriptCue(target: Readonly<{ id: string }>) {
+    if (echoBusyRef.current || echoRecordingRef.current) return;
     const fullCue = activeSentences.find((item) => item.id === target.id);
     if (!fullCue) return;
     selectSentence(fullCue.id);
@@ -942,7 +1019,10 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
   const echoElapsedLabel = `${String(Math.floor(echoElapsedSeconds / 60)).padStart(2, "0")}:${String(echoElapsedSeconds % 60).padStart(2, "0")}`;
 
   return (
-    <>
+    <View
+      style={styles.practiceViewport}
+      onLayout={(event) => setFocusHeight(event.nativeEvent.layout.height)}
+    >
       <TranscriptPanel
         header={
           <View style={styles.content}>
@@ -967,73 +1047,196 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
                 ) : null}
               </View>
             ) : null}
-            <View style={styles.mediaStage}>
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={styles.sentencePosition}
+            <View style={[styles.focusStage, { height: focusHeight }]}>
+              <SentenceScrollView
+                key={sentence.id}
+                nestedScrollEnabled
+                style={styles.sentenceViewport}
+                contentContainerStyle={styles.sentenceViewportContent}
+                showsVerticalScrollIndicator={false}
               >
-                {Array.from({ length: positionSegments }, (_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.sentenceSegment,
-                      index === activeSegment && styles.sentenceSegmentActive,
-                    ]}
+                <View style={styles.mediaStage}>
+                  <InteractiveSentence
+                    text={sentence.text}
+                    components={parseSentenceComponents(
+                      currentAnalysis?.sentenceComponents,
+                      sentence.text,
+                    )}
+                    theme={theme}
+                    styles={styles}
+                    onWordPress={(word) => void openWord(word)}
                   />
-                ))}
+                  {showTranslation && sentence.translation ? (
+                    <Text style={styles.translation}>{sentence.translation}</Text>
+                  ) : null}
+                </View>
+              </SentenceScrollView>
+              <View style={styles.transport}>
+                <Pressable
+                  accessibilityLabel="上一句"
+                  accessibilityRole="button"
+                  disabled={sentenceIndex === 0 || echoBusy || echoSession.state === "recording"}
+                  onPress={() => selectAdjacent(-1)}
+                  style={({ pressed }) => [
+                    styles.transportButton,
+                    sentenceIndex === 0 && styles.disabled,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <SkipBack color={theme.colors.text} size={22} />
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={playing ? "暂停" : "播放这一句"}
+                  accessibilityRole="button"
+                  disabled={echoBusy || echoSession.state === "recording"}
+                  onPress={() => void playSentence()}
+                  style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
+                >
+                  {playing ? (
+                    <Pause color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
+                  ) : (
+                    <Play color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
+                  )}
+                </Pressable>
+                <Pressable
+                  accessibilityLabel="下一句"
+                  accessibilityRole="button"
+                  disabled={
+                    sentenceIndex === activeSentences.length - 1 ||
+                    echoBusy ||
+                    echoSession.state === "recording"
+                  }
+                  onPress={() => selectAdjacent(1)}
+                  style={({ pressed }) => [
+                    styles.transportButton,
+                    sentenceIndex === activeSentences.length - 1 && styles.disabled,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <SkipForward color={theme.colors.text} size={22} />
+                </Pressable>
               </View>
-              <InteractiveSentence
-                text={sentence.text}
-                styles={styles}
-                onWordPress={(word) => void openWord(word)}
-              />
-              {showTranslation && sentence.translation ? (
-                <Text style={styles.translation}>{sentence.translation}</Text>
-              ) : null}
-            </View>
 
-            <View style={styles.transport}>
               <Pressable
-                accessibilityLabel="上一句"
                 accessibilityRole="button"
-                disabled={sentenceIndex === 0}
-                onPress={() => selectAdjacent(-1)}
-                style={({ pressed }) => [
-                  styles.transportButton,
-                  sentenceIndex === 0 && styles.disabled,
-                  pressed && styles.pressed,
-                ]}
+                accessibilityLabel={recordingExpanded ? "收起录音" : "展开录音"}
+                accessibilityState={{ expanded: recordingExpanded }}
+                onPress={() => setRecordingExpanded((value) => !value)}
+                style={styles.recordingToggle}
               >
-                <SkipBack color={theme.colors.text} size={22} />
-              </Pressable>
-              <Pressable
-                accessibilityLabel={playing ? "暂停" : "播放这一句"}
-                accessibilityRole="button"
-                onPress={() => void playSentence()}
-                style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
-              >
-                {playing ? (
-                  <Pause color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
-                ) : (
-                  <Play color={theme.colors.canvas} fill={theme.colors.canvas} size={26} />
-                )}
-              </Pressable>
-              <Pressable
-                accessibilityLabel="下一句"
-                accessibilityRole="button"
-                disabled={sentenceIndex === activeSentences.length - 1}
-                onPress={() => selectAdjacent(1)}
-                style={({ pressed }) => [
-                  styles.transportButton,
-                  sentenceIndex === activeSentences.length - 1 && styles.disabled,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <SkipForward color={theme.colors.text} size={22} />
+                <Mic
+                  color={
+                    echoSession.state === "recording" ? theme.colors.accent : theme.colors.mutedText
+                  }
+                  size={14}
+                />
+                <ChevronDown
+                  color={theme.colors.mutedText}
+                  size={12}
+                  style={{ transform: [{ rotate: recordingExpanded ? "180deg" : "0deg" }] }}
+                />
               </Pressable>
             </View>
+            {recordingExpanded ? (
+              <View style={styles.recordingPanel}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={echoSession.state === "recording" ? "结束录音" : "跟读"}
+                  disabled={echoBusy}
+                  onPress={() => void handleEchoAction()}
+                  style={({ pressed }) => [styles.followButton, pressed && styles.pressed]}
+                >
+                  <Mic color={theme.colors.text} size={20} />
+                  <Text style={styles.followText}>
+                    {echoBusy ? "处理中" : echoSession.state === "recording" ? "结束录音" : "跟读"}
+                  </Text>
+                </Pressable>
 
+                {echoSession.state === "recording" ? (
+                  <View style={styles.echoLiveCard}>
+                    <View style={styles.echoPulse} />
+                    <View style={styles.echoLiveCopy}>
+                      <Text style={styles.echoLiveTitle}>正在收录你的跟读</Text>
+                      <Text style={styles.echoLiveMeta}>
+                        {echoElapsedLabel} · 再读一遍完整句子后点击结束
+                      </Text>
+                    </View>
+                    <Mic color={theme.colors.accent} size={19} />
+                  </View>
+                ) : null}
+                {latestEchoRecording ? (
+                  <>
+                    <AssessmentCard recording={latestEchoRecording} theme={theme} />
+                    <View style={styles.echoActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => void replayEchoRecording()}
+                        style={styles.echoActionPill}
+                      >
+                        <Play color={theme.colors.accent} size={15} />
+                        <Text style={styles.echoActionText}>回放我的录音</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={retryEcho}
+                        style={styles.echoActionPill}
+                      >
+                        <RotateCcw color={theme.colors.accent} size={15} />
+                        <Text style={styles.echoActionText}>重录</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={deleteLatestEchoRecording}
+                        style={styles.echoActionPill}
+                      >
+                        <Trash2 color={theme.colors.accent} size={15} />
+                        <Text style={styles.echoActionText}>删除</Text>
+                      </Pressable>
+                    </View>
+                  </>
+                ) : null}
+                {echoSession.state !== "idle" ? (
+                  <Text style={styles.echoStatus}>{echoStatusCopy(echoSession)}</Text>
+                ) : null}
+                {echoRecordings.length > 0 ? (
+                  <View style={styles.echoHistory}>
+                    <View style={styles.echoHistoryHeader}>
+                      <Text style={styles.echoHistoryTitle}>本句跟读</Text>
+                      <Text style={styles.echoHistoryCount}>{echoRecordings.length} 次记录</Text>
+                    </View>
+                    {echoRecordings.slice(0, 3).map((recording, index) => (
+                      <View key={recording.id} style={styles.echoHistoryRow}>
+                        <View style={styles.echoHistoryIcon}>
+                          <Mic color={theme.colors.accent} size={14} />
+                        </View>
+                        <Text style={styles.echoHistoryText}>
+                          第 {echoRecordings.length - index} 次跟读
+                        </Text>
+                        <Text style={styles.echoHistoryMeta}>
+                          {Math.max(0, Math.round(recording.durationMs / 1000))} 秒 ·{" "}
+                          {recording.createdAt.slice(11, 16)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.sentencePosition}
+            >
+              {Array.from({ length: positionSegments }, (_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.sentenceSegment,
+                    index === activeSegment && styles.sentenceSegmentActive,
+                  ]}
+                />
+              ))}
+            </View>
             {hasTimedMedia ? (
               <View style={styles.playbackControls}>
                 <Pressable
@@ -1067,93 +1270,28 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
               </View>
             ) : null}
 
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handleEchoAction()}
-              style={({ pressed }) => [styles.followButton, pressed && styles.pressed]}
-            >
-              <Mic color={theme.colors.text} size={20} />
-              <Text style={styles.followText}>
-                {echoSession.state === "recording"
-                  ? "结束录音"
-                  : echoSession.state === "readyToRecord"
-                    ? "开始录音"
-                    : echoSession.state === "recorded"
-                      ? "回放跟读"
-                      : "跟读"}
-              </Text>
-            </Pressable>
-            {echoSession.state === "recording" ? (
-              <View style={styles.echoLiveCard}>
-                <View style={styles.echoPulse} />
-                <View style={styles.echoLiveCopy}>
-                  <Text style={styles.echoLiveTitle}>正在收录你的跟读</Text>
-                  <Text style={styles.echoLiveMeta}>
-                    {echoElapsedLabel} · 再读一遍完整句子后点击结束
-                  </Text>
-                </View>
-                <Mic color={theme.colors.accent} size={19} />
-              </View>
-            ) : null}
-            {latestEchoRecording ? (
-              <>
-                <AssessmentCard recording={latestEchoRecording} theme={theme} />
-                <View style={styles.echoActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => void replayEchoRecording()}
-                    style={styles.echoActionPill}
-                  >
-                    <Play color={theme.colors.accent} size={15} />
-                    <Text style={styles.echoActionText}>回放我的录音</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={retryEcho}
-                    style={styles.echoActionPill}
-                  >
-                    <RotateCcw color={theme.colors.accent} size={15} />
-                    <Text style={styles.echoActionText}>重录</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={deleteLatestEchoRecording}
-                    style={styles.echoActionPill}
-                  >
-                    <Trash2 color={theme.colors.accent} size={15} />
-                    <Text style={styles.echoActionText}>删除</Text>
-                  </Pressable>
-                </View>
-              </>
-            ) : null}
-            {echoSession.state !== "idle" ? (
-              <Text style={styles.echoStatus}>{echoStatusCopy(echoSession)}</Text>
-            ) : null}
-            {echoRecordings.length > 0 ? (
-              <View style={styles.echoHistory}>
-                <View style={styles.echoHistoryHeader}>
-                  <Text style={styles.echoHistoryTitle}>本句跟读</Text>
-                  <Text style={styles.echoHistoryCount}>{echoRecordings.length} 次记录</Text>
-                </View>
-                {echoRecordings.slice(0, 3).map((recording, index) => (
-                  <View key={recording.id} style={styles.echoHistoryRow}>
-                    <View style={styles.echoHistoryIcon}>
-                      <Mic color={theme.colors.accent} size={14} />
-                    </View>
-                    <Text style={styles.echoHistoryText}>
-                      第 {echoRecordings.length - index} 次跟读
-                    </Text>
-                    <Text style={styles.echoHistoryMeta}>
-                      {Math.max(0, Math.round(recording.durationMs / 1000))} 秒 ·{" "}
-                      {recording.createdAt.slice(11, 16)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
             {analysisVisible && currentAnalysis ? (
               <View style={styles.analysisCard}>
                 <Text style={styles.analysisTitle}>句子分析</Text>
+                <View style={styles.roleLegend}>
+                  {parseSentenceComponents(currentAnalysis.sentenceComponents, sentence.text)
+                    .filter(
+                      (item, index, all) =>
+                        item.role !== "other" &&
+                        all.findIndex((candidate) => candidate.role === item.role) === index,
+                    )
+                    .map((item) => (
+                      <Text
+                        key={item.role}
+                        style={{
+                          color: SENTENCE_ROLE_COLORS[item.role][theme.mode === "dark" ? 1 : 0],
+                          fontSize: 12,
+                        }}
+                      >
+                        {SENTENCE_ROLE_LABELS[item.role]}
+                      </Text>
+                    ))}
+                </View>
                 {currentAnalysis.sentencePatterns.length ? (
                   <>
                     <Text style={styles.analysisSection}>句型结构</Text>
@@ -1287,7 +1425,9 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
         }
         cues={activeSentences}
         activeCueId={sentence.id}
-        followTranscript={audioSession.state.followTranscript}
+        followTranscript={false}
+        focusOnCuePress
+        revealHeaderOffset={recordingExpanded ? Math.max(0, focusHeight - 140) : 0}
         showOriginal
         showTranslation={hasTimedMedia && showTranslation}
         onFollowChange={audioSession.setFollowTranscript}
@@ -1467,7 +1607,7 @@ export function PracticeScreen({ services, snapshot, onChange, theme }: Props) {
           </SafeAreaView>
         </View>
       </Modal>
-    </>
+    </View>
   );
 }
 
@@ -1618,33 +1758,44 @@ function ImmersiveListening({
 
 function InteractiveSentence({
   text,
+  components,
+  theme,
   styles,
   onWordPress,
 }: Readonly<{
   text: string;
+  components: readonly SentenceComponent[];
+  theme: Theme;
   styles: ReturnType<typeof createStyles>;
   onWordPress: (word: string) => void;
 }>) {
-  const pieces = text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)?[ \t]*|[^A-Za-z]+/gu) ?? [text];
+  const spans = components.length ? components : [{ text, role: "other" as const }];
   return (
-    <View accessibilityLabel={text} style={styles.sentenceWords}>
-      {pieces.map((piece, index) =>
-        /^[A-Za-z]/u.test(piece) ? (
-          <Pressable
-            key={`${piece}-${index}`}
-            accessibilityRole="button"
-            onPress={() => onWordPress(piece.trimEnd())}
-            style={({ pressed }) => [styles.wordToken, pressed && styles.wordTokenPressed]}
-          >
-            <Text style={styles.wordTokenText}>{piece}</Text>
-          </Pressable>
-        ) : (
-          <Text key={`${piece}-${index}`} style={styles.wordTokenText}>
-            {piece}
-          </Text>
-        ),
-      )}
-    </View>
+    <Text style={styles.wordTokenText}>
+      {spans.map((span, index) => (
+        <Text
+          key={index}
+          style={
+            components.length && span.role !== "other"
+              ? { color: SENTENCE_ROLE_COLORS[span.role][theme.mode === "dark" ? 1 : 0] }
+              : undefined
+          }
+        >
+          {(span.text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*|[^A-Za-z]+/gu) ?? [span.text]).map(
+            (piece, wordIndex) => (
+              <Text
+                key={wordIndex}
+                {...(/^[A-Za-z]/u.test(piece)
+                  ? { onPress: () => onWordPress(piece), accessibilityRole: "button" as const }
+                  : {})}
+              >
+                {piece}
+              </Text>
+            ),
+          )}
+        </Text>
+      ))}
+    </Text>
   );
 }
 
@@ -1673,7 +1824,21 @@ function formatTime(value: number | null) {
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    content: { gap: 18, paddingTop: 12 },
+    practiceViewport: { flex: 1, minHeight: 0 },
+    content: { gap: 18 },
+    focusStage: { paddingTop: 12, paddingBottom: 20 },
+    sentenceViewport: { flex: 1, minHeight: 0 },
+    sentenceViewportContent: { flexGrow: 1, justifyContent: "center", paddingVertical: 24 },
+    recordingToggle: {
+      alignSelf: "center",
+      minWidth: 48,
+      minHeight: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+    },
+    recordingPanel: { gap: 14 },
     empty: { alignItems: "center", gap: 12, paddingHorizontal: 28, paddingTop: 90 },
     emptyTitle: {
       color: theme.colors.text,
@@ -1694,6 +1859,7 @@ function createStyles(theme: Theme) {
     sentenceSegmentActive: { backgroundColor: studyAccent(theme) },
     sentenceWords: { flexDirection: "row", flexWrap: "wrap", marginTop: -4 },
     wordToken: { borderRadius: 10, maxWidth: "100%" },
+    roleLegend: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
     analysisCard: {
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 10,

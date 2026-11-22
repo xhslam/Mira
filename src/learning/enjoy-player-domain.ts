@@ -175,6 +175,7 @@ export function splitLearningSentences(value: string): readonly string[] {
   if (!normalized) return Object.freeze([]);
 
   const protectedText = normalized
+    .replace(/([^\n])\n(?!\n)/gu, "$1 ")
     .replace(/\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St)\./giu, "$1\uE000")
     .replace(/\b(e\.g|i\.e|etc)\./giu, (match) => match.replace(/\./gu, "\uE000"))
     .replace(/\b(?:[A-Za-z]\.){2,}/gu, (match) => match.replace(/\./gu, "\uE000"))

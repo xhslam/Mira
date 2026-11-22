@@ -1,3 +1,4 @@
+import { parseSentenceComponents, type SentenceComponent } from "./sentence-components";
 export type SentencePattern = Readonly<{ title: string; explanation: string }>;
 export type SentencePhrase = Readonly<{
   phrase: string;
@@ -12,6 +13,7 @@ export type SentenceGrammarPoint = Readonly<{
   examples: readonly string[];
 }>;
 export type StructuredSentenceAnalysis = Readonly<{
+  sentenceComponents: readonly SentenceComponent[];
   sentencePatterns: readonly SentencePattern[];
   keyPhrases: readonly SentencePhrase[];
   grammarPoints: readonly SentenceGrammarPoint[];
@@ -22,6 +24,7 @@ export type AnalysisParseResult =
   | Readonly<{ ok: false; error: string; fallback: StructuredSentenceAnalysis }>;
 
 const EMPTY_ANALYSIS: StructuredSentenceAnalysis = Object.freeze({
+  sentenceComponents: Object.freeze([]),
   sentencePatterns: Object.freeze([]),
   keyPhrases: Object.freeze([]),
   grammarPoints: Object.freeze([]),
@@ -98,17 +101,19 @@ function grammar(value: unknown): readonly SentenceGrammarPoint[] {
   );
 }
 
-export function parseStructuredSentenceAnalysis(raw: string): AnalysisParseResult {
+export function parseStructuredSentenceAnalysis(raw: string, source?: string): AnalysisParseResult {
   try {
     const candidate = object(JSON.parse(fencedJson(raw)) as unknown);
     if (!candidate) throw new Error("分析结果不是对象。");
     const value = Object.freeze({
+      sentenceComponents: parseSentenceComponents(candidate.sentenceComponents, source),
       sentencePatterns: patterns(candidate.sentencePatterns),
       keyPhrases: phrases(candidate.keyPhrases),
       grammarPoints: grammar(candidate.grammarPoints),
       contextualExplanation: text(candidate.contextualExplanation, 1_600),
     });
     if (
+      value.sentenceComponents.length === 0 &&
       value.sentencePatterns.length === 0 &&
       value.keyPhrases.length === 0 &&
       value.grammarPoints.length === 0 &&
@@ -135,5 +140,5 @@ export function buildSentenceAnalysisPrompt(
     targetLanguage: string;
   }>,
 ): string {
-  return `Return JSON only. Explain this sentence for a learner in ${input.targetLanguage}.\nSentence: ${input.sentence}\nTranslation: ${input.translation ?? ""}\nPrevious: ${input.previousSentence ?? ""}\nNext: ${input.nextSentence ?? ""}\nSchema: {"sentencePatterns":[{"title":"","explanation":""}],"keyPhrases":[{"phrase":"","translation":"","explanation":"","category":"","cefr":""}],"grammarPoints":[{"title":"","explanation":"","examples":[""]}],"contextualExplanation":""}`;
+  return `Return JSON only. Explain this sentence for a learner in ${input.targetLanguage}.\nSentence: ${input.sentence}\nTranslation: ${input.translation ?? ""}\nPrevious: ${input.previousSentence ?? ""}\nNext: ${input.nextSentence ?? ""}\nFor sentenceComponents, split the EXACT original sentence into contiguous grammatical spans. Concatenating their text must reproduce Sentence byte-for-byte, including spaces and punctuation. Assign each span one role: subject, predicate, object, attributive, postmodifier (postposed attribute), adverbial, predicative, complement, other. Do not force an uncertain role; use other.\nSchema: {"sentenceComponents":[{"text":"","role":"subject"}],"sentencePatterns":[{"title":"","explanation":""}],"keyPhrases":[{"phrase":"","translation":"","explanation":"","category":"","cefr":""}],"grammarPoints":[{"title":"","explanation":"","examples":[""]}],"contextualExplanation":""}`;
 }

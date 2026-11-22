@@ -53,6 +53,18 @@ describe("Enjoy Player learning domain", () => {
     });
     expect(toAnkiCsv([card])).toContain('"say ""hello"""');
   });
+  it("keeps soft line wraps within a sentence and splits compact lowercase prose", () => {
+    expect(
+      splitLearningSentences(
+        "The chart shows\na clear trend. next comes a decline.最后一句。再来一句！",
+      ),
+    ).toEqual([
+      "The chart shows a clear trend.",
+      "next comes a decline.",
+      "最后一句。",
+      "再来一句！",
+    ]);
+  });
   it("splits Markdown prose into clean sentence learning units", () => {
     expect(
       splitLearningSentences(

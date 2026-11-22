@@ -1,8 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { createInitialLearningSnapshot } from "../../../src/learning/learning-types";
+import {
+  createInitialLearningSnapshot,
+  type LearningSentenceAnalysis,
+} from "../../../src/learning/learning-types";
 import { createLegacyMigrationPlan } from "../../../src/learning/data/migrations/legacy-snapshot-migration";
 
 describe("legacy learning snapshot migration", () => {
+  it("preserves grammatical spans in analysis payloads without changing legacy records", () => {
+    const analysis: LearningSentenceAnalysis = {
+      id: "a1",
+      resourceId: "media-1",
+      sentenceId: "cue-1",
+      sourceHash: "hash",
+      version: "3",
+      state: "ready",
+      sentenceComponents: [{ text: "Hello.", role: "other" }],
+      sentencePatterns: [],
+      keyPhrases: [],
+      grammarPoints: [],
+      contextualExplanation: null,
+      error: null,
+      updatedAt: "2026-11-22T00:00:00.000Z",
+    };
+    const plan = createLegacyMigrationPlan({
+      ...createInitialLearningSnapshot(),
+      analyses: [analysis],
+    });
+    const write = plan.writes.find((item) =>
+      item.sql.includes("INSERT OR REPLACE INTO sentence_analyses"),
+    );
+    expect(JSON.parse(String(write?.params[6])).sentenceComponents).toEqual(
+      analysis.sentenceComponents,
+    );
+    expect(JSON.parse(plan.backupJson).analyses[0]).toEqual(analysis);
+  });
+
   it("keeps a backup and turns a legacy resource into normalized media, track and cue writes", () => {
     const initial = createInitialLearningSnapshot();
     const snapshot = Object.freeze({

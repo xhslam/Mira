@@ -1,3 +1,4 @@
+import { parseSentenceComponents } from "../../domain/analysis/sentence-components";
 import {
   createInitialLearningSnapshot,
   normalizeLearningSnapshot,
@@ -329,6 +330,7 @@ export async function readNormalizedLearningSnapshot(
         sourceHash: row.source_hash,
         version: row.analysis_version,
         state: row.state,
+        sentenceComponents: parseSentenceComponents(payload.sentenceComponents),
         sentencePatterns: Array.isArray(payload.sentencePatterns)
           ? payload.sentencePatterns.filter((item): item is string => typeof item === "string")
           : [],

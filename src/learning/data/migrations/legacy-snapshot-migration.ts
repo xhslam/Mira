@@ -221,6 +221,7 @@ export function createLegacyMigrationPlan(snapshot: LearningSnapshot): LegacyMig
           "legacy",
           analysis.version,
           JSON.stringify({
+            sentenceComponents: analysis.sentenceComponents,
             sentencePatterns: analysis.sentencePatterns,
             keyPhrases: analysis.keyPhrases,
             grammarPoints: analysis.grammarPoints,
