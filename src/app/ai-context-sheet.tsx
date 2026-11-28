@@ -178,14 +178,14 @@ function createStyles(theme: Theme) {
       borderColor: theme.colors.divider,
       borderRadius: theme.radius.medium,
     },
-    checkSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent },
+    checkSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accentFill },
     empty: { paddingVertical: 28, color: theme.colors.mutedText, textAlign: "center" },
     doneButton: {
       minHeight: 48,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     doneText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   });

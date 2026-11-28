@@ -28,6 +28,7 @@ function harness() {
     upsertConversation: async () => undefined,
     listMessages: async () => Object.freeze([]),
     upsertMessage: async () => undefined,
+    setConversationPinned: async () => undefined,
     removeConversation: async () => undefined,
     recordToolAudit: async () => undefined,
     listToolAudit: async () => [],

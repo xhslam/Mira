@@ -314,7 +314,7 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
-    dayActive: { backgroundColor: theme.colors.accent },
+    dayActive: { backgroundColor: theme.colors.accentFill },
     dayText: { color: theme.colors.mutedText },
     dayTextActive: { color: "#FFFFFF", fontWeight: "700" },
     option: {
@@ -331,7 +331,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
     disabled: { opacity: 0.4 },

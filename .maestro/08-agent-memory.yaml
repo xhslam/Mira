@@ -14,7 +14,7 @@ name: Agent memory persists and remains editable without a model
 - tapOn: 记忆与引用对话
 - assertVisible: 搜索引用对话
 - tapOn: 记忆
-- assertVisible: 记忆还是空的。添加偏好，或从一条用户消息保存。
+- assertVisible: 记忆还是空的。可手动添加，或从历史对话添加。
 - tapOn: 添加记忆
 - tapOn: 记忆标题
 - inputText: Memory QA
@@ -47,4 +47,4 @@ name: Agent memory persists and remains editable without a model
 - tapOn: 保存记忆
 - assertVisible: ".*Edited preference.*"
 - tapOn: 删除
-- assertVisible: 记忆还是空的。添加偏好，或从一条用户消息保存。
+- assertVisible: 记忆还是空的。可手动添加，或从历史对话添加。

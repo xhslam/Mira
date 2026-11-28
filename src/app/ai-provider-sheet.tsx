@@ -582,7 +582,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     primaryPressed: { opacity: 0.65 },
     primaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },

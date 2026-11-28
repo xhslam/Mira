@@ -479,7 +479,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       paddingHorizontal: 16,
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
   });

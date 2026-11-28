@@ -97,7 +97,7 @@ export function createAiConversationService(
       const now = options.now().toISOString();
       const conversationId = input.conversationId ?? (options.createId() as AiConversationId);
       const existingConversation = input.conversationId
-        ? (await options.store.listConversations(input.workspaceId)).find(
+        ? (await options.store.listConversations(input.workspaceId, "history")).find(
             (item) => item.id === input.conversationId,
           )
         : null;
@@ -154,7 +154,10 @@ export function createAiConversationService(
         ...referencedContext,
         ...(memory?.context ?? []),
       ]);
-      await options.store.upsertConversation(conversation);
+      await options.store.upsertConversation(
+        conversation,
+        existingConversation ? "existing" : undefined,
+      );
       await options.store.upsertMessage(userMessage);
       yield Object.freeze({ type: "started", conversation, userMessage });
 

@@ -695,6 +695,7 @@ export function EditorWorkspaceView({
             path={activeDocument.path}
             readOnly={sourceReadOnly || activeDocument.mode === "reading"}
             themeMode={theme.mode}
+            sceneTheme={theme.scene}
             editorFontSize={controller.editorSettings.fontSize}
             editorLineHeight={controller.editorSettings.lineHeight}
             showLineNumbers={controller.editorSettings.lineNumbers}
@@ -992,7 +993,7 @@ function createStyles(theme: Theme) {
       gap: 8,
       paddingHorizontal: 18,
       borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     recoveryButtonText: {
       color: "#FFFFFF",
@@ -1026,7 +1027,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       paddingHorizontal: 12,
       borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     readOnlyButtonText: {
       color: "#FFFFFF",

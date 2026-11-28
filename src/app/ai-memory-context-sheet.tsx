@@ -1,7 +1,8 @@
 import * as Crypto from "expo-crypto";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Switch,
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 import type { AiConversation, AiConversationId } from "../ai/conversation";
+import { createConversationMemoryDraft } from "../ai/conversation-memory";
 import type { MemoryEntry } from "../ai/memory-store";
 import type { AppServices } from "./app-services";
 import { MiraSheet } from "./mira-controls";
@@ -27,33 +29,13 @@ export function AiMemoryContextSheet(
     onUseMemory: (enabled: boolean) => void;
     onClose: () => void;
     onNotes: () => void;
-    seed: MemoryEntry | null;
   }>,
 ) {
-  const { colors, radius } = useTheme();
-  const styles = StyleSheet.create({
-    row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.medium,
-      padding: 14,
-      gap: 8,
-      marginBottom: 12,
-    },
-    text: { color: colors.text, fontSize: 15, lineHeight: 23, flexShrink: 1 },
-    muted: { color: colors.mutedText, fontSize: 12, lineHeight: 19 },
-    input: {
-      color: colors.text,
-      backgroundColor: colors.surface,
-      borderRadius: radius.medium,
-      padding: 12,
-      minHeight: 48,
-      marginBottom: 12,
-    },
-    action: { color: colors.accent, fontSize: 14, paddingVertical: 12 },
-  });
+  const theme = useTheme();
+  const { colors } = theme;
+  const styles = createStyles(theme);
   const workspace = props.services.activeWorkspace.grant.workspaceId;
-  const [tab, setTab] = useState<"references" | "memory">(props.seed ? "memory" : "references");
+  const [tab, setTab] = useState<"references" | "memory">("references");
   const [conversations, setConversations] = useState<readonly AiConversation[]>([]);
   const [entries, setEntries] = useState<readonly MemoryEntry[]>([]);
   const [enabled, setEnabled] = useState(true);
@@ -62,7 +44,7 @@ export function AiMemoryContextSheet(
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [query, setQuery] = useState("");
-  const [edit, setEdit] = useState<MemoryEntry | null>(props.seed);
+  const [edit, setEdit] = useState<MemoryEntry | null>(null);
   const [preview, setPreview] = useState<{
     id: AiConversationId;
     title: string;
@@ -92,7 +74,7 @@ export function AiMemoryContextSheet(
     return () => {
       active = false;
     };
-  }, [props.visible, props.services, props.seed, workspace, retry]);
+  }, [props.visible, props.services, workspace, retry]);
 
   async function mutate(work: () => Promise<void>) {
     if (busy) return;
@@ -267,49 +249,21 @@ export function AiMemoryContextSheet(
             </>
           ) : null}
           {edit ? (
-            <View>
-              <TextInput
-                accessibilityLabel="记忆标题"
-                placeholder="标题"
-                placeholderTextColor={colors.mutedText}
-                value={edit.title}
-                onChangeText={(title) => setEdit({ ...edit, title })}
-                style={styles.input}
-                maxLength={120}
-              />
-              <View style={styles.row}>
-                {(["profile", "preferences", "topic"] as const).map((category) => (
-                  <View key={category}>
-                    {button(
-                      `${edit.category === category ? "● " : ""}${categoryLabels[category]}`,
-                      () => setEdit({ ...edit, category }),
-                    )}
-                  </View>
-                ))}
-              </View>
-              <TextInput
-                accessibilityLabel="记忆内容"
-                placeholder="希望 Mira 了解的信息…"
-                placeholderTextColor={colors.mutedText}
-                value={edit.content}
-                onChangeText={(content) => setEdit({ ...edit, content })}
-                multiline
-                style={[styles.input, { minHeight: 120 }]}
-                maxLength={8000}
-              />
-              {button(
-                "保存记忆",
-                () =>
-                  void mutate(async () => {
-                    await props.services.aiMemory.save({
-                      ...edit,
-                      updatedAt: new Date().toISOString(),
-                    });
-                    setEdit(null);
-                  }),
-              )}
-              {button("取消编辑", () => setEdit(null))}
-            </View>
+            <MemoryEditor
+              entry={edit}
+              onChange={setEdit}
+              busy={busy || loading}
+              onSave={() =>
+                void mutate(async () => {
+                  await props.services.aiMemory.save({
+                    ...edit,
+                    updatedAt: new Date().toISOString(),
+                  });
+                  setEdit(null);
+                })
+              }
+              onCancel={() => setEdit(null)}
+            />
           ) : (
             entries.map((entry) => (
               <View key={entry.id} style={styles.card}>
@@ -358,11 +312,185 @@ export function AiMemoryContextSheet(
             ))
           )}
           {!loading && entries.length === 0 && !edit ? (
-            <Text style={styles.muted}>记忆还是空的。添加偏好，或从一条用户消息保存。</Text>
+            <Text style={styles.muted}>记忆还是空的。可手动添加，或从历史对话添加。</Text>
           ) : null}
         </>
       )}
       {button("完成", props.onClose)}
+    </MiraSheet>
+  );
+}
+
+const createStyles = ({ colors, radius }: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.medium,
+      padding: 14,
+      gap: 8,
+      marginBottom: 12,
+    },
+    text: { color: colors.text, fontSize: 15, lineHeight: 23, flexShrink: 1 },
+    muted: { color: colors.mutedText, fontSize: 12, lineHeight: 19 },
+    input: {
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: radius.medium,
+      padding: 12,
+      minHeight: 48,
+      marginBottom: 12,
+    },
+    action: { color: colors.accent, fontSize: 14, paddingVertical: 12 },
+  });
+
+function MemoryEditor({
+  entry,
+  onChange,
+  onSave,
+  onCancel,
+  busy,
+}: Readonly<{
+  entry: MemoryEntry;
+  onChange: (entry: MemoryEntry) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}>) {
+  const theme = useTheme();
+  const { colors } = theme;
+  const styles = createStyles(theme);
+  const button = (label: string, action: () => void, disabled = busy) => (
+    <Pressable accessibilityRole="button" disabled={disabled} onPress={action}>
+      <Text style={styles.action}>{label}</Text>
+    </Pressable>
+  );
+  return (
+    <View>
+      <TextInput
+        accessibilityLabel="记忆标题"
+        placeholder="标题"
+        placeholderTextColor={colors.mutedText}
+        value={entry.title}
+        onChangeText={(title) => onChange({ ...entry, title })}
+        style={styles.input}
+        maxLength={120}
+      />
+      <View style={styles.row}>
+        {(["profile", "preferences", "topic"] as const).map((category) => (
+          <View key={category}>
+            {button(`${entry.category === category ? "● " : ""}${categoryLabels[category]}`, () =>
+              onChange({ ...entry, category }),
+            )}
+          </View>
+        ))}
+      </View>
+      <TextInput
+        accessibilityLabel="记忆内容"
+        placeholder="希望 Mira 了解的信息…"
+        placeholderTextColor={colors.mutedText}
+        value={entry.content}
+        onChangeText={(content) => onChange({ ...entry, content })}
+        multiline
+        style={[styles.input, { minHeight: 120 }]}
+        maxLength={8000}
+      />
+      {button("保存记忆", onSave)}
+      {button("取消编辑", onCancel)}
+    </View>
+  );
+}
+
+export function ConversationMemorySheet({
+  services,
+  conversation,
+  onClose,
+}: Readonly<{
+  services: AppServices;
+  conversation: AiConversation;
+  onClose: () => void;
+}>) {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  const [entry, setEntry] = useState<MemoryEntry | null>(null);
+  const [partial, setPartial] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    void services.aiStore
+      .listMessages(conversation.id)
+      .then((messages) => {
+        if (!active) return;
+        const draft = createConversationMemoryDraft(
+          conversation,
+          messages,
+          Crypto.randomUUID(),
+          new Date().toISOString(),
+        );
+        setEntry(draft.entry);
+        setPartial(draft.partial);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setError(
+          reason instanceof Error && reason.message === "此对话暂无已完成的消息"
+            ? reason.message
+            : "读取对话失败，请重试",
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [conversation, services]);
+
+  async function save() {
+    if (!entry || saveLock.current) return;
+    if (!entry.title.trim() || !entry.content.trim()) {
+      setError("请输入记忆标题和内容");
+      return;
+    }
+    saveLock.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      await services.aiMemory.save({ ...entry, updatedAt: new Date().toISOString() });
+      onClose();
+      Alert.alert("已添加到记忆");
+    } catch {
+      setError("保存记忆失败，请重试");
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
+  }
+  return (
+    <MiraSheet
+      title="添加到记忆"
+      visible
+      onClose={() => {
+        if (!saveLock.current) onClose();
+      }}
+    >
+      {partial ? <Text style={styles.muted}>对话较长，已载入开头片段，可编辑后保存。</Text> : null}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.text}>
+          {error}
+        </Text>
+      ) : null}
+      {entry ? (
+        <MemoryEditor
+          entry={entry}
+          onChange={setEntry}
+          busy={saving}
+          onSave={() => void save()}
+          onCancel={onClose}
+        />
+      ) : !error ? (
+        <ActivityIndicator color={theme.colors.accent} />
+      ) : null}
     </MiraSheet>
   );
 }

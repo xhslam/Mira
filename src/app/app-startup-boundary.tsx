@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "./theme";
+import { AppChrome } from "./app-chrome";
 
 type AppStartupBoundaryProps = Readonly<{
   children: ReactNode;
@@ -35,23 +36,25 @@ export class AppStartupBoundary extends Component<
     if (this.state.error === null) return this.props.children;
 
     return (
-      <View accessibilityRole="alert" style={styles.container}>
-        <Text style={styles.title}>Mira couldn’t start</Text>
-        <Text style={styles.message}>
-          Your files are safe. Retry startup; if the problem continues, restart the app and keep
-          this screen available for diagnostics.
-        </Text>
-        <Text selectable style={styles.diagnostic}>
-          {this.state.error.message}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={this.retry}
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-        >
-          <Text style={styles.buttonLabel}>Retry startup</Text>
-        </Pressable>
-      </View>
+      <AppChrome appearance={theme}>
+        <View accessibilityRole="alert" style={styles.container}>
+          <Text style={styles.title}>Mira couldn’t start</Text>
+          <Text style={styles.message}>
+            Your files are safe. Retry startup; if the problem continues, restart the app and keep
+            this screen available for diagnostics.
+          </Text>
+          <Text selectable style={styles.diagnostic}>
+            {this.state.error.message}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={this.retry}
+            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.buttonLabel}>Retry startup</Text>
+          </Pressable>
+        </View>
+      </AppChrome>
     );
   }
 }

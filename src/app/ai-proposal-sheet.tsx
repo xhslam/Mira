@@ -229,7 +229,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
     disabled: { opacity: 0.5 },

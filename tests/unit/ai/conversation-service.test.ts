@@ -35,6 +35,7 @@ describe("AI conversation service", () => {
       upsertMessage: async (message: AiConversationMessage) => {
         messages.push(message);
       },
+      setConversationPinned: async () => undefined,
       removeConversation: async () => undefined,
       recordToolAudit: async () => undefined,
       listToolAudit: async () => [],

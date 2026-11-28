@@ -15,6 +15,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { isSceneId, SCENE_PALETTES, type SceneId } from "../app/scene-palettes";
 import { codeLanguageForPath } from "../formats/code-language";
 import {
   bufferCompositionUpdate,
@@ -99,6 +100,7 @@ export type EditorKernelProps = Readonly<{
   path: string;
   readOnly: boolean;
   themeMode: "light" | "dark";
+  sceneTheme: SceneId | null;
   locale: "en" | "zh-CN";
   editorFontSize: number;
   editorLineHeight: number;
@@ -298,6 +300,7 @@ function TextEditorKernel({
   path,
   readOnly,
   themeMode,
+  sceneTheme,
   editorFontSize,
   editorLineHeight,
   showLineNumbers,
@@ -724,22 +727,23 @@ function TextEditorKernel({
           EditorView.theme({
             "&": {
               height: "100%",
-              color: themeMode === "dark" ? "#F2F4F8" : "#202124",
-              backgroundColor: themeMode === "dark" ? "#191D25" : "#FFFFFF",
+              color: "var(--text)",
+              backgroundColor: "var(--canvas)",
             },
             ".cm-scroller": {
               fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
               fontSize: `${editorFontSize}px`,
               lineHeight: String(editorLineHeight),
             },
-            ".cm-content": { padding: "20px 18px 120px" },
+            ".cm-content": { padding: "20px 18px 120px", caretColor: "var(--text)" },
+            ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text)" },
             ".cm-gutters": {
-              backgroundColor: themeMode === "dark" ? "#222834" : "#F7F8FA",
-              color: themeMode === "dark" ? "#A6ADBA" : "#68707C",
+              backgroundColor: "var(--gutters)",
+              color: "var(--muted)",
               border: "none",
             },
-            ".cm-activeLine": {
-              backgroundColor: themeMode === "dark" ? "#263044" : "#F2F5FA",
+            ".cm-activeLine, .cm-activeLineGutter": {
+              backgroundColor: "var(--active-line)",
             },
           }),
           EditorView.updateListener.of((update) => {
@@ -790,7 +794,6 @@ function TextEditorKernel({
     queueEditorUpdate,
     readOnly,
     sessionId,
-    themeMode,
     wordWrap,
   ]);
 
@@ -1016,7 +1019,9 @@ function TextEditorKernel({
 
   return (
     <main className={`kernel-shell kernel-${mode}`}>
-      <style>{kernelStyles(themeMode, editorFontSize, editorLineHeight, showLineNumbers)}</style>
+      <style>
+        {kernelStyles(themeMode, sceneTheme, editorFontSize, editorLineHeight, showLineNumbers)}
+      </style>
       <div className="editor-host" ref={containerRef} />
       {findVisible && mode === "source" ? (
         <div aria-label="Find and replace" className="find-panel" role="search">
@@ -1070,13 +1075,29 @@ function TextEditorKernel({
 
 function kernelStyles(
   mode: "light" | "dark",
+  sceneTheme: SceneId | null,
   fontSize: number,
   lineHeight: number,
   showLineNumbers: boolean,
 ): string {
   const readingLineHeight = Math.max(1.72, lineHeight);
-  const palette =
-    mode === "dark"
+  const scene = isSceneId(sceneTheme) ? SCENE_PALETTES[sceneTheme] : null;
+  const dark = mode === "dark";
+  const palette = scene
+    ? {
+        canvas: scene.canvas,
+        text: scene.text,
+        muted: scene.muted,
+        divider: scene.border,
+        surface: scene.surface,
+        readingCanvas: scene.background,
+        readingPaper: scene.canvas,
+        readingInset: scene.surface,
+        readingAccent: scene.accent,
+        gutters: scene.surface,
+        activeLine: scene.selected,
+      }
+    : dark
       ? {
           canvas: "#191D25",
           text: "#F2F4F8",
@@ -1087,6 +1108,8 @@ function kernelStyles(
           readingPaper: "#1B2029",
           readingInset: "#232A35",
           readingAccent: "#7DCBFF",
+          gutters: "#222834",
+          activeLine: "#263044",
         }
       : {
           canvas: "#FFFFFF",
@@ -1098,9 +1121,11 @@ function kernelStyles(
           readingPaper: "#FFFFFF",
           readingInset: "#F0F0EF",
           readingAccent: "#2B54A3",
+          gutters: "#F7F8FA",
+          activeLine: "#F2F5FA",
         };
   return `
-  :root { color-scheme: ${mode}; --canvas: ${palette.canvas}; --text: ${palette.text}; --muted: ${palette.muted}; --divider: ${palette.divider}; --surface: ${palette.surface}; --reading-canvas: ${palette.readingCanvas}; --reading-paper: ${palette.readingPaper}; --reading-inset: ${palette.readingInset}; --reading-accent: ${palette.readingAccent}; font-family: Inter, system-ui, -apple-system, sans-serif; }
+  :root { color-scheme: ${mode}; --canvas: ${palette.canvas}; --text: ${palette.text}; --muted: ${palette.muted}; --divider: ${palette.divider}; --surface: ${palette.surface}; --gutters: ${palette.gutters}; --active-line: ${palette.activeLine}; --editor-link: ${scene || dark ? palette.readingAccent : "#2765A7"}; --syntax-keyword: ${dark ? "#D4AAFA" : "#7C3AED"}; --syntax-string: ${dark ? "#8ED9F5" : "#2274C7"}; --syntax-number: ${dark ? "#F4BF88" : "#B45309"}; --syntax-name: ${dark ? "#A9C6FA" : "#1D4ED8"}; --syntax-function: ${dark ? "#96D9F3" : "#0369A1"}; --editor-error: ${dark ? "#FFB5AD" : "#B42318"}; --editor-divider: ${palette.divider}; --editor-surface: ${palette.surface}; --reading-canvas: ${palette.readingCanvas}; --reading-paper: ${palette.readingPaper}; --reading-inset: ${palette.readingInset}; --reading-accent: ${palette.readingAccent}; font-family: Inter, system-ui, -apple-system, sans-serif; }
   * { box-sizing: border-box; }
   html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--canvas); }
   button, input, textarea { font: inherit; }
@@ -1114,34 +1139,35 @@ function kernelStyles(
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
-  .tok-keyword, .tok-typeName, .tok-bool, .tok-null { color: #7c3aed; font-weight: 600; }
-  .tok-string, .tok-regexp { color: #2274C7; }
-  .tok-number { color: #b45309; }
+  .tok-keyword, .tok-typeName, .tok-bool, .tok-null { color: var(--syntax-keyword); font-weight: 600; }
+  .tok-string, .tok-regexp { color: var(--syntax-string); }
+  .tok-number { color: var(--syntax-number); }
   .tok-comment { color: var(--muted); font-style: italic; }
-  .tok-variableName, .tok-propertyName { color: #1d4ed8; }
-  .tok-function, .tok-definition { color: #0369a1; }
+  .tok-variableName, .tok-propertyName { color: var(--syntax-name); }
+  .tok-function, .tok-definition { color: var(--syntax-function); }
   .tok-operator, .tok-punctuation { color: var(--muted); }
-  .hljs-keyword, .hljs-type, .hljs-literal, .hljs-built_in { color: #7c3aed; font-weight: 600; }
-  .hljs-string, .hljs-regexp { color: #2274C7; }
-  .hljs-number { color: #b45309; }
+  .hljs-keyword, .hljs-type, .hljs-literal, .hljs-built_in { color: var(--syntax-keyword); font-weight: 600; }
+  .hljs-string, .hljs-regexp { color: var(--syntax-string); }
+  .hljs-number { color: var(--syntax-number); }
   .hljs-comment { color: var(--muted); font-style: italic; }
-  .hljs-title, .hljs-title.function_, .hljs-attr, .hljs-property { color: #0369a1; }
+  .hljs-title, .hljs-title.function_, .hljs-attr, .hljs-property { color: var(--syntax-function); }
   .tiptap-editor { min-height: 100%; outline: none; padding: 20px 18px 132px; color: var(--text); font-size: ${fontSize}px; line-height: ${lineHeight}; }
   ${showLineNumbers ? "" : ".cm-gutters { display: none; }"}
   .tiptap-editor > :first-child { margin-top: 0; }
   .tiptap-editor h1 { font-size: 1.8rem; line-height: 1.25; }
   .tiptap-editor h2 { font-size: 1.45rem; line-height: 1.3; }
   .tiptap-editor h3 { font-size: 1.2rem; line-height: 1.35; }
-  .tiptap-editor blockquote { border-left: 3px solid #2765A7; color: #5f6873; margin-left: 0; padding-left: 14px; }
-  .tiptap-editor pre { overflow-x: auto; border-radius: 6px; background: #f0f2f4; padding: 14px; }
+  .tiptap-editor a[href] { color: var(--editor-link); }
+  .tiptap-editor blockquote { border-left: 3px solid var(--editor-link); color: var(--muted); margin-left: 0; padding-left: 14px; }
+  .tiptap-editor pre { overflow-x: auto; border-radius: 6px; background: var(--surface); padding: 14px; }
   .tiptap-editor code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
   .tiptap-editor table { width: 100%; border-collapse: collapse; overflow-x: auto; }
-  .tiptap-editor th, .tiptap-editor td { border: 1px solid #d9dde3; padding: 8px; text-align: left; }
+  .tiptap-editor th, .tiptap-editor td { border: 1px solid var(--divider); padding: 8px; text-align: left; }
   .tiptap-editor img { max-width: 100%; height: auto; }
-  .tiptap-editor .wiki-link { color: #2765A7; text-decoration: underline; text-decoration-style: dotted; cursor: pointer; }
+  .tiptap-editor .wiki-link { color: var(--editor-link); text-decoration: underline; text-decoration-style: dotted; cursor: pointer; }
   .tiptap-editor .wiki-embed { display: inline-flex; min-width: 12rem; align-items: center; justify-content: center;
     box-sizing: border-box; margin: .35rem .15rem; padding: 1.2rem 1rem; border: 1px solid var(--editor-divider);
-    border-radius: .8rem; color: #315c6d; background: color-mix(in srgb, var(--editor-surface) 88%, #c86f4a 12%);
+    border-radius: .8rem; color: var(--muted); background: color-mix(in srgb, var(--editor-surface) 88%, #c86f4a 12%);
     font-weight: 700; cursor: pointer; }
   /* Math: keep KaTeX typographically close to modern LLM readers while remaining touch-friendly. */
   .tiptap-editor .math-node {
@@ -1183,12 +1209,12 @@ function kernelStyles(
     margin: 0;
   }
   .tiptap-editor .math-node[data-math-error="true"] {
-    border-color: #b42318;
-    background: color-mix(in srgb, #b42318 9%, var(--surface));
+    border-color: var(--editor-error);
+    background: color-mix(in srgb, var(--editor-error) 9%, var(--surface));
   }
   .tiptap-editor .math-node .katex-error,
   .tiptap-editor .math-render-fallback {
-    color: #b42318;
+    color: var(--editor-error);
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: .9em;
     white-space: pre-wrap;
@@ -1198,7 +1224,7 @@ function kernelStyles(
   .tiptap-editor .frontmatter-block::before { display: block; color: var(--muted); content: "Frontmatter metadata · edit in Source mode"; font-size: 11px; font-weight: 600; }
   .tiptap-editor .frontmatter-block pre { display: none; }
   .tiptap-editor .mermaid-fence svg { display: block; width: 100%; max-height: 420px; }
-  .tiptap-editor .footnote-reference { color: #2765A7; }
+  .tiptap-editor .footnote-reference { color: var(--editor-link); }
   .kernel-reading, .kernel-reading .editor-host { background: var(--reading-canvas); }
   .kernel-reading .tiptap-editor {
     width: 100%;
@@ -1247,7 +1273,7 @@ function kernelStyles(
   @media (min-width: 820px) {
     .kernel-reading .tiptap-editor { margin: 24px auto 48px; min-height: calc(100% - 72px); border: 1px solid var(--divider); border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,.12); padding-right: 56px; padding-left: 56px; }
   }
-  .remote-media { display: block; border: 1px solid #d9dde3; border-radius: 6px; background: #f7f8fa; color: #68707c; padding: 12px; }
+  .remote-media { display: block; border: 1px solid var(--divider); border-radius: 6px; background: var(--gutters); color: var(--muted); padding: 12px; }
   .find-panel { position: absolute; top: 8px; right: 8px; left: 8px; z-index: 3; display: flex; gap: 5px; padding: 7px; border: 1px solid var(--divider); border-radius: 8px; background: var(--canvas); box-shadow: 0 2px 12px rgba(0,0,0,.14); }
   .find-panel input { min-width: 0; min-height: 42px; flex: 1; border: 1px solid var(--divider); border-radius: 6px; padding: 0 9px; color: var(--text); background: var(--canvas); }
   .find-panel button svg { display: block; margin: auto; }

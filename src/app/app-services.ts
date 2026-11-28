@@ -177,6 +177,7 @@ async function hashBytes(contents: Uint8Array): Promise<string> {
 
 export function createAppServices(): AppServices {
   const storage = createExpoVaultStorage(FileSystem as ExpoFileSystemAdapter);
+  const settingsStore = createSettingsStore(storage);
   const searchIndex = createExpoSearchIndex();
   const phase6Store = createExpoPhase6Store();
   const aiStore = createExpoAiStore();
@@ -547,7 +548,6 @@ export function createAppServices(): AppServices {
       configStore: createAutomaticBackupConfigStore(storage, workspaceId),
       sha256: hashBytes,
     });
-    const settingsStore = createSettingsStore(storage);
     const aiAutomations = createAiAutomationRunner({
       store: aiStore,
       secrets: aiSecretStore,

@@ -1,8 +1,9 @@
 import { failure, type Result, success } from "../domain/result";
 import type { VaultStorage } from "../workspace/vault-storage";
 import type { LocalePreference } from "./i18n";
+import { isSceneId, SCENE_PALETTES, type SceneId } from "./scene-palettes";
 
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark" | SceneId;
 
 export type AppSettings = Readonly<{
   themePreference: ThemePreference;
@@ -61,7 +62,7 @@ export type SettingsStore = Readonly<{
 }>;
 
 export function isThemePreference(value: unknown): value is ThemePreference {
-  return value === "system" || value === "light" || value === "dark";
+  return value === "system" || value === "light" || value === "dark" || isSceneId(value);
 }
 
 function sanitizeSettings(input: unknown): AppSettings {
@@ -162,6 +163,7 @@ function sanitizeSettings(input: unknown): AppSettings {
 }
 
 export function createSettingsStore(storage: VaultStorage): SettingsStore {
+  let updates: Promise<unknown> = Promise.resolve();
   return Object.freeze({
     async load() {
       try {
@@ -187,10 +189,13 @@ export function createSettingsStore(storage: VaultStorage): SettingsStore {
         return failure(error instanceof Error ? error : new Error("Settings could not be saved"));
       }
     },
-    async update(mutator) {
-      const loaded = await this.load();
-      const next = mutator(loaded.ok ? loaded.value : DEFAULT_SETTINGS);
-      return this.save(next);
+    update(mutator) {
+      const result = updates.then(async () => {
+        const loaded = await this.load();
+        return loaded.ok ? this.save(mutator(loaded.value)) : loaded;
+      });
+      updates = result.catch(() => undefined);
+      return result;
     },
   });
 }
@@ -201,5 +206,6 @@ export function resolveThemeMode(
 ): "light" | "dark" {
   if (preference === "light") return "light";
   if (preference === "dark") return "dark";
+  if (isSceneId(preference)) return SCENE_PALETTES[preference].mode;
   return systemDark ? "dark" : "light";
 }

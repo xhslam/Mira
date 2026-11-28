@@ -21,11 +21,19 @@ export type AiStore = Readonly<{
   getProviderProfile(id: AiProviderProfileId): Promise<AiProviderProfile | null>;
   upsertProviderProfile(profile: AiProviderProfile): Promise<void>;
   removeProviderProfile(id: AiProviderProfileId): Promise<void>;
-  listConversations(workspaceId: WorkspaceId): Promise<readonly AiConversation[]>;
-  upsertConversation(conversation: AiConversation): Promise<void>;
+  listConversations(
+    workspaceId: WorkspaceId,
+    order?: "recent" | "history",
+  ): Promise<readonly AiConversation[]>;
+  upsertConversation(conversation: AiConversation, mode?: "existing"): Promise<void>;
+  setConversationPinned(
+    workspaceId: WorkspaceId,
+    id: AiConversationId,
+    pinned: boolean,
+  ): Promise<void>;
   listMessages(conversationId: AiConversationId): Promise<readonly AiConversationMessage[]>;
   upsertMessage(message: AiConversationMessage): Promise<void>;
-  removeConversation(id: AiConversationId): Promise<void>;
+  removeConversation(workspaceId: WorkspaceId, id: AiConversationId): Promise<void>;
   recordToolAudit(record: AiToolAuditRecord): Promise<void>;
   listToolAudit(workspaceId: WorkspaceId, limit?: number): Promise<readonly AiToolAuditRecord[]>;
   clearToolAudit(workspaceId: WorkspaceId): Promise<void>;

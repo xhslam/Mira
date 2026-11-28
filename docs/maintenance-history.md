@@ -382,3 +382,17 @@ Android 35 模拟器使用临时笔记复测了编辑器空白笔记改名、列
 - 新增 `focused-practice-regression`，扩展 `analysis-and-echo`、`enjoy-player-domain` 与 `legacy-snapshot-migration` 回归。原单一虚拟列表守卫继续通过，正文滚动仅限制在专注阅读区，未把整个字幕列表包进普通滚动容器。
 - 根因、保护边界和待验收路径见 [INC-2026-11-22](incidents/INC-2026-11-22-focused-practice-and-echo.md)。尚未构建 APK 或完成真机排版、麦克风、音频路由验收。
 - 本次自动化：148 个测试文件 / 867 项测试、TypeScript、ESLint、`git diff --check` 通过。已跟踪文件与新增交付文件的 Prettier 检查通过；原 `npm run format:check` 扫描到既有未跟踪 `pando-reverse/` 目录的格式问题而失败，未改动该目录。
+
+### FIX-2026-11-28：Agent 历史对话操作
+
+- 消息气泡内曾直接放置「保存为记忆」，历史列表则只有点按打开，没有对单条会话的管理入口。现在只在历史行右滑后露出「删除」「置顶／取消置顶」「添加到记忆」；普通点击与纵向滚动保留，输入框上方的「记忆与引用」不变。
+- 置顶只改变历史列表排序，不改最后活动时间。删除需二次确认，限定当前工作区，原子移除对话及消息，不连带删除此前手动保存的记忆。已删除会话的迟到写入不得复活对话或生成孤立消息。记忆由已完成的消息生成本地草稿，过长时明确标注节选，用户确认后才写入。详见 [ADR-008](adr/ADR-008-agent-memory-and-conversation-context.md)。
+- `conversation-history` 使用实际 SQLite 验证旧库迁移、重开后置顶、工作区隔离及删除与记忆的边界。`agent-history-actions` 检查右滑方向、阈值及入口迁移。150 个测试文件 / 873 项测试、TypeScript、ESLint 和 Android bundle 导出通过。
+- 尚未生成或安装 APK。真机验收需覆盖右滑三按钮、纵向滚动不误触、只展开一行、取消/确认删除、重启后置顶和记忆仍在，以及返回对话后气泡不再显示保存按钮。
+
+### 2026-11-28：Mira 场景主题
+
+- 参考用户提供的 Carpus 本地视频帧，在「设置 → 外观」新增 Claude Code、Cloud Drift、Honu Lagoon、Koi Pond 和 Jellyfish 五套带预览的场景。原有默认浅色不变；历史 `light`、`dark`、`system` 设置继续可读。
+- 场景 ID 通过白名单校验后保存在现有 App 设置中。同一应用实例的设置更新串行读写；读取失败不使用默认值覆盖已有设置。Agent 壁纸由应用内的 SVG 绘制，不加载外部素材；离开会话、应用退到后台或系统开启减少动态效果时停止壁纸动画。
+- 笔记编辑器通过 CSS 变量应用外观，不把主题 ID 或模式列入编辑器实例的重建条件，不改变正文、编辑模式、桥接协议或 CSP。`scene-themes` 覆盖配色对比度、数据兼容、并发设置更新和编辑器重建边界。
+- 验收：自动化、TypeScript、ESLint 和 Android bundle 导出通过。未生成本次 APK；设备上仍需检查五套主题切换、重启恢复、夜间状态栏、减少动态效果以及切回笔记后正文和撤销记录仍在。

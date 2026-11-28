@@ -5,11 +5,12 @@ import {
   ChevronRight,
   Minus,
   Plus,
+  Palette,
   ScrollText,
   Shield,
   Volume2,
 } from "lucide-react-native";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   Platform,
@@ -21,13 +22,14 @@ import {
   View,
 } from "react-native";
 
-import { type AppSettings, type SettingsStore } from "./settings-store";
+import { type AppSettings, type SettingsStore, type ThemePreference } from "./settings-store";
 import { translate } from "./i18n";
 import { LocaleContext, useTranslate, type Translator } from "./locale";
 import { useTheme } from "./theme";
 import { triggerClickFeedback } from "./press-feedback";
 import { useUiSound } from "./ui-sound-context";
 import { MiraAvatar, MiraSheet } from "./mira-controls";
+import { AppearanceSettings } from "./appearance-settings";
 import { AndroidUpdateSettings } from "./android-update-settings";
 
 export type SettingsScreenProps = Readonly<{
@@ -46,6 +48,9 @@ export function SettingsScreen({
   store,
 }: SettingsScreenProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [savingTheme, setSavingTheme] = useState(false);
+  const [themeError, setThemeError] = useState("");
+  const themeWrite = useRef(false);
   // Resolved from the just-persisted preference so this screen switches
   // language immediately, before the shell reloads its own copy.
   const locale = "zh-CN" as const;
@@ -60,6 +65,24 @@ export function SettingsScreen({
       active = false;
     };
   }, [store]);
+
+  async function updateTheme(themePreference: ThemePreference): Promise<void> {
+    if (themeWrite.current) return;
+    themeWrite.current = true;
+    setSavingTheme(true);
+    setThemeError("");
+    try {
+      const next = await store.update((current) => ({ ...current, themePreference }));
+      if (!next.ok) throw next.error;
+      setSettings(next.value);
+      onSettingsChanged?.();
+    } catch {
+      setThemeError("主题保存失败，请重试");
+    } finally {
+      themeWrite.current = false;
+      setSavingTheme(false);
+    }
+  }
 
   async function updateEditor(patch: Partial<AppSettings["editor"]>): Promise<void> {
     const next = await store.update((current) => ({
@@ -122,6 +145,9 @@ export function SettingsScreen({
     <LocaleContext.Provider value={locale}>
       <SettingsContent
         confirmClearSearchHistory={confirmClearSearchHistory}
+        onThemeChange={(value) => void updateTheme(value)}
+        savingTheme={savingTheme}
+        themeError={themeError}
         onEditorChange={(patch) => void updateEditor(patch)}
         onClipboardReadChange={(value) => void updateClipboardRead(value)}
         onInteractionChange={(patch) => void updateInteraction(patch)}
@@ -136,6 +162,9 @@ export function SettingsScreen({
 
 function SettingsContent({
   confirmClearSearchHistory,
+  onThemeChange,
+  savingTheme,
+  themeError,
   onEditorChange,
   onClipboardReadChange,
   onInteractionChange,
@@ -145,6 +174,9 @@ function SettingsContent({
   settings,
 }: Readonly<{
   confirmClearSearchHistory: () => void;
+  onThemeChange: (value: ThemePreference) => void;
+  savingTheme: boolean;
+  themeError: string;
   onEditorChange: (patch: Partial<AppSettings["editor"]>) => void;
   onClipboardReadChange: (value: boolean) => void;
   onInteractionChange: (patch: Partial<AppSettings["interaction"]>) => void;
@@ -159,9 +191,10 @@ function SettingsContent({
   const uiSound = useUiSound();
 
   const [category, setCategory] = useState<
-    "editor" | "interaction" | "security" | "ai" | "updates" | null
+    "appearance" | "editor" | "interaction" | "security" | "ai" | "updates" | null
   >(null);
   const categories = [
+    { id: "appearance", icon: Palette, label: t("settings.appearance") },
     { id: "editor", icon: ScrollText, label: t("settings.editor") },
     { id: "interaction", icon: Volume2, label: t("settings.interaction") },
     { id: "security", icon: Shield, label: t("settings.security") },
@@ -206,6 +239,14 @@ function SettingsContent({
         title={categories.find(({ id }) => id === category)?.label ?? t("settings.title")}
         onClose={() => setCategory(null)}
       >
+        {category === "appearance" ? (
+          <AppearanceSettings
+            preference={settings?.themePreference}
+            saving={savingTheme}
+            error={themeError}
+            onChange={onThemeChange}
+          />
+        ) : null}
         {category === "updates" ? <AndroidUpdateSettings /> : null}
         {category === "editor" ? (
           <Section styles={styles} theme={theme}>

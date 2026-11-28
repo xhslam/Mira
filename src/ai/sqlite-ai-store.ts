@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS ai_provider_profiles (
 );
 CREATE TABLE IF NOT EXISTS ai_conversations (
   id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, title TEXT NOT NULL,
-  provider_profile_id TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+  provider_profile_id TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  pinned INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS ai_messages (
   id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL,
@@ -41,6 +42,10 @@ CREATE TABLE IF NOT EXISTS ai_messages (
 );
 CREATE INDEX IF NOT EXISTS ai_messages_conversation
   ON ai_messages(conversation_id, created_at);
+CREATE TRIGGER IF NOT EXISTS ai_conversation_delete_messages AFTER DELETE ON ai_conversations
+BEGIN
+  DELETE FROM ai_messages WHERE conversation_id = OLD.id;
+END;
 CREATE TABLE IF NOT EXISTS ai_tool_audit (
   id TEXT PRIMARY KEY, conversation_id TEXT, execution_id TEXT, tool_name TEXT NOT NULL,
   workspace_id TEXT, relative_path TEXT, result_code TEXT NOT NULL,
@@ -96,6 +101,7 @@ const conversationRowSchema = z
     workspace_id: z.string().uuid(),
     title: z.string(),
     preview: z.string().nullable().optional(),
+    pinned: z.union([z.literal(0), z.literal(1)]),
     provider_profile_id: z.string().uuid().nullable(),
     created_at: z.number(),
     updated_at: z.number(),
@@ -230,6 +236,7 @@ function fromConversationRow(input: unknown): AiConversation {
     workspaceId: workspaceId.value,
     title: row.title,
     ...(row.preview ? { preview: row.preview } : {}),
+    ...(row.pinned === 1 ? { pinned: true } : {}),
     providerProfileId: row.provider_profile_id as AiProviderProfileId | null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -344,6 +351,14 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
         "ALTER TABLE ai_proposals ADD COLUMN base_content TEXT NOT NULL DEFAULT ''",
       );
     }
+    const conversationColumns = await database.getAllAsync<{ name: string }>(
+      "PRAGMA table_info(ai_conversations)",
+    );
+    if (!conversationColumns.some((column) => column.name === "pinned")) {
+      await database.execAsync(
+        "ALTER TABLE ai_conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0",
+      );
+    }
     const messageColumns = await database.getAllAsync<{ name: string }>(
       "PRAGMA table_info(ai_messages)",
     );
@@ -409,20 +424,34 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
         await transaction.runAsync("DELETE FROM ai_provider_profiles WHERE id = ?", id);
       });
     },
-    async listConversations(workspaceId) {
+    async listConversations(workspaceId, order) {
       await initialize();
+      const sort = order === "history" ? "c.pinned DESC, " : "";
       const rows = await database.getAllAsync<unknown>(
-        `SELECT c.id, c.workspace_id, c.title, c.provider_profile_id, c.created_at, c.updated_at,
+        `SELECT c.id, c.workspace_id, c.title, c.provider_profile_id, c.created_at, c.updated_at, c.pinned,
            (SELECT substr(m.content, 1, 240) FROM ai_messages AS m
             WHERE m.conversation_id = c.id AND length(trim(m.content)) > 0
             ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS preview
-         FROM ai_conversations AS c WHERE c.workspace_id = ? ORDER BY c.updated_at DESC, c.id LIMIT 100`,
+         FROM ai_conversations AS c WHERE c.workspace_id = ? ORDER BY ${sort}c.updated_at DESC, c.id LIMIT 100`,
         workspaceId,
       );
       return Object.freeze(rows.map(fromConversationRow));
     },
-    async upsertConversation(conversation) {
+    async upsertConversation(conversation, mode) {
       await initialize();
+      if (mode === "existing") {
+        const row = await database.getFirstAsync<{ id: string }>(
+          `UPDATE ai_conversations SET title = ?, provider_profile_id = ?, updated_at = ?
+           WHERE workspace_id = ? AND id = ? RETURNING id`,
+          conversation.title.slice(0, 120),
+          conversation.providerProfileId,
+          Date.parse(conversation.updatedAt),
+          conversation.workspaceId,
+          conversation.id,
+        );
+        if (!row) throw new Error("对话不属于当前工作区或已删除");
+        return;
+      }
       await database.runAsync(
         `INSERT INTO ai_conversations
           (id, workspace_id, title, provider_profile_id, created_at, updated_at)
@@ -437,11 +466,20 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
         Date.parse(conversation.updatedAt),
       );
     },
+    async setConversationPinned(workspaceId, id, pinned) {
+      await initialize();
+      await database.runAsync(
+        "UPDATE ai_conversations SET pinned = ? WHERE workspace_id = ? AND id = ?",
+        pinned ? 1 : 0,
+        workspaceId,
+        id,
+      );
+    },
     async listMessages(conversationId) {
       await initialize();
       const rows = await database.getAllAsync<unknown>(
         `SELECT id, conversation_id, role, content, status, created_at, references_json
-         FROM ai_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 1000`,
+         FROM ai_messages WHERE conversation_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1000`,
         conversationId,
       );
       return Object.freeze(rows.map(fromMessageRow));
@@ -450,7 +488,7 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
       await initialize();
       await database.runAsync(
         `INSERT INTO ai_messages (id, conversation_id, role, content, status, created_at, references_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+         SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM ai_conversations WHERE id = ?)
          ON CONFLICT(id) DO UPDATE SET content=excluded.content, status=excluded.status, references_json=excluded.references_json`,
         message.id,
         message.conversationId,
@@ -459,14 +497,17 @@ export function createSqliteAiStore(database: SearchDatabase): AiStore {
         message.status,
         Date.parse(message.createdAt),
         JSON.stringify(message.references ?? []),
+        message.conversationId,
       );
     },
-    async removeConversation(id) {
+    async removeConversation(workspaceId, id) {
       await initialize();
-      await database.withExclusiveTransactionAsync(async (transaction) => {
-        await transaction.runAsync("DELETE FROM ai_messages WHERE conversation_id = ?", id);
-        await transaction.runAsync("DELETE FROM ai_conversations WHERE id = ?", id);
-      });
+      // The trigger clears messages within the same statement, including on Expo SQLite.
+      await database.runAsync(
+        "DELETE FROM ai_conversations WHERE workspace_id = ? AND id = ?",
+        workspaceId,
+        id,
+      );
     },
     async recordToolAudit(record) {
       await initialize();

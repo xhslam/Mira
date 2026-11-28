@@ -1,6 +1,5 @@
 import { AiRichMessage } from "./ai-rich-message";
 import { AiMemoryContextSheet } from "./ai-memory-context-sheet";
-import type { MemoryEntry } from "../ai/memory-store";
 import * as Crypto from "expo-crypto";
 import {
   ArrowUp,
@@ -45,6 +44,7 @@ import { AiProposalInbox } from "./ai-proposal-inbox";
 import { AgentAvatar } from "./agent-avatar";
 import { CircleAction, MiraSheet, SheetAction } from "./mira-controls";
 import { useTheme, type Theme } from "./theme";
+import { SceneWallpaper } from "./scene-wallpaper";
 import { useUiSound } from "./ui-sound-context";
 
 type DisplayMessage = AiConversationMessage & Readonly<{ localError?: boolean }>;
@@ -82,6 +82,7 @@ export function AgentConversationScreen({
   threadTitle,
   avatarSource,
   splitPane = false,
+  wallpaperActive = true,
   sharedDrafts,
   providerRefresh = 0,
   onThreadActivity,
@@ -93,6 +94,7 @@ export function AgentConversationScreen({
   threadTitle?: string;
   avatarSource: number;
   splitPane?: boolean;
+  wallpaperActive?: boolean;
   sharedDrafts?: Map<AiConversationId | null, string>;
   providerRefresh?: number;
   onThreadActivity?: (id: AiConversationId | null) => void;
@@ -123,7 +125,6 @@ export function AgentConversationScreen({
   const [sending, setSending] = useState(false);
   const [providerSheetVisible, setProviderSheetVisible] = useState(false);
   const [memoryContextVisible, setMemoryContextVisible] = useState(false);
-  const [memorySeed, setMemorySeed] = useState<MemoryEntry | null>(null);
   const [referenceIds, setReferenceIds] = useState<readonly AiConversationId[]>([]);
   const [useMemory, setUseMemory] = useState(true);
   const [contextSheetVisible, setContextSheetVisible] = useState(false);
@@ -476,6 +477,7 @@ export function AgentConversationScreen({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
+      {theme.scene ? <SceneWallpaper scene={theme.scene} active={wallpaperActive} /> : null}
       <View style={styles.header}>
         <View style={styles.headerSide}>
           {!splitPane ? (
@@ -530,7 +532,7 @@ export function AgentConversationScreen({
         scrollEventThrottle={32}
         ListEmptyComponent={
           threadState !== "ready" ? (
-            <View style={styles.emptyState}>
+            <View style={[styles.emptyState, theme.scene && styles.sceneEmptyState]}>
               {threadState === "loading" ? (
                 <ActivityIndicator color={theme.colors.accent} />
               ) : (
@@ -547,7 +549,7 @@ export function AgentConversationScreen({
               )}
             </View>
           ) : (
-            <View style={styles.emptyState}>
+            <View style={[styles.emptyState, theme.scene && styles.sceneEmptyState]}>
               <AgentAvatar source={avatarSource} size={66} />
               <Text accessibilityRole="header" style={styles.emptyTitle}>
                 {activeProfile ? "给 Mira 发条消息" : "连接一个模型"}
@@ -587,34 +589,6 @@ export function AgentConversationScreen({
                     ↗ {reference.title}
                   </Text>
                 ))}
-                {item.status === "completed" ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="保存这条消息为记忆"
-                    disabled={sending}
-                    onPress={() => {
-                      setMemorySeed({
-                        id: Crypto.randomUUID(),
-                        workspaceId: services.activeWorkspace.grant.workspaceId,
-                        title: item.content.slice(0, 40),
-                        content: item.content.slice(0, 8000),
-                        category: "topic",
-                        enabled: true,
-                        source: {
-                          conversationId: item.conversationId,
-                          messageId: item.id,
-                          quote: item.content.slice(0, 8000),
-                        },
-                        updatedAt: new Date().toISOString(),
-                      });
-                      setMemoryContextVisible(true);
-                    }}
-                  >
-                    <Text style={[styles.userMessageText, { fontSize: 11, marginTop: 8 }]}>
-                      保存为记忆
-                    </Text>
-                  </Pressable>
-                ) : null}
               </View>
             ) : (
               <AiRichMessage
@@ -672,10 +646,7 @@ export function AgentConversationScreen({
           accessibilityRole="button"
           accessibilityLabel="记忆与引用对话"
           disabled={sending}
-          onPress={() => {
-            setMemorySeed(null);
-            setMemoryContextVisible(true);
-          }}
+          onPress={() => setMemoryContextVisible(true)}
           style={styles.contextChip}
         >
           <Brain color={theme.colors.mutedText} size={15} />
@@ -730,10 +701,7 @@ export function AgentConversationScreen({
             accessibilityRole="button"
             accessibilityLabel="添加对话上下文"
             disabled={sending}
-            onPress={() => {
-              setMemorySeed(null);
-              setMemoryContextVisible(true);
-            }}
+            onPress={() => setMemoryContextVisible(true)}
             style={({ pressed }) => [styles.attachButton, pressed && styles.pressed]}
           >
             <Plus color={theme.colors.mutedText} size={23} />
@@ -754,7 +722,7 @@ export function AgentConversationScreen({
               onPress={() => abortRef.current?.abort()}
               style={({ pressed }) => [styles.sendButton, pressed && styles.pressed]}
             >
-              <Square color={theme.colors.canvas} fill={theme.colors.canvas} size={14} />
+              <Square color={theme.colors.chatInk} fill={theme.colors.chatInk} size={14} />
             </Pressable>
           ) : (
             <Pressable
@@ -775,7 +743,7 @@ export function AgentConversationScreen({
                 pressed && styles.pressed,
               ]}
             >
-              <ArrowUp color={theme.colors.canvas} size={20} />
+              <ArrowUp color={theme.colors.chatInk} size={20} />
             </Pressable>
           )}
         </View>
@@ -831,7 +799,6 @@ export function AgentConversationScreen({
           onSelect={setReferenceIds}
           useMemory={useMemory}
           onUseMemory={setUseMemory}
-          seed={memorySeed}
           onClose={() => setMemoryContextVisible(false)}
           onNotes={() => {
             setMemoryContextVisible(false);
@@ -976,14 +943,14 @@ function createStyles(theme: Theme) {
     userMessage: {
       alignSelf: "flex-end",
       maxWidth: "86%",
-      backgroundColor: "#BB460A",
+      backgroundColor: theme.colors.chatBubble,
     },
     assistantMessage: {
       alignSelf: "stretch",
       backgroundColor: theme.colors.surface,
     },
     errorMessage: { backgroundColor: theme.colors.warningSurface },
-    userMessageText: { color: theme.colors.canvas, fontSize: 15, lineHeight: 22 },
+    userMessageText: { color: theme.colors.chatInk, fontSize: 15, lineHeight: 22 },
     messageText: { color: theme.colors.text, fontSize: 15, lineHeight: 22, flexShrink: 1 },
     citations: { gap: 3, marginBottom: 8, paddingHorizontal: 4 },
     citationTitle: {
@@ -1042,11 +1009,17 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 22,
-      backgroundColor: "#BB460A",
+      backgroundColor: theme.colors.chatBubble,
     },
     sendButtonDisabled: { opacity: 0.35 },
     activity: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 4 },
     emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
+    sceneEmptyState: {
+      flex: 0,
+      alignSelf: "center",
+      backgroundColor: theme.colors.canvas,
+      borderRadius: 24,
+    },
     emptyTitle: { color: theme.colors.text, fontSize: 23, fontWeight: "600", letterSpacing: -0.4 },
     emptyCopy: {
       maxWidth: 320,

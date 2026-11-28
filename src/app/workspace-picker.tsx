@@ -377,7 +377,7 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     cardActions: {
       minHeight: 44,
@@ -466,7 +466,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       paddingHorizontal: 18,
       borderRadius: theme.radius.medium,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     confirmButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
     pressed: { opacity: 0.68 },

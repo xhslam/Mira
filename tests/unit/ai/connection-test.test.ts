@@ -41,6 +41,7 @@ describe("AI connection tester", () => {
         upsertConversation: async () => undefined,
         listMessages: async () => [],
         upsertMessage: async () => undefined,
+        setConversationPinned: async () => undefined,
         removeConversation: async () => undefined,
         recordToolAudit: async () => undefined,
         listToolAudit: async () => [],

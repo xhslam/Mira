@@ -9,6 +9,7 @@ export type AiConversation = Readonly<{
   workspaceId: WorkspaceId;
   title: string;
   preview?: string;
+  pinned?: boolean;
   providerProfileId: AiProviderProfileId | null;
   createdAt: string;
   updatedAt: string;

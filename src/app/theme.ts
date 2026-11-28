@@ -1,4 +1,6 @@
 import { createContext, useContext } from "react";
+import { isSceneId, SCENE_IDS, SCENE_PALETTES, type SceneId } from "./scene-palettes";
+import { resolveThemeMode, type ThemePreference } from "./settings-store";
 
 /**
  * Mira 的移动端设计系统令牌与交互规范。
@@ -108,6 +110,11 @@ export type ThemeColors = Readonly<{
   borderSubtle: string;
   borderDefault: string;
   accent: string;
+  accentFill: string;
+  historyBackground: string;
+  historySelection: string;
+  chatBubble: string;
+  chatInk: string;
   accentPressed: string;
   accentSoft: string;
   primary: string;
@@ -245,6 +252,7 @@ export type ThemeElevation = Readonly<{
 
 export type Theme = Readonly<{
   mode: ThemeMode;
+  scene: SceneId | null;
   colors: ThemeColors;
   spacing: ThemeSpacing;
   radius: ThemeRadius;
@@ -266,6 +274,11 @@ const LIGHT_COLORS: ThemeColors = Object.freeze({
   borderSubtle: COOL_SLATE[200],
   borderDefault: COOL_SLATE[300],
   accent: "#111827",
+  accentFill: "#111827",
+  historyBackground: "#F3F3F3",
+  historySelection: "#E4E4E4",
+  chatBubble: "#BB460A",
+  chatInk: "#FFFFFF",
   accentPressed: COOL_SLATE[800],
   accentSoft: COOL_SLATE[100],
   primary: BRAND_INDIGO[600], // #4F46E5 基准主操作色
@@ -313,6 +326,11 @@ const DARK_COLORS: ThemeColors = Object.freeze({
   borderSubtle: "rgba(255, 255, 255, 0.08)",
   borderDefault: "rgba(255, 255, 255, 0.18)",
   accent: "#F2F2F7",
+  accentFill: "#4D4D68",
+  historyBackground: "#101015",
+  historySelection: "#282833",
+  chatBubble: "#9F4521",
+  chatInk: "#FFFFFF",
   accentPressed: "#D8D8DE",
   accentSoft: "#202027",
   primary: BRAND_INDIGO[500],
@@ -447,6 +465,7 @@ function buildTheme(mode: ThemeMode): Theme {
   const shadows = isDark ? DARK_SHADOWS : LIGHT_SHADOWS;
   return Object.freeze({
     mode,
+    scene: null,
     colors: isDark ? DARK_COLORS : LIGHT_COLORS,
     spacing: Object.freeze({
       xSmall: 4,
@@ -518,6 +537,7 @@ const MIRA_COLORS: Partial<ThemeColors> = Object.freeze({
   mutedText: "#626262",
   divider: "#DDDDDB",
   accent: "#171717",
+  accentFill: "#171717",
   accentPressed: "#3B3B3A",
   accentSoft: "#E7E7E6",
   overlay: "rgba(0, 0, 0, 0.30)",
@@ -547,6 +567,51 @@ export const theme: Theme = Object.freeze({
   radius: Object.freeze({ ...LIGHT_THEME.radius, small: 8, medium: 16, large: 24 }),
   fontSizes: Object.freeze({ ...LIGHT_THEME.fontSizes, title: 18 }),
 });
+const darkMiraTheme: Theme = Object.freeze({
+  ...theme,
+  mode: DARK_THEME.mode,
+  colors: DARK_COLORS,
+  shadows: DARK_THEME.shadows,
+});
+const sceneThemes = new Map(
+  SCENE_IDS.map((id) => {
+    const palette = SCENE_PALETTES[id];
+    const base = palette.mode === "dark" ? darkMiraTheme : theme;
+    const colors: ThemeColors = Object.freeze({
+      ...base.colors,
+      background: palette.background,
+      headerBackground: palette.canvas,
+      canvas: palette.canvas,
+      surface: palette.surface,
+      surfaceMuted: palette.selected,
+      text: palette.text,
+      mutedText: palette.muted,
+      divider: palette.border,
+      borderSubtle: palette.border,
+      borderDefault: palette.border,
+      accent: palette.accent,
+      accentFill: palette.fill,
+      accentPressed: palette.accent,
+      accentSoft: palette.selected,
+      primary: palette.fill,
+      primaryHover: palette.fill,
+      primarySoft: palette.selected,
+      primaryText: palette.accent,
+      historyBackground: palette.background,
+      historySelection: palette.selected,
+      chatBubble: palette.fill,
+      chatInk: "#FFFFFF",
+      fileTypes: base.colors.fileTypes,
+    });
+    return [id, Object.freeze({ ...base, scene: id, colors })] as const;
+  }),
+);
+
+export function resolveAppTheme(preference: ThemePreference, systemDark: boolean): Theme {
+  if (isSceneId(preference)) return sceneThemes.get(preference) ?? theme;
+  return resolveThemeMode(preference, systemDark) === "dark" ? darkMiraTheme : theme;
+}
+
 export const ThemeContext = createContext<Theme>(theme);
 
 export function useTheme(): Theme {

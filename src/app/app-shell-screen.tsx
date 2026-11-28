@@ -11,6 +11,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
   type ViewStyle,
 } from "react-native";
@@ -35,7 +36,8 @@ import { useEditorWorkspace } from "./use-editor-workspace";
 import { type AppLocale } from "./i18n";
 import { LocaleContext, useTranslate } from "./locale";
 import { SettingsScreen } from "./settings-screen";
-import { theme as themeContext, useTheme, type Theme, ThemeContext } from "./theme";
+import { resolveAppTheme, theme, useTheme, type Theme } from "./theme";
+import { AppChrome } from "./app-chrome";
 import { WorkspacePicker } from "./workspace-picker";
 import { openStartupWorkspace } from "./workspace-startup";
 import { DEFAULT_SETTINGS } from "./settings-store";
@@ -46,7 +48,12 @@ import { useAndroidBack } from "./use-android-back";
 import { PrimaryNavigation } from "./primary-navigation";
 
 export function AppShellScreen() {
-  if (Platform.OS === "web") return <MobileStorageRequiredScreen />;
+  if (Platform.OS === "web")
+    return (
+      <AppChrome appearance={theme}>
+        <MobileStorageRequiredScreen />
+      </AppChrome>
+    );
   return <NativeAppShellScreen />;
 }
 
@@ -104,15 +111,19 @@ function NativeAppShellScreen() {
   }, [indexReadyVersion, services, state.startup]);
   const [settingsRevision, setSettingsRevision] = useState(0);
   const [locale] = useState<AppLocale>("zh-CN");
+  const systemDark = useColorScheme() === "dark";
+  const [themePreference, setThemePreference] = useState(DEFAULT_SETTINGS.themePreference);
+  const appearance = resolveAppTheme(themePreference, systemDark);
   const [clickVibration, setClickVibration] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(DEFAULT_SETTINGS.interaction.soundEnabled);
   const [soundVolume, setSoundVolume] = useState(DEFAULT_SETTINGS.interaction.soundVolume);
-  const styles = createStyles(themeContext);
+  const styles = createStyles(appearance);
 
   useEffect(() => {
     let active = true;
     void baseServices.settingsStore.load().then((result) => {
       if (!active) return;
+      if (result.ok) setThemePreference(result.value.themePreference);
       setClickVibration(result.ok ? result.value.interaction.clickVibration : true);
       setSoundEnabled(
         result.ok
@@ -328,9 +339,9 @@ function NativeAppShellScreen() {
   if (state.startup === "checking-workspace") {
     return (
       <LocaleContext.Provider value={locale}>
-        <ThemeContext.Provider value={themeContext}>
+        <AppChrome appearance={appearance}>
           <WorkspaceCheckScreen />
-        </ThemeContext.Provider>
+        </AppChrome>
       </LocaleContext.Provider>
     );
   }
@@ -338,12 +349,12 @@ function NativeAppShellScreen() {
   if (state.startup === "workspace-error") {
     return (
       <LocaleContext.Provider value={locale}>
-        <ThemeContext.Provider value={themeContext}>
+        <AppChrome appearance={appearance}>
           <WorkspaceErrorScreen
             message={state.errorMessage}
             onRetry={() => setState((current) => retryWorkspaceCheck(current))}
           />
-        </ThemeContext.Provider>
+        </AppChrome>
       </LocaleContext.Provider>
     );
   }
@@ -351,7 +362,7 @@ function NativeAppShellScreen() {
   if (state.startup === "needs-workspace") {
     return (
       <LocaleContext.Provider value={locale}>
-        <ThemeContext.Provider value={themeContext}>
+        <AppChrome appearance={appearance}>
           <View style={styles.shell}>
             <WorkspaceCheckScreen />
             <WorkspacePicker
@@ -371,14 +382,14 @@ function NativeAppShellScreen() {
               visible
             />
           </View>
-        </ThemeContext.Provider>
+        </AppChrome>
       </LocaleContext.Provider>
     );
   }
 
   return (
     <LocaleContext.Provider value={locale}>
-      <ThemeContext.Provider value={themeContext}>
+      <AppChrome appearance={appearance}>
         <UiSoundProvider enabled={soundEnabled} volume={soundVolume}>
           <View style={styles.shell}>
             <View
@@ -465,7 +476,10 @@ function NativeAppShellScreen() {
                       services.activeWorkspace.grant.workspaceId,
                     );
                     for (const conversation of conversations) {
-                      await services.aiStore.removeConversation(conversation.id);
+                      await services.aiStore.removeConversation(
+                        conversation.workspaceId,
+                        conversation.id,
+                      );
                     }
                     await services.aiStore.clearPromptHistory(
                       services.activeWorkspace.grant.workspaceId,
@@ -526,7 +540,7 @@ function NativeAppShellScreen() {
             />
           </View>
         </UiSoundProvider>
-      </ThemeContext.Provider>
+      </AppChrome>
     </LocaleContext.Provider>
   );
 }
@@ -721,7 +735,7 @@ function createStyles(theme: Theme) {
       justifyContent: "center",
       paddingHorizontal: 22,
       borderRadius: 10,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.accentFill,
     },
     primaryButtonPressed: {
       opacity: 0.82,

@@ -6,7 +6,7 @@ import type { AiStore, AiToolAuditRecord } from "./ai-store";
 import { createSqliteAiStore } from "./sqlite-ai-store";
 import type { AiProviderProfile, AiProviderProfileId } from "./provider-profile";
 import type { WorkspaceId } from "../domain/identifiers";
-import type { AiConversation, AiConversationId, AiConversationMessage } from "./conversation";
+import type { AiConversationId, AiConversationMessage } from "./conversation";
 import type { AiProposal, AiProposalId, AiProposalState } from "./proposal";
 import type { AiAutomation, AiAutomationId, AiExecution } from "./automation";
 
@@ -49,11 +49,14 @@ export function createExpoAiStore(): AiStore {
     async removeProviderProfile(id: AiProviderProfileId) {
       return (await getStore()).removeProviderProfile(id);
     },
-    async listConversations(workspaceId: WorkspaceId) {
-      return (await getStore()).listConversations(workspaceId);
+    async listConversations(workspaceId, order) {
+      return (await getStore()).listConversations(workspaceId, order);
     },
-    async upsertConversation(conversation: AiConversation) {
-      return (await getStore()).upsertConversation(conversation);
+    async upsertConversation(conversation, mode) {
+      return (await getStore()).upsertConversation(conversation, mode);
+    },
+    async setConversationPinned(workspaceId, id, pinned) {
+      return (await getStore()).setConversationPinned(workspaceId, id, pinned);
     },
     async listMessages(conversationId: AiConversationId) {
       return (await getStore()).listMessages(conversationId);
@@ -61,8 +64,8 @@ export function createExpoAiStore(): AiStore {
     async upsertMessage(message: AiConversationMessage) {
       return (await getStore()).upsertMessage(message);
     },
-    async removeConversation(id: AiConversationId) {
-      return (await getStore()).removeConversation(id);
+    async removeConversation(workspaceId, id) {
+      return (await getStore()).removeConversation(workspaceId, id);
     },
     async recordToolAudit(record: AiToolAuditRecord) {
       return (await getStore()).recordToolAudit(record);
